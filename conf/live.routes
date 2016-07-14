@@ -1,0 +1,3 @@
+# microservice specific routes
+
+GET        /native-app/preflight-check    uk.gov.hmrc.ngc.orchestration.controllers.LiveOrchestrationController.preFlightCheck(journeyId: Option[String])

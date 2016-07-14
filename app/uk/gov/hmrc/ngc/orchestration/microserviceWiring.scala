@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.nativeappsapiorchestration
+package uk.gov.hmrc.ngc.orchestration
 
 import uk.gov.hmrc.play.audit.http.config.LoadAuditingConfig
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
@@ -33,4 +33,8 @@ object MicroserviceAuditConnector extends AuditConnector with RunMode {
 
 object MicroserviceAuthConnector extends AuthConnector with ServicesConfig {
   override val authBaseUrl = baseUrl("auth")
+}
+
+object StubWsHttp extends WSHttp {
+  override val hooks: Seq[HttpHook] = NoneRequired
 }
