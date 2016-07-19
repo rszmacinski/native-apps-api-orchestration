@@ -1,3 +1,5 @@
 # microservice specific routes
 
 GET        /native-app/preflight-check    uk.gov.hmrc.ngc.orchestration.controllers.SandboxOrchestrationController.preFlightCheck(journeyId: Option[String])
+
+GET        /native-app/:nino/startup/:renewalReference/:year    uk.gov.hmrc.ngc.orchestration.controllers.SandboxOrchestrationController.startup(nino: uk.gov.hmrc.domain.Nino, year: Int, renewalReference: uk.gov.hmrc.ngc.orchestration.domain.RenewalReference, journeyId: Option[String])

@@ -52,6 +52,8 @@ trait ErrorHandling {
 
 trait NativeAppsOrchestrationController extends BaseController with HeaderValidator with ErrorHandling {
 
+  import uk.gov.hmrc.domain.Nino
+  import uk.gov.hmrc.ngc.orchestration.domain.RenewalReference
 
   val service: OrchestrationService
   val accessControl: AccountAccessControlWithHeaderCheck
@@ -60,6 +62,12 @@ trait NativeAppsOrchestrationController extends BaseController with HeaderValida
     implicit request =>
       implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
       errorWrapper(service.preFlightCheck().map(as => Ok(Json.toJson(as))))
+  }
+
+  final def startup(nino: Nino, year: Int, renewalReference: RenewalReference, journeyId: Option[String] = None) = accessControl.validateAccept(acceptHeaderValidationRules).async {
+    implicit request =>
+      implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
+      errorWrapper(service.startup(nino, year, renewalReference, journeyId).map(result => Ok(Json.toJson(result))))
   }
 }
 
