@@ -18,10 +18,7 @@ API
 | *Task* | *Supported Methods* | *Description* |
 |--------|----|----|
 | ```/native-app/preflight-check``` | GET | Wraps Service Calls ```/profile/accounts``` [More...](docs/accounts.md) and ```/profile/native-app/version-check``` [More...](docs/versionCheck.md) |
-| ```/native-app/:nino/startup/:renewalReference/:year``` | GET | Wraps Service Calls ```/income/:nino/tax-summary/:year```[More...](docs/tax-summary.md),
- ```/profile/preferences```[More...](docs/preferences.md), ```/income/tax-credits/submission/state``` [More...](docs/tax-credits-submission-state.md), 
- ```/income/:nino/tax-credits/:renewalReference/auth``` [More...](docs/authenticate.md), ```/income/:nino/tax-credits/tax-credits-decision``` [More...](docs/tax-credit-decision.md),
- ```/income/:nino/tax-credits/tax-credits-summary``` [More...](docs/tax-credits-summary.md), ```/push/registration``` [More...](docs/registration.md) |
+| ```/native-app/:nino/startup/:renewalReference/:year``` | GET | Wraps Service Calls ```/income/:nino/tax-summary/:year```[More...](docs/tax-summary.md), ```/profile/preferences```[More...](docs/preferences.md), ```/income/tax-credits/submission/state``` [More...](docs/tax-credits-submission-state.md), ```/income/:nino/tax-credits/:renewalReference/auth``` [More...](docs/authenticate.md), ```/income/:nino/tax-credits/tax-credits-decision``` [More...](docs/tax-credit-decision.md), ```/income/:nino/tax-credits/tax-credits-summary``` [More...](docs/tax-credits-summary.md), ```/push/registration``` [More...](docs/registration.md) |
 
 # Sandbox
 All the above endpoints are accessible on sandbox with `/sandbox` prefix on each endpoint, e.g.
