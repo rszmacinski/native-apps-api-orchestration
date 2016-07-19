@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/hmrc/native-apps-api-orchestration.svg?branch=master)](https://travis-ci.org/hmrc/native-apps-api-orchestration) [ ![Download](https://api.bintray.com/packages/hmrc/releases/native-apps-api-orchestration/images/download.svg) ](https://bintray.com/hmrc/releases/native-apps-api-orchestration/_latestVersion)
 
-Consolidation of Next Generation Cconsumer API services - Driver for simpler mobile apps API calls
+Consolidation of Next Generation Consumer API services - Driver for simpler mobile apps API calls
 
 Requirements
 ------------
@@ -17,7 +17,7 @@ API
 
 | *Task* | *Supported Methods* | *Description* |
 |--------|----|----|
-| ```/native-app/preflight-check``` | GET | Wraps Service Calls ```/profile/accounts``` [More...](docs/accounts.md) and ```/profile/native-app/version-check``` [More...](docs/versionCheck.md) |
+| ```/native-app/preflight-check``` | GET | Wraps Service Calls ```/auth/authority``` and ```/profile/native-app/version-check``` [More...](https://github.com/hmrc/customer-profile/blob/master/docs/versionCheck.md) |
 | ```/native-app/:nino/startup/:renewalReference/:year``` | GET | Wraps Service Calls ```/income/:nino/tax-summary/:year```[More...](docs/tax-summary.md), ```/profile/preferences```[More...](docs/preferences.md), ```/income/tax-credits/submission/state``` [More...](docs/tax-credits-submission-state.md), ```/income/:nino/tax-credits/:renewalReference/auth``` [More...](docs/authenticate.md), ```/income/:nino/tax-credits/tax-credits-decision``` [More...](docs/tax-credit-decision.md), ```/income/:nino/tax-credits/tax-credits-summary``` [More...](docs/tax-credits-summary.md), ```/push/registration``` [More...](docs/registration.md) |
 
 # Sandbox
