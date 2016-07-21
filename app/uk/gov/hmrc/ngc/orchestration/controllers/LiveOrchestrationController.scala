@@ -19,7 +19,8 @@ package uk.gov.hmrc.ngc.orchestration.controllers
 import play.api.libs.json.Json
 import play.api.{Logger, mvc}
 import uk.gov.hmrc.api.controllers.{ErrorInternalServerError, ErrorNotFound, HeaderValidator}
-import uk.gov.hmrc.ngc.orchestration.controllers.action.AccountAccessControlWithHeaderCheck
+import uk.gov.hmrc.ngc.orchestration.connectors.NinoNotFoundOnAccount
+import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
 import uk.gov.hmrc.play.http.{HeaderCarrier, NotFoundException}
 import uk.gov.hmrc.play.microservice.controller.BaseController
@@ -39,9 +40,9 @@ trait ErrorHandling {
         log("Resource not found!")
         Status(ErrorNotFound.httpStatusCode)(Json.toJson(ErrorNotFound))
 
-//      case ex: NinoNotFoundOnAccount =>
-//        log("User has no NINO. Unauthorized!")
-//        Unauthorized(Json.toJson(ErrorUnauthorizedNoNino))
+      case ex: NinoNotFoundOnAccount =>
+        log("User has no NINO. Unauthorized!")
+        Unauthorized(Json.toJson(ErrorUnauthorizedNoNino))
 
       case e: Throwable =>
         Logger.error(s"$app Internal server error: ${e.getMessage}", e)
@@ -53,21 +54,20 @@ trait ErrorHandling {
 trait NativeAppsOrchestrationController extends BaseController with HeaderValidator with ErrorHandling {
 
   import uk.gov.hmrc.domain.Nino
-  import uk.gov.hmrc.ngc.orchestration.domain.RenewalReference
 
   val service: OrchestrationService
   val accessControl: AccountAccessControlWithHeaderCheck
 
-  final def preFlightCheck(journeyId: Option[String] = None) = accessControl.validateAccept(acceptHeaderValidationRules).async {
+  final def preFlightCheck(journeyId: Option[String] = None) = AccountAccessControlCheckOff.validateAccept(acceptHeaderValidationRules).async  {
     implicit request =>
       implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
       errorWrapper(service.preFlightCheck().map(as => Ok(Json.toJson(as))))
   }
 
-  final def startup(nino: Nino, year: Int, renewalReference: RenewalReference, journeyId: Option[String] = None) = accessControl.validateAccept(acceptHeaderValidationRules).async {
+  final def startup(nino: Nino, journeyId: Option[String] = None) = accessControl.validateAccept(acceptHeaderValidationRules).async {
     implicit request =>
       implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
-      errorWrapper(service.startup(nino, year, renewalReference, journeyId).map(result => Ok(Json.toJson(result))))
+      errorWrapper(service.startup(nino, journeyId).map(result => Ok(Json.toJson(result))))
   }
 }
 

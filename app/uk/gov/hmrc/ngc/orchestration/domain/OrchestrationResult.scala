@@ -18,11 +18,8 @@ package uk.gov.hmrc.ngc.orchestration.domain
 
 import play.api.libs.json.{JsValue, Json}
 
-case class OrchestrationResult(preference: Option[JsValue], taxSummary: JsValue, taxCreditSummary: Option[JsValue]) {
-
-}
+case class OrchestrationResult(preference: Option[JsValue], state: JsValue, taxSummary: JsValue, taxCreditSummary: Option[JsValue])
 
 object OrchestrationResult {
-
-  implicit val orchestrationResultFmt = Json.format[OrchestrationResult]
+  implicit val format = Json.format[OrchestrationResult]
 }

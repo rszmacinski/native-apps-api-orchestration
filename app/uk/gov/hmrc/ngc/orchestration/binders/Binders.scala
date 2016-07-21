@@ -17,15 +17,12 @@
 package uk.gov.hmrc.ngc.orchestration.binders
 
 import uk.gov.hmrc.domain.Nino
-import uk.gov.hmrc.ngc.orchestration.domain.RenewalReference
 import uk.gov.hmrc.play.binders.SimpleObjectBinder
 
 object NinoBinder extends SimpleObjectBinder[Nino](Nino.apply, _.value)
 
 object Binders {
   implicit val ninoBinder = NinoBinder
-  implicit val renewalReferenceBinder = RenewalReferenceBinder
 }
 
-object RenewalReferenceBinder extends SimpleObjectBinder[RenewalReference](RenewalReference.apply, _.value)
 
