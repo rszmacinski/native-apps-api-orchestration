@@ -79,28 +79,11 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
         testNoNINO(controller.startup(nino)(emptyRequestWithHeader))
       }
 
+      "throw an error when there is no taxSummary" in new Success {
 
-
-//      "return 200 result with json status detailing low CL on authority" in new AuthWithLowCL {
-//        val result = await(controller.startup(nino)(emptyRequestWithHeader))
-//        status(result) shouldBe 200
-//        //        contentAsJson(result) shouldBe Json.toJson(PreFlightCheckResponse(true, Accounts(Some(nino), None, true, false, "102030394AAA")))
-//      }
-//
-//      "return 200 result with json status detailing weak cred strength on authority" in new AuthWithWeakCreds {
-//        val result = await(controller.startup(nino)(emptyRequestWithHeader))
-//
-//        status(result) shouldBe 200
-//        //        contentAsJson(result) shouldBe Json.toJson(PreFlightCheckResponse(true, Accounts(Some(nino), None, false, true, "102030394AAA")))
-//      }
-//
-//      "return status code 406 when the headers are invalid" in new Success {
-//        val result = await(controller.startup(nino)(emptyRequest))
-//        status(result) shouldBe 406
-//      }
+        val result = await(controller.startup(nino)(emptyRequestWithHeader))
+      }
     }
-
-
 
     "preFlightCheck sandbox controller " should {
 

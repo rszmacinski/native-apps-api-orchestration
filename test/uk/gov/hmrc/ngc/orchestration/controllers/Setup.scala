@@ -23,6 +23,7 @@ import play.api.mvc.{Result, Results}
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
 import play.mvc.Results.Status
+import uk.gov.hmrc.api.controllers.ErrorNotFound
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.ngc.orchestration.{MicroserviceAuditConnector, StubWsHttp}
 import uk.gov.hmrc.ngc.orchestration.connectors._
@@ -655,13 +656,41 @@ class TestCustomerProfileGenericConnector(upgradeRequired: Boolean, accounts: Ac
     path match {
       case "profile/native-app/version-check" => Future.successful(Json.toJson(upgradeRequired))
       case "profile/preferences" => Future.successful(preferences)
-      case "income/CS700100A/tax-summary/2016" => Future.successful(taxSummary)
+      case "income/CS700100A/tax-summary/2016" => {
+        if (taxSummary != JsNull) {
+          Future.successful(taxSummary)
+        }
+        else {
+          Future.failed(new Exception(""))
+        }
+      }
       case "income/tax-credits/submission/state" => Future.successful(state)
       case "income/CS700100A/tax-credits/tax-credits-summary" => Future.successful(taxCreditSummary)
       case "income/CS700100A/tax-credits/tax-credits-decision" => Future.successful(taxCreditDecision)
       case "income/CS700100A/tax-credits/999999999999999/auth" => Future.successful(auth)
     }
   }
+}
+
+trait AuthWithoutTaxSummary extends Setup with AuthorityTest {
+
+  override lazy val authConnector = new TestAuthConnector(None) {
+    lazy val exception = new NinoNotFoundOnAccount("The user must have a National Insurance Number")
+    override def accounts()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.failed(exception)
+    override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = Future.failed(exception)
+  }
+
+  override lazy val testAccess = new TestAccessCheck(authConnector)
+  override lazy val testCompositeAction = new TestAccountAccessControlWithAccept(testAccess)
+
+  val controller = new NativeAppsOrchestrationController {
+    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    val testCustomerProfileGenericConnector = new TestCustomerProfileGenericConnector(true, testAccount, testPushReg, testPreferences, JsNull, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+    override val service: OrchestrationService = new TestOrchestrationService(testCustomerProfileGenericConnector, authConnector)
+    override val app: String = "AuthWithoutNino Native Apps Orchestration"
+  }
+
+
 }
 
 trait AuthWithoutNino extends Setup with AuthorityTest {

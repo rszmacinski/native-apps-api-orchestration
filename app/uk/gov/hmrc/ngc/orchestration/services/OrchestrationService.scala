@@ -19,7 +19,7 @@ package uk.gov.hmrc.ngc.orchestration.services
 import java.util.{Date, UUID}
 
 import play.api.libs.json._
-import play.api.{Configuration, Play}
+import play.api.{Configuration, Logger, Play}
 import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.api.service.Auditor
 import uk.gov.hmrc.domain.Nino
@@ -85,9 +85,12 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor {
             taxCreditSummary <- doGet("personal-income", s"income/$nino/tax-credits/tax-credits-summary")(hc)
             taxCreditDecision <- doGet("personal-income", s"income/$nino/tax-credits/tax-credits-decision")(hc)
             renewal <- doGet("personal-income", s"income/$nino/tax-credits/999999999999999/auth")(hc)
-          } yield OrchestrationResult(Option(preferences), Option(state).getOrElse(defaultState), taxSummary.value.get.get , Option(taxCreditSummary))
+          } yield Option(OrchestrationResult(Option(preferences), Option(state).getOrElse(defaultState), taxSummary.value.get.get , Option(taxCreditSummary)))
         }
-        case Failure(e) => throw new Exception()
+        case Failure(failure) => {
+          Logger.error(s"Startup failure getting tax summary - $failure")
+          Future.failed(failure)
+        }
       }
     }
   }

@@ -67,7 +67,10 @@ trait NativeAppsOrchestrationController extends BaseController with HeaderValida
   final def startup(nino: Nino, journeyId: Option[String] = None) = accessControl.validateAccept(acceptHeaderValidationRules).async {
     implicit request =>
       implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
-      errorWrapper(service.startup(nino, journeyId).map(result => Ok(Json.toJson(result))))
+      errorWrapper(service.startup(nino, journeyId).map{
+        case result => Ok(Json.toJson(result))
+        case _ => NotFound
+      })
   }
 }
 
