@@ -32,7 +32,7 @@ import uk.gov.hmrc.ngc.orchestration.domain.Accounts
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.auth.microservice.connectors.ConfidenceLevel
-import uk.gov.hmrc.play.http.{HeaderCarrier, HttpGet, HttpPost}
+import uk.gov.hmrc.play.http.{ServiceUnavailableException, HeaderCarrier, HttpGet, HttpPost}
 import uk.gov.hmrc.play.test.UnitSpec
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -601,6 +601,14 @@ trait Setup {
   lazy val testCustomerProfileConnector = new TestCustomerProfileGenericConnector(true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
   lazy val authConnector = new TestAuthConnector(Some(nino))
   lazy val testOrchestrationService = new TestOrchestrationService(testCustomerProfileConnector, authConnector)
+
+  lazy val TODOtestCustomerProfileConnectorFAILURE = new TODOTestCustomerProfileGenericConnector(true, true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+  lazy val TODOtestOrchestrationService = new TestOrchestrationService(TODOtestCustomerProfileConnectorFAILURE, authConnector)
+
+  lazy val TODOtestCustomerProfileConnectorRetry = new TODOTestCustomerProfileGenericConnector(false, true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+  lazy val TODOtestOrchestrationServiceRetry = new TestOrchestrationService(TODOtestCustomerProfileConnectorRetry, authConnector)
+
+
   lazy val testAccess = new TestAccessCheck(authConnector)
   lazy val testCompositeAction = new TestAccountAccessControlWithAccept(testAccess)
 
@@ -612,6 +620,31 @@ trait Success extends Setup {
     override val service: OrchestrationService = testOrchestrationService
     override val app: String = "Success Orchestration Controller"
   }
+}
+
+trait TestController {
+  val controller : NativeAppsOrchestrationController
+
+}
+
+trait TODO extends Setup with TestController {
+  val controller = new NativeAppsOrchestrationController {
+    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val service: OrchestrationService = TODOtestOrchestrationService
+    override val app: String = "Success Orchestration Controller"
+  }
+  def invokeCount = TODOtestCustomerProfileConnectorFAILURE.counter
+}
+
+trait TODOFailWithRetrySuccess extends Setup with TestController {
+  val controller = new NativeAppsOrchestrationController {
+    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val service: OrchestrationService = TODOtestOrchestrationServiceRetry
+    override val app: String = "Success Orchestration Controller"
+  }
+
+
+  def invokeCount = TODOtestCustomerProfileConnectorRetry.counter
 }
 
 class TestOrchestrationService(testGenericConnector: GenericConnector, testAuthConnector: AuthConnector) extends LiveOrchestrationService {
@@ -668,7 +701,58 @@ class TestCustomerProfileGenericConnector(upgradeRequired: Boolean, accounts: Ac
       case "income/CS700100A/tax-credits/tax-credits-summary" => Future.successful(taxCreditSummary)
       case "income/CS700100A/tax-credits/tax-credits-decision" => Future.successful(taxCreditDecision)
       case "income/CS700100A/tax-credits/999999999999999/auth" => Future.successful(auth)
+
+
+// ADD DEFAULT AND THROW EXCEPTION!
     }
+  }
+}
+
+
+class TODOTestCustomerProfileGenericConnector(exceptionControl:Boolean, upgradeRequired: Boolean, accounts: Accounts, pushRegResult: JsValue, preferences: JsValue,
+                                              taxSummary: JsValue, state: JsValue, taxCreditSummary: JsValue, taxCreditDecision: JsBoolean,
+                                              auth: JsValue) extends TestCustomerProfileGenericConnector(upgradeRequired: Boolean, accounts: Accounts, pushRegResult: JsValue, preferences: JsValue,
+  taxSummary: JsValue, state: JsValue, taxCreditSummary: JsValue, taxCreditDecision: JsBoolean,
+  auth: JsValue) {
+
+  var counter=0
+
+  override def doGet(host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = {
+    path match {
+      case "profile/native-app/version-check" => Future.successful(Json.toJson(upgradeRequired))
+      case "profile/preferences" => Future.successful(preferences)
+      case "income/CS700100A/tax-summary/2016" => {
+        //        if (taxSummary != JsNull) {
+        //          Future.successful(taxSummary)
+        //        }
+        //        else {
+        //          Future.failed(new Exception(""))
+        //        }
+
+
+// >>>>>>>>>>>>>>>>
+
+        //
+        val res = if (exceptionControl==true) Future.failed(new ServiceUnavailableException("FAILED"))
+        else {
+          if (counter == 0) Future.failed(new ServiceUnavailableException("FAILED"))
+          else {
+            Future.successful(taxSummary)
+          }
+        }
+        counter = counter + 1
+        res
+      }
+      case "income/tax-credits/submission/state" => Future.successful(state)
+      case "income/CS700100A/tax-credits/tax-credits-summary" => Future.successful(taxCreditSummary)
+      case "income/CS700100A/tax-credits/tax-credits-decision" => Future.successful(taxCreditDecision)
+      case "income/CS700100A/tax-credits/999999999999999/auth" => Future.successful(auth)
+
+
+      // ADD DEFAULT AND THROW EXCEPTION!
+    }
+
+
   }
 }
 

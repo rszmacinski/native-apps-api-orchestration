@@ -35,11 +35,11 @@ import scala.util.{Failure, Success, Try}
 
 trait OrchestrationService {
 
-  def genericConnector: GenericConnector = GenericConnector
+    def genericConnector: GenericConnector = GenericConnector
 
   def preFlightCheck() (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse]
 
-  def startup(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[OrchestrationResult]
+  def startup(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Boolean]
 
   private def getServiceConfig(serviceName: String): Configuration = {
     Play.current.configuration.getConfig(s"microservice.services.$serviceName").getOrElse(throw new Exception)
@@ -71,27 +71,38 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor {
     }
   }
 
-  def startup(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[OrchestrationResult]= {
+  def startup(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Boolean]= {
     withAudit("startup", Map.empty) {
       val year = 2016 //TODO derive year from current date
-      val taxSummary = Try(doGet("personal-income", s"income/$nino/tax-summary/$year")(hc))
-      taxSummary match {
-        case Success(taxSummary) => {
-          doPost("push-registration", "push/registration", JsNull)(hc)
-          val defaultState = JsObject(Seq("shuttered" -> JsBoolean(true), "inSubmissionPeriod" -> JsBoolean(false)))
-          for {
-            preferences <- doGet("customer-profile", "profile/preferences")(hc)
-            state <- doGet("personal-income", "income/tax-credits/submission/state")(hc)
-            taxCreditSummary <- doGet("personal-income", s"income/$nino/tax-credits/tax-credits-summary")(hc)
-            taxCreditDecision <- doGet("personal-income", s"income/$nino/tax-credits/tax-credits-decision")(hc)
-            renewal <- doGet("personal-income", s"income/$nino/tax-credits/999999999999999/auth")(hc)
-          } yield Option(OrchestrationResult(Option(preferences), Option(state).getOrElse(defaultState), taxSummary.value.get.get , Option(taxCreditSummary)))
-        }
-        case Failure(failure) => {
-          Logger.error(s"Startup failure getting tax summary - $failure")
-          Future.failed(failure)
-        }
-      }
+
+
+// TODO...ALL CALLS MUST BE EXECUTED IN PARALLEL!
+
+// FUTURE
+//    METHOD TO BE INVOKED!
+//    EXCEPTION THAT IS THROWN!
+
+
+//      val taxSummary = Try(doGet("personal-income", s"income/$nino/tax-summary/$year")(hc))
+//      taxSummary match {
+//        case Success(taxSummary) => {
+//          doPost("push-registration", "push/registration", JsNull)(hc)
+//          val defaultState = JsObject(Seq("shuttered" -> JsBoolean(true), "inSubmissionPeriod" -> JsBoolean(false)))
+//          for {
+//            preferences <- doGet("customer-profile", "profile/preferences")(hc)
+//            state <- doGet("personal-income", "income/tax-credits/submission/state")(hc)
+//            taxCreditSummary <- doGet("personal-income", s"income/$nino/tax-credits/tax-credits-summary")(hc)
+//            taxCreditDecision <- doGet("personal-income", s"income/$nino/tax-credits/tax-credits-decision")(hc)
+//            renewal <- doGet("personal-income", s"income/$nino/tax-credits/999999999999999/auth")(hc)
+//          } yield Option(OrchestrationResult(Option(preferences), Option(state).getOrElse(defaultState), taxSummary.value.get.get , Option(taxCreditSummary)))
+//        }
+//        case Failure(failure) => {
+//          Logger.error(s"Startup failure getting tax summary - $failure")
+//          Future.failed(failure)
+//        }
+
+      Future.successful(true)
+//      }
     }
   }
 }
@@ -108,7 +119,8 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
     Future.successful(preFlightResponse)
   }
 
-  def startup(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[OrchestrationResult] = {
+//  def startup(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[OrchestrationResult] = {
+  def startup(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Boolean] = {
 
     val resource: Option[String] = findResource(s"/resources/getsummary/${nino.value}_2016.json")
     val emailPreferences  = JsObject(Seq("email" -> JsString(email), "status" -> JsString("verified")))
@@ -116,7 +128,8 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
     val taxCreditSummary: Option[String] = findResource(s"/resources/taxcreditsummary/${nino.value}.json")
     val defaultState = JsObject(Seq("shuttered" -> JsBoolean(true), "inSubmissionPeriod" -> JsBoolean(false)))
 
-    Future.successful(OrchestrationResult(Option(preferences), defaultState, JsString(resource.get), Option(JsString(taxCreditSummary.get))))
+  //  Future.successful(OrchestrationResult(Option(preferences), defaultState, JsString(resource.get), Option(JsString(taxCreditSummary.get))))
+  Future.successful(true)
   }
 }
 
