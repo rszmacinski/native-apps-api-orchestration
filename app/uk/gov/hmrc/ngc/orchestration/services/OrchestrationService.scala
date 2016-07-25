@@ -85,7 +85,7 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor {
             taxCreditSummary <- doGet("personal-income", s"income/$nino/tax-credits/tax-credits-summary")(hc)
             taxCreditDecision <- doGet("personal-income", s"income/$nino/tax-credits/tax-credits-decision")(hc)
             renewal <- doGet("personal-income", s"income/$nino/tax-credits/999999999999999/auth")(hc)
-          } yield Option(OrchestrationResult(Option(preferences), Option(state).getOrElse(defaultState), taxSummary.value.get.get , Option(taxCreditSummary)))
+          } yield OrchestrationResult(Option(preferences), Option(state).getOrElse(defaultState), taxSummary.value.get.get , Option(taxCreditSummary))
         }
         case Failure(failure) => {
           Logger.error(s"Startup failure getting tax summary - $failure")
