@@ -21,7 +21,7 @@ import play.api.{Logger, mvc}
 import uk.gov.hmrc.api.controllers.{ErrorInternalServerError, ErrorNotFound, HeaderValidator}
 import uk.gov.hmrc.ngc.orchestration.connectors.NinoNotFoundOnAccount
 import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
-import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
+import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, Mandatory, OrchestrationService, SandboxOrchestrationService}
 import uk.gov.hmrc.play.http.{HeaderCarrier, NotFoundException}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
@@ -43,6 +43,10 @@ trait ErrorHandling {
       case ex: NinoNotFoundOnAccount =>
         log("User has no NINO. Unauthorized!")
         Unauthorized(Json.toJson(ErrorUnauthorizedNoNino))
+
+      case ex: Mandatory =>
+        log("Mandatory Data not found")
+        Status(MandatoryResponse.httpStatusCode)(Json.toJson(MandatoryResponse))
 
       case e: Throwable =>
         Logger.error(s"$app Internal server error: ${e.getMessage}", e)

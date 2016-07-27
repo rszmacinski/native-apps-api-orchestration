@@ -25,3 +25,5 @@ case object ErrorUnauthorizedNoNino extends ErrorResponse(401, "UNAUTHORIZED", "
 case object ErrorUnauthorizedMicroService extends ErrorResponse(401, "UNAUTHORIZED", "Unauthorized to access resource")
 
 case object ErrorUnauthorizedWeakCredStrength extends ErrorResponse(401, "WEAK_CRED_STRENGTH", "Credential Strength on account does not allow access")
+
+case object MandatoryResponse extends ErrorResponse(200, "MANDATORY", "Mandatory data not found")

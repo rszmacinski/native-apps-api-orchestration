@@ -18,7 +18,7 @@ package uk.gov.hmrc.ngc.orchestration.connectors
 
 import play.api.libs.json._
 import uk.gov.hmrc.ngc.orchestration.StubWsHttp
-import uk.gov.hmrc.play.http.{HeaderCarrier, HttpGet, HttpPost}
+import uk.gov.hmrc.play.http.{HeaderCarrier, HttpGet, HttpPost, HttpResponse}
 
 import scala.concurrent.Future
 
@@ -39,6 +39,12 @@ trait GenericConnector {
     implicit val hcHeaders = addAPIHeaders(hc)
     http.POST[JsValue, JsValue](buildUrl(host, port, path), json)
   }
+
+  def doGetRaw(host:String, path:String, port:Int, hc: HeaderCarrier): Future[HttpResponse] = {
+    implicit val hcHeaders = addAPIHeaders(hc)
+    http.GET(buildUrl(host, port, path))
+  }
+
 }
 
 object GenericConnector extends GenericConnector {
