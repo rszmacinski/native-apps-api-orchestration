@@ -29,10 +29,10 @@ import uk.gov.hmrc.ngc.orchestration.{MicroserviceAuditConnector, StubWsHttp}
 import uk.gov.hmrc.ngc.orchestration.connectors._
 import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControl, AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
 import uk.gov.hmrc.ngc.orchestration.domain.Accounts
-import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
+import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, Mandatory, OrchestrationService, SandboxOrchestrationService}
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.auth.microservice.connectors.ConfidenceLevel
-import uk.gov.hmrc.play.http.{HeaderCarrier, HttpGet, HttpPost}
+import uk.gov.hmrc.play.http._
 import uk.gov.hmrc.play.test.UnitSpec
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -521,7 +521,7 @@ trait Setup {
                                     |  }
                                     |}""".stripMargin)
   val testPreferences = Json.parse("""{"digital":true,"email":{"email":"name@email.co.uk","status":"verified"}}""")
-  val testState = Json.parse("""{"shuttered":true,"inSubmissionPeriod":false}""")
+  val testState = Json.parse("""{"shuttered":true,"inSubmissionPeriod":true}""")
   val testTaxCreditSummary = Json.parse("""{
                                           |  "paymentSummary": {
                                           |    "workingTaxCredit": {
@@ -591,18 +591,64 @@ trait Setup {
                                           |  "showData": true
                                           |}""".stripMargin)
   val testAuthToken = JsString("someTestAuthToken")
-  val testTaxCreditDecision = JsBoolean(false)
+  val testTaxCreditDecision = JsBoolean(true)
   val testPushReg = JsNull
 
   val noNinoOnAccount = Json.parse("""{"code":"UNAUTHORIZED","message":"NINO does not exist on account"}""")
   val lowCL = Json.parse("""{"code":"LOW_CONFIDENCE_LEVEL","message":"Confidence Level on account does not allow access"}""")
   val weakCredStrength = Json.parse("""{"code":"WEAK_CRED_STRENGTH","message":"Credential Strength on account does not allow access"}""")
 
-  lazy val testCustomerProfileConnector = new TestCustomerProfileGenericConnector(true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+  lazy val testGenericConnector = new TestGenericConnector(true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
   lazy val authConnector = new TestAuthConnector(Some(nino))
-  lazy val testOrchestrationService = new TestOrchestrationService(testCustomerProfileConnector, authConnector)
+  lazy val testOrchestrationService = new TestOrchestrationService(testGenericConnector, authConnector)
+
+  lazy val testGenericConnectorFAILURE = new TestFailureGenericConnector(true, true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+  lazy val testOrchestrationServiceFAILURE = new TestOrchestrationService(testGenericConnectorFAILURE, authConnector)
+  lazy val testGenericConnectorRETRY = new TestRetryGenericConnector(false, true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+  lazy val testOrchestrationServiceRETRY = new TestOrchestrationService(testGenericConnectorRETRY, authConnector)
+
   lazy val testAccess = new TestAccessCheck(authConnector)
   lazy val testCompositeAction = new TestAccountAccessControlWithAccept(testAccess)
+
+  val servicesPreferencesFailMap = Map("profile/native-app/version-check" -> true,
+                                       "profile/preferences" -> false,
+                                       "income/CS700100A/tax-summary/2016" -> true,
+                                       "income/tax-credits/submission/state" -> true,
+                                       "income/CS700100A/tax-credits/tax-credits-summary" -> true,
+                                       "income/CS700100A/tax-credits/tax-credits-decision" -> true,
+                                       "/income/CS700100A/tax-credits/999999999999999/auth" -> true)
+  lazy val testGenericConnectorPreferencesFAILURE = new TestServiceFailureGenericConnector(servicesPreferencesFailMap ,false, true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+  lazy val testOrchestrationServicePreferencesFAILURE = new TestOrchestrationService(testGenericConnectorPreferencesFAILURE, authConnector)
+  val servicesStateFailMap = Map("profile/native-app/version-check" -> true,
+                                       "profile/preferences" -> true,
+                                       "income/CS700100A/tax-summary/2016" -> true,
+                                       "income/tax-credits/submission/state" -> false,
+                                       "income/CS700100A/tax-credits/tax-credits-summary" -> true,
+                                       "income/CS700100A/tax-credits/tax-credits-decision" -> true,
+                                       "/income/CS700100A/tax-credits/999999999999999/auth" -> true)
+  lazy val testGenericConnectorStateFAILURE = new TestServiceFailureGenericConnector(servicesStateFailMap ,false, true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+  lazy val testOrchestrationServiceStateFAILURE = new TestOrchestrationService(testGenericConnectorStateFAILURE, authConnector)
+  val servicesOptionalDataFailMap = Map("profile/native-app/version-check" -> true,
+                                       "profile/preferences" -> false,
+                                       "income/CS700100A/tax-summary/2016" -> true,
+                                       "income/tax-credits/submission/state" -> false,
+                                       "income/CS700100A/tax-credits/tax-credits-summary" -> false,
+                                       "income/CS700100A/tax-credits/tax-credits-decision" -> false,
+                                       "/income/CS700100A/tax-credits/999999999999999/auth" -> false)
+  lazy val testGenericConnectorOptionalDataFAILURE = new TestServiceFailureGenericConnector(servicesOptionalDataFailMap ,false, true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+  lazy val testOrchestrationServiceOptionalDataFAILURE = new TestOrchestrationService(testGenericConnectorOptionalDataFAILURE, authConnector)
+
+  val servicesRenewalFailMap = Map("profile/native-app/version-check" -> true,
+    "profile/preferences" -> true,
+    "income/CS700100A/tax-summary/2016" -> true,
+    "income/tax-credits/submission/state" -> true,
+    "income/CS700100A/tax-credits/tax-credits-summary" -> true,
+    "income/CS700100A/tax-credits/tax-credits-decision" -> true,
+    "/income/CS700100A/tax-credits/999999999999999/auth" -> false)
+  lazy val testGenericConnectorRenewalFAILURE = new TestServiceFailureGenericConnector(servicesRenewalFailMap ,false, true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+  lazy val testOrchestrationServiceRenewalFAILURE = new TestOrchestrationService(testGenericConnectorRenewalFAILURE, authConnector)
+
+
 
 }
 
@@ -612,6 +658,58 @@ trait Success extends Setup {
     override val service: OrchestrationService = testOrchestrationService
     override val app: String = "Success Orchestration Controller"
   }
+}
+
+trait Failure extends Setup {
+  val controller = new NativeAppsOrchestrationController {
+    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val service: OrchestrationService = testOrchestrationServiceFAILURE
+    override val app: String = "Failure Orchestration Controller"
+  }
+  def invokeCount = testGenericConnectorFAILURE.counter
+}
+
+trait PreferenceFailure extends Setup {
+  val controller = new NativeAppsOrchestrationController {
+    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val service: OrchestrationService = testOrchestrationServicePreferencesFAILURE
+    override val app: String = "Failure Orchestration Controller"
+  }
+}
+
+trait StateFailure extends Setup {
+  val controller = new NativeAppsOrchestrationController {
+    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val service: OrchestrationService = testOrchestrationServiceStateFAILURE
+    override val app: String = "Failure Orchestration Controller"
+  }
+}
+
+trait OptionalDataFailure extends Setup {
+  val controller = new NativeAppsOrchestrationController {
+    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val service: OrchestrationService = testOrchestrationServiceOptionalDataFAILURE
+    override val app: String = "Failure Orchestration Controller"
+  }
+}
+
+trait RenewalFailure extends Setup {
+  val controller = new NativeAppsOrchestrationController {
+    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val service: OrchestrationService = testOrchestrationServiceOptionalDataFAILURE
+    override val app: String = "Failure Orchestration Controller"
+  }
+}
+
+
+trait FailWithRetrySuccess extends Setup {
+  val controller = new NativeAppsOrchestrationController {
+    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val service: OrchestrationService = testOrchestrationServiceRETRY
+    override val app: String = "Fail with Retry Success Orchestration Controller"
+  }
+
+  def invokeCount = testGenericConnectorRETRY.counter
 }
 
 class TestOrchestrationService(testGenericConnector: GenericConnector, testAuthConnector: AuthConnector) extends LiveOrchestrationService {
@@ -640,9 +738,9 @@ class TestAuthConnector(nino: Option[Nino]) extends AuthConnector {
   override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = Future(Unit)
 }
 
-class TestCustomerProfileGenericConnector(upgradeRequired: Boolean, accounts: Accounts, pushRegResult: JsValue, preferences: JsValue,
-                                          taxSummary: JsValue, state: JsValue, taxCreditSummary: JsValue, taxCreditDecision: JsBoolean,
-                                          auth: JsValue) extends GenericConnector {
+class TestGenericConnector(upgradeRequired: Boolean, accounts: Accounts, pushRegResult: JsValue, preferences: JsValue,
+                           taxSummary: JsValue, state: JsValue, taxCreditSummary: JsValue, taxCreditDecision: JsBoolean,
+                           auth: JsValue) extends GenericConnector {
 
   override def http: HttpPost with HttpGet = StubWsHttp
 
@@ -656,18 +754,137 @@ class TestCustomerProfileGenericConnector(upgradeRequired: Boolean, accounts: Ac
     path match {
       case "profile/native-app/version-check" => Future.successful(Json.toJson(upgradeRequired))
       case "profile/preferences" => Future.successful(preferences)
+      case "income/CS700100A/tax-summary/2016" => Future.successful(taxSummary)
+      case "income/tax-credits/submission/state" => Future.successful(state)
+      case "income/CS700100A/tax-credits/tax-credits-summary" => Future.successful(taxCreditSummary)
+      case "income/CS700100A/tax-credits/tax-credits-decision" => Future.successful(taxCreditDecision)
+    }
+  }
+
+  override def doGetRaw(host:String, path:String, port:Int, hc: HeaderCarrier): Future[HttpResponse] = {
+    path match {
+      case "/income/CS700100A/tax-credits/999999999999999/auth" => Future.successful(HttpResponse(200,Option(auth),Map(), Option("")))
+    }
+  }
+}
+
+
+class TestRetryGenericConnector(exceptionControl: Boolean, upgradeRequired: Boolean, accounts: Accounts, pushRegResult: JsValue,
+                                preferences: JsValue, taxSummary: JsValue, state: JsValue, taxCreditSummary: JsValue,
+                                taxCreditDecision: JsBoolean, auth: JsValue) extends TestGenericConnector(upgradeRequired: Boolean,
+                                accounts: Accounts, pushRegResult: JsValue, preferences: JsValue, taxSummary: JsValue, state: JsValue,
+                                taxCreditSummary: JsValue, taxCreditDecision: JsBoolean, auth: JsValue) {
+
+  var counter=0
+
+  override def doGet(host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = {
+    path match {
+      case "profile/native-app/version-check" => Future.successful(Json.toJson(upgradeRequired))
+      case "profile/preferences" => Future.successful(preferences)
+      case "income/CS700100A/tax-summary/2016" => Future.successful(taxSummary)
+      case "income/tax-credits/submission/state" => Future.successful(state)
+      case "income/CS700100A/tax-credits/tax-credits-summary" => Future.successful(taxCreditSummary)
+      case "income/CS700100A/tax-credits/tax-credits-decision" => {
+        val res = if (exceptionControl==true) Future.failed(new ServiceUnavailableException("FAILED"))
+        else {
+          if (counter == 0) Future.failed(new ServiceUnavailableException("FAILED"))
+          else {
+            Future.successful(taxCreditDecision)
+          }
+        }
+        counter = counter + 1
+        res
+      }
+    }
+  }
+}
+
+class TestFailureGenericConnector(exceptionControl: Boolean, upgradeRequired: Boolean, accounts: Accounts, pushRegResult: JsValue,
+                                   preferences: JsValue, taxSummary: JsValue, state: JsValue, taxCreditSummary: JsValue,
+                                   taxCreditDecision: JsBoolean, auth: JsValue) extends TestGenericConnector(upgradeRequired: Boolean,
+  accounts: Accounts, pushRegResult: JsValue, preferences: JsValue, taxSummary: JsValue, state: JsValue,
+  taxCreditSummary: JsValue, taxCreditDecision: JsBoolean, auth: JsValue) {
+
+  var counter=0
+
+  override def doGet(host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = {
+    path match {
+      case "profile/native-app/version-check" => Future.successful(Json.toJson(upgradeRequired))
+      case "profile/preferences" => Future.successful(preferences)
       case "income/CS700100A/tax-summary/2016" => {
-        if (taxSummary != JsNull) {
-          Future.successful(taxSummary)
+        val res = if(exceptionControl == true) {
+          Future.failed(Mandatory())
         }
         else {
-          Future.failed(new Exception(""))
+          Future.successful(taxSummary)
         }
+        res
       }
       case "income/tax-credits/submission/state" => Future.successful(state)
       case "income/CS700100A/tax-credits/tax-credits-summary" => Future.successful(taxCreditSummary)
       case "income/CS700100A/tax-credits/tax-credits-decision" => Future.successful(taxCreditDecision)
-      case "income/CS700100A/tax-credits/999999999999999/auth" => Future.successful(auth)
+    }
+  }
+}
+
+class TestServiceFailureGenericConnector(pathFailMap: Map[String, Boolean], exceptionControl: Boolean, upgradeRequired: Boolean, accounts: Accounts, pushRegResult: JsValue,
+                                  preferences: JsValue, taxSummary: JsValue, state: JsValue, taxCreditSummary: JsValue,
+                                  taxCreditDecision: JsBoolean, auth: JsValue) extends TestGenericConnector(upgradeRequired: Boolean,
+  accounts: Accounts, pushRegResult: JsValue, preferences: JsValue, taxSummary: JsValue, state: JsValue,
+  taxCreditSummary: JsValue, taxCreditDecision: JsBoolean, auth: JsValue) {
+
+  private def passFail(value: JsValue, success: Boolean): Future[JsValue] = {
+    val res = if (!success) {
+      Future.failed(new Exception())
+    }
+    else {
+      Future.successful(Json.toJson(value))
+    }
+    res
+  }
+
+  override def doGet(host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = {
+
+    def isSuccess(key: String): Boolean = {
+        pathFailMap.get(key).getOrElse(false)
+    }
+
+    val result = path match {
+        case "profile/native-app/version-check" => passFail(Json.toJson(upgradeRequired), isSuccess(path))
+        case "profile/preferences" => passFail(preferences, isSuccess(path))
+        case "income/CS700100A/tax-summary/2016" => {
+          val res = if (exceptionControl) {
+            Future.failed(Mandatory())
+          }
+          else {
+            Future.successful(taxSummary)
+          }
+          res
+        }
+        case "income/tax-credits/submission/state" => passFail(state, isSuccess(path))
+        case "income/CS700100A/tax-credits/tax-credits-summary" => passFail(taxCreditSummary, isSuccess(path))
+        case "income/CS700100A/tax-credits/tax-credits-decision" => passFail(taxCreditDecision, isSuccess(path))
+        case _ => Future.failed(new Exception("Test Scenario Error"))
+      }
+    result
+  }
+
+  override def doGetRaw(host:String, path:String, port:Int, hc: HeaderCarrier): Future[HttpResponse] = {
+
+    def isSuccess(key: String): Boolean = {
+      pathFailMap.get(key).getOrElse(false)
+    }
+
+    path match {
+      case "/income/CS700100A/tax-credits/999999999999999/auth" => {
+        val res = if (!isSuccess(path)) {
+          401
+        }
+        else {
+          200
+        }
+        Future.successful(HttpResponse(res, Option(auth), Map(), Option("")))
+      }
     }
   }
 }
@@ -685,12 +902,10 @@ trait AuthWithoutTaxSummary extends Setup with AuthorityTest {
 
   val controller = new NativeAppsOrchestrationController {
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
-    val testCustomerProfileGenericConnector = new TestCustomerProfileGenericConnector(true, testAccount, testPushReg, testPreferences, JsNull, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+    val testCustomerProfileGenericConnector = new TestGenericConnector(true, testAccount, testPushReg, testPreferences, JsNull, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
     override val service: OrchestrationService = new TestOrchestrationService(testCustomerProfileGenericConnector, authConnector)
     override val app: String = "AuthWithoutNino Native Apps Orchestration"
   }
-
-
 }
 
 trait AuthWithoutNino extends Setup with AuthorityTest {
@@ -726,7 +941,7 @@ trait AuthWithLowCL extends Setup with AuthorityTest {
 
   val controller = new NativeAppsOrchestrationController {
     val app = "AuthWithLowCL Native Apps Orchestration"
-    override val service: LiveOrchestrationService = new TestOrchestrationService(testCustomerProfileConnector,authConnector)
+    override val service: LiveOrchestrationService = new TestOrchestrationService(testGenericConnector,authConnector)
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
   }
 }
@@ -746,7 +961,7 @@ trait AuthWithWeakCreds extends Setup with AuthorityTest {
 
   val controller = new NativeAppsOrchestrationController {
     val app = "AuthWithWeakCreds Native Apps Orchestration"
-    override val service: LiveOrchestrationService = new TestOrchestrationService(testCustomerProfileConnector,authConnector)
+    override val service: LiveOrchestrationService = new TestOrchestrationService(testGenericConnector,authConnector)
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
   }
 }

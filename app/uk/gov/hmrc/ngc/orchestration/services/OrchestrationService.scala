@@ -16,22 +16,23 @@
 
 package uk.gov.hmrc.ngc.orchestration.services
 
-import java.util.{Date, UUID}
+import java.util.{Calendar, UUID}
 
 import play.api.libs.json._
-import play.api.{Configuration, Logger, Play}
+import play.api.{Configuration, Play}
 import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.api.service.Auditor
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.emailaddress.EmailAddress
 import uk.gov.hmrc.ngc.orchestration.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{AuthConnector, GenericConnector}
+import uk.gov.hmrc.ngc.orchestration.controllers.{LiveOrchestrationController, MandatoryResponse}
 import uk.gov.hmrc.ngc.orchestration.domain._
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.HeaderCarrier
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 trait OrchestrationService {
 
@@ -39,7 +40,7 @@ trait OrchestrationService {
 
   def preFlightCheck() (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse]
 
-  def startup(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[OrchestrationResult]
+  def startup(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]
 
   private def getServiceConfig(serviceName: String): Configuration = {
     Play.current.configuration.getConfig(s"microservice.services.$serviceName").getOrElse(throw new Exception)
@@ -48,17 +49,11 @@ trait OrchestrationService {
   protected def getConfigProperty(serviceName: String, property: String): String = {
     getServiceConfig(serviceName).getString(property).getOrElse(throw new Exception(s"No service configuration found for $serviceName"))
   }
-
-  protected def doGet(service: String, path: String)(hc: HeaderCarrier): Future[JsValue] = {
-    genericConnector.doGet(getConfigProperty(service, "host"), path, getConfigProperty(service, "port") toInt, hc)
-  }
-
-  protected def doPost(service: String, path: String, jsValue: JsValue)(hc: HeaderCarrier): Future[JsValue] = {
-    genericConnector.doPost(jsValue, getConfigProperty(service, "host"), path, getConfigProperty(service, "port") toInt, hc)
-  }
 }
 
 trait LiveOrchestrationService extends OrchestrationService with Auditor {
+
+  def controller = LiveOrchestrationController
 
   def authConnector: AuthConnector = AuthConnector
 
@@ -67,32 +62,31 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor {
       for {
       accounts <- authConnector.accounts()
       versionUpdate <- genericConnector.doGet(getConfigProperty("customer-profile","host"), "profile/native-app/version-check", getConfigProperty("customer-profile","port") toInt, hc)
-      } yield PreFlightCheckResponse(true, accounts)
+      } yield PreFlightCheckResponse(versionUpdate.as[Boolean], accounts)
     }
   }
 
-  def startup(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[OrchestrationResult]= {
+  def startup(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]= {
     withAudit("startup", Map.empty) {
-      val year = 2016 //TODO derive year from current date
-      val taxSummary = Try(doGet("personal-income", s"income/$nino/tax-summary/$year")(hc))
-      taxSummary match {
-        case Success(taxSummary) => {
-          doPost("push-registration", "push/registration", JsNull)(hc)
-          val defaultState = JsObject(Seq("shuttered" -> JsBoolean(true), "inSubmissionPeriod" -> JsBoolean(false)))
-          for {
-            preferences <- doGet("customer-profile", "profile/preferences")(hc)
-            state <- doGet("personal-income", "income/tax-credits/submission/state")(hc)
-            taxCreditSummary <- doGet("personal-income", s"income/$nino/tax-credits/tax-credits-summary")(hc)
-            taxCreditDecision <- doGet("personal-income", s"income/$nino/tax-credits/tax-credits-decision")(hc)
-            renewal <- doGet("personal-income", s"income/$nino/tax-credits/999999999999999/auth")(hc)
-          } yield OrchestrationResult(Option(preferences), Option(state).getOrElse(defaultState), taxSummary.value.get.get , Option(taxCreditSummary))
-        }
-        case Failure(failure) => {
-          Logger.error(s"Startup failure getting tax summary - $failure")
-          Future.failed(failure)
-        }
+      val year = Calendar.getInstance().get(Calendar.YEAR)
+      val result = run(nino.value, year).map(item => item).map(r => r.foldLeft(Json.obj())((b, a) => b ++ a))
+      result.recover {
+        case ex: Mandatory => MandatoryResponse
+        case _ => MandatoryResponse //TODO have a look at not
       }
+      result
     }
+  }
+
+  private def run(nino: String, year: Int) : Future[Seq[JsObject]] = {
+
+    val futuresSeq = Seq(TaxSummary(genericConnector), Preferences(genericConnector),
+      TaxCreditDecision(genericConnector), State(genericConnector),
+      PushRegistration(genericConnector), TaxCreditSummary(genericConnector)).map(item => item.execute(nino, year))
+
+    val res: Future[Seq[Result]] = Future.sequence(futuresSeq).map(item => item.flatMap(a => a))
+
+    res.map(r => r.map(b => Json.obj(b.id -> b.jsValue)))
   }
 }
 
@@ -108,15 +102,18 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
     Future.successful(preFlightResponse)
   }
 
-  def startup(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[OrchestrationResult] = {
+  def startup(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
 
     val resource: Option[String] = findResource(s"/resources/getsummary/${nino.value}_2016.json")
+    val taxSummary = Result("taxSummary",Json.parse(resource.get))
     val emailPreferences  = JsObject(Seq("email" -> JsString(email), "status" -> JsString("verified")))
-    val preferences: JsValue = JsObject(Seq("digital" -> JsBoolean(true), "email" -> emailPreferences))
-    val taxCreditSummary: Option[String] = findResource(s"/resources/taxcreditsummary/${nino.value}.json")
-    val defaultState = JsObject(Seq("shuttered" -> JsBoolean(true), "inSubmissionPeriod" -> JsBoolean(false)))
+    val preferences = Result("preference", JsObject(Seq("digital" -> JsBoolean(true), "email" -> emailPreferences)))
+    val taxCreditSummary = Result("taxCreditSummary", Json.parse(findResource(s"/resources/taxcreditsummary/${nino.value}.json").get))
+    val defaultState = Result("state", JsObject(Seq("shuttered" -> JsBoolean(true), "inSubmissionPeriod" -> JsBoolean(false))))
 
-    Future.successful(OrchestrationResult(Option(preferences), defaultState, JsString(resource.get), Option(JsString(taxCreditSummary.get))))
+    val res = Future.successful(Seq(taxSummary, preferences, defaultState, taxCreditSummary).map(b => Json.obj(b.id -> b.jsValue)))
+    val result = res.map(r => r.foldLeft(Json.obj())((b, a) => b ++ a))
+    result
   }
 }
 

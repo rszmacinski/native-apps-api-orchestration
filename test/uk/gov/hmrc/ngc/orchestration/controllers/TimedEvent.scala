@@ -16,14 +16,21 @@
 
 package uk.gov.hmrc.ngc.orchestration.controllers
 
-import uk.gov.hmrc.api.controllers.ErrorResponse
+import java.util.{Timer, TimerTask}
 
-case object ErrorNinoInvalid extends ErrorResponse(400, "NINO_INVALID", "The provided NINO is invalid")
+import scala.concurrent._
 
-case object ErrorUnauthorizedNoNino extends ErrorResponse(401, "UNAUTHORIZED", "NINO does not exist on account")
+object TimedEvent {
+  val timer = new Timer
 
-case object ErrorUnauthorizedMicroService extends ErrorResponse(401, "UNAUTHORIZED", "Unauthorized to access resource")
-
-case object ErrorUnauthorizedWeakCredStrength extends ErrorResponse(401, "WEAK_CRED_STRENGTH", "Credential Strength on account does not allow access")
-
-case object MandatoryResponse extends ErrorResponse(200, "MANDATORY", "Mandatory data not found")
+  // Return a Future which completes with the supplied value after 'n' milliseconds.
+  def delayedSuccess[T](millis: Long, value: T): Future[T] = {
+    val result = Promise[T]()
+    timer.schedule(new TimerTask() {
+      def run() = {
+        result.success(value)
+      }
+    }, millis)
+    result.future
+  }
+}
