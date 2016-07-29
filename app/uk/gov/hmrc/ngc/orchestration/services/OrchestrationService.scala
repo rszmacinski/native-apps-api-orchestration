@@ -72,7 +72,7 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor {
       val result = run(nino.value, year).map(item => item).map(r => r.foldLeft(Json.obj())((b, a) => b ++ a))
       result.recover {
         case ex: Mandatory => MandatoryResponse
-        case _ => MandatoryResponse //TODO have a look at not
+        case _ => MandatoryResponse
       }
       result
     }
@@ -113,6 +113,7 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
 
     val res = Future.successful(Seq(taxSummary, preferences, defaultState, taxCreditSummary).map(b => Json.obj(b.id -> b.jsValue)))
     val result = res.map(r => r.foldLeft(Json.obj())((b, a) => b ++ a))
+
     result
   }
 }

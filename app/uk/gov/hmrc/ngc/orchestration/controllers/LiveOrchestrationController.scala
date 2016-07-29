@@ -16,11 +16,12 @@
 
 package uk.gov.hmrc.ngc.orchestration.controllers
 
-import play.api.libs.json.Json
+import play.api.libs.json.{JsObject, Json}
 import play.api.{Logger, mvc}
-import uk.gov.hmrc.api.controllers.{ErrorInternalServerError, ErrorNotFound, HeaderValidator}
+import uk.gov.hmrc.api.controllers.{ErrorInternalServerError, ErrorNotFound}
+import uk.gov.hmrc.msasync.repository.AsyncRepository
 import uk.gov.hmrc.ngc.orchestration.connectors.NinoNotFoundOnAccount
-import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
+import uk.gov.hmrc.ngc.orchestration.controllers.action.AccountAccessControlWithHeaderCheck
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, Mandatory, OrchestrationService, SandboxOrchestrationService}
 import uk.gov.hmrc.play.http.{HeaderCarrier, NotFoundException}
 import uk.gov.hmrc.play.microservice.controller.BaseController
@@ -55,38 +56,75 @@ trait ErrorHandling {
   }
 }
 
-trait NativeAppsOrchestrationController extends BaseController with HeaderValidator with ErrorHandling {
+trait NativeAppsOrchestrationController extends AsyncController {
 
   import uk.gov.hmrc.domain.Nino
 
   val service: OrchestrationService
   val accessControl: AccountAccessControlWithHeaderCheck
 
-  final def preFlightCheck(journeyId: Option[String] = None) = AccountAccessControlCheckOff.validateAccept(acceptHeaderValidationRules).async  {
-    implicit request =>
-      implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
-      errorWrapper(service.preFlightCheck().map(as => Ok(Json.toJson(as))))
+  final def preFlightCheck(journeyId: Option[String] = None) = accessControl.validateAccept(acceptHeaderValidationRules).async {
+    implicit authenticated =>
+      service.preFlightCheck()
+      Future.successful(Ok.withSession("AppKey" -> "NativeApp"))
   }
 
   final def startup(nino: Nino, journeyId: Option[String] = None) = accessControl.validateAccept(acceptHeaderValidationRules).async {
-    implicit request =>
-      implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
-      errorWrapper(service.startup(nino, journeyId).map{
-        case result => Ok(Json.toJson(result))
-        case _ => NotFound
-      })
+    implicit authenticated =>
+      implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
+      implicit val req = authenticated.request
+      withAsyncSession {
+
+        // Do not allow more than one task to be executing - if task running then poll page will be returned.
+        asyncActionWrapper.async(callbackWithStatus) {
+          flag =>
+
+            // Async function wrapper responsible for executing below code onto a background queue.
+            asyncWrapper(callbackWithStatus) {
+              implicit hc =>
+                // Your code which returns a Future is place here!
+                service.startup(nino, journeyId).map { response =>
+                  // Build a response with the value that was supplied to the action.
+                  val b: JsObject = response
+                  AsyncResponse(response)
+                }
+
+                // NOTE: This is just an example to incur a delay before sending the response. This MUST not be copied into your code!
+//                TimedEvent.delayedSuccess(5000, 0).map { _ => response }
+            }
+        }
+      }
   }
+//
+//
+//
+//
+//
+//
+//
+//
+//    implicit request =>
+//      implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
+//      errorWrapper(service.startup(nino, journeyId).map{
+//        case result => Ok(Json.toJson(result))
+//        case _ => NotFound
+//      })
+//  }
+
+
 }
 
 object LiveOrchestrationController extends NativeAppsOrchestrationController {
   override val service = LiveOrchestrationService
   override val accessControl = AccountAccessControlWithHeaderCheck
   override val app: String = "Live-Orchestration-Controller"
+  override lazy val repository:AsyncRepository = AsyncRepository()
 }
 
 object SandboxOrchestrationController extends NativeAppsOrchestrationController {
   override val service = SandboxOrchestrationService
   override val accessControl = AccountAccessControlWithHeaderCheck
   override val app: String = "Sandbox-Orchestration-Controller"
+  override lazy val repository:AsyncRepository = AsyncRepository()
 }
 
