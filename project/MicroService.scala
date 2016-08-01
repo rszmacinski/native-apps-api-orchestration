@@ -24,7 +24,7 @@ trait MicroService {
     .settings(scalaSettings: _*)
     .settings(publishingSettings: _*)
     .settings(defaultSettings(): _*)
-    .settings(staticCompileResourceSettings: _*)
+    .settings(staticCompileResourceSettings)
     .settings(
       targetJvm := "jvm-1.8",
       scalaVersion := "2.11.8",
@@ -44,10 +44,10 @@ trait MicroService {
       parallelExecution in IntegrationTest := false)
     .settings(resolvers += Resolver.bintrayRepo("hmrc", "releases"))
 
+
   lazy val staticCompileResourceSettings =
     unmanagedResourceDirectories in Compile += baseDirectory.value / "resources"
 }
-
 
 private object TestPhases {
 
