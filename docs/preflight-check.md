@@ -1,14 +1,23 @@
-Tax Credits Submission State
+preflight-check
 ----
-  This endpoint retrieves the current state of tax credit submissions
+  Return the upgrade status and account information.
   
 * **URL**
 
-  `/income/tax-credits/submission/state`
+  `/native-app/preflight-check`
 
 * **Method:**
   
-  `GET`
+  `POST`
+  
+*  **JSON**
+
+```json
+{
+    "os": "ios",
+    "version" : "0.1.0"
+}
+```
 
 * **Success Response:**
 
@@ -17,17 +26,15 @@ Tax Credits Submission State
 
 ```json
 {
-    "shuttered":true,
-    "inSubmissionPeriod":true
+  "upgradeRequired" : true,
+  "accounts" : {
+      "nino" : "WX772755B",
+      "saUtr" : "618567",
+      "routeToIV" : false
+  }
 }
 ```
-
-| *Field* | *Description* |
-|--------|----|
-| shuttered | The tax credits service has temporarily been taken down during the submissions period |
-| inSubmissionPeriod | The tax credits service in/outside the allowed submission period |
-
-
+ 
 * **Error Response:**
 
   * **Code:** 400 BADREQUEST <br />
@@ -37,7 +44,6 @@ Tax Credits Submission State
     **Content:** `{"code":"UNAUTHORIZED","message":"Bearer token is missing or not authorized for access"}`
 
   * **Code:** 404 NOTFOUND <br/>
-    **Content:** `{ "code" : "MATCHING_RESOURCE_NOT_FOUND", "message" : "A resource with the name in the request can not be found in the API" }`
 
   * **Code:** 406 NOT ACCEPTABLE <br />
     **Content:** `{"code":"ACCEPT_HEADER_INVALID","message":"The accept header is missing or invalid"}`

@@ -17,7 +17,7 @@
 package uk.gov.hmrc.ngc.orchestration.connectors
 
 import play.api.libs.json._
-import uk.gov.hmrc.ngc.orchestration.StubWsHttp
+import uk.gov.hmrc.ngc.orchestration.config.WSHttp
 import uk.gov.hmrc.play.http.{HeaderCarrier, HttpGet, HttpPost, HttpResponse}
 
 import scala.concurrent.Future
@@ -27,7 +27,8 @@ trait GenericConnector {
 
   def http: HttpPost with HttpGet
 
-  private def addAPIHeaders(hc:HeaderCarrier) = hc
+  private def addAPIHeaders(hc:HeaderCarrier) = hc.withExtraHeaders("Accept" -> "application/vnd.hmrc.1.0+json")
+
   private def buildUrl(host:String, port:Int, path:String) =  s"""http://$host:$port$path"""
 
   def doGet(host:String, path:String, port:Int, hc: HeaderCarrier): Future[JsValue] = {
@@ -48,5 +49,5 @@ trait GenericConnector {
 }
 
 object GenericConnector extends GenericConnector {
-  override def http = StubWsHttp
+  override def http = WSHttp
 }

@@ -1,22 +1,30 @@
-The Tax Credits Summary object
+startup
 ----
-  Fetch the Tax Credits Summary object for a given nino.
+  Request to initiate startup information. Please note this is an asynchronous request.
   
 * **URL**
 
-  `/income/:nino/tax-credits-decision`
+  `/native-app/{nino}/startup`
 
 * **Method:**
   
-  `GET`
+  `POST`
   
-*  **URL Params**
+*  **Form Post**
 
    **Required:**
- 
+
    `nino=[Nino]`
-   
+
    The nino given must be a valid nino. ([http://www.hmrc.gov.uk/manuals/nimmanual/nim39110.htm](http://www.hmrc.gov.uk/manuals/nimmanual/nim39110.htm))
+
+*  **Request body**
+
+```json
+{
+    "token": "some-token"
+}
+```
 
 * **Success Response:**
 
@@ -25,10 +33,15 @@ The Tax Credits Summary object
 
 ```json
 {
-  "showData": true\false
+  "status" : "poll"
 }
 ```
- 
+
+Please note the above status could be poll, error or throttle.
+If the response status is poll, then a call is required to the `/native-app/{nino}/poll` service to understand the outcome of the call.
+If the response status is error then a server-side failure occurred.
+If the response status is throttle then too many current requests are being performed by the server, and the request should be re-tried.
+
 * **Error Response:**
 
   * **Code:** 400 BADREQUEST <br />
@@ -38,7 +51,6 @@ The Tax Credits Summary object
     **Content:** `{"code":"UNAUTHORIZED","message":"Bearer token is missing or not authorized for access"}`
 
   * **Code:** 404 NOTFOUND <br/>
-    **Content:** `{ "code" : "MATCHING_RESOURCE_NOT_FOUND", "message" : "A resource with the name in the request can not be found in the API" }`
 
   * **Code:** 406 NOT ACCEPTABLE <br />
     **Content:** `{"code":"ACCEPT_HEADER_INVALID","message":"The accept header is missing or invalid"}`

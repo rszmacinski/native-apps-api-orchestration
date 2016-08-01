@@ -17,8 +17,9 @@ API
 
 | *Task* | *Supported Methods* | *Description* |
 |--------|----|----|
-| ```/native-app/preflight-check``` | GET | Wraps Service Calls ```/auth/authority``` and ```/profile/native-app/version-check``` [More...](https://github.com/hmrc/customer-profile/blob/master/docs/versionCheck.md) |
-| ```/native-app/:nino/startup``` | POST | Wraps Service Calls ```/income/:nino/tax-summary/:year```[More...](https://github.com/hmrc/personal-income/blob/master/docs/tax-summary.md), ```/profile/preferences```[More...](https://github.com/hmrc/customer-profile/blob/master/docs/preferences.md), ```/income/tax-credits/submission/state``` [More...](https://github.com/hmrc/personal-income/blob/master/docs/tax-credits-submission-state.md), ```/income/:nino/tax-credits/:renewalReference/auth``` [More...](https://github.com/hmrc/personal-income/blob/master/docs/authenticate.md), ```/income/:nino/tax-credits/tax-credits-decision``` [More...](https://github.com/hmrc/personal-income/blob/master/docs/tax-credits-decision.md), ```/income/:nino/tax-credits/tax-credits-summary``` [More...](https://github.com/hmrc/personal-income/blob/master/docs/tax-credits-summary.md), ```/push/registration``` [More...](https://github.com/hmrc/push-registration/blob/master/docs/registration.md) |
+| ```/native-app/preflight-check``` | POST | Return pre-flight information. [More...](docs/preflight-check.md) |
+| ```/native-app/:nino/startup``` | POST | Initiate an async service call to return personal tax data  [More...](docs/startup.md) |
+| ```/native-app/:nino/poll``` | GET | Poll the status of the async task which was initiated from startup. [More...](docs/poll.md) |
 
 # Sandbox
 All the above endpoints are accessible on sandbox with `/sandbox` prefix on each endpoint, e.g.
@@ -31,58 +32,6 @@ Version of API need to be provided in `Accept` request header
 ```
 Accept: application/vnd.hmrc.v1.0+json
 ```
-
-
-* **URL**
-
-  `/native-app/preflight-check`
-
-* **Method:**
-
-  `GET`
-
-*  **URL Params**
-
-   N/A
-
-* **Success Response:**
-
-  * **Code:** 200 <br />
-    **Response body:**
-
-```json
-{
-  "upgradeRequired" : true,
-  "accounts" : {
-      "nino" : "WX772755B",
-      "saUtr" : "618567",
-      "routeToIV" : false
-  }
-}
-```
-
-
-* **URL**
-
-  `/native-app/:nino/startup`
-
-* **Method:**
-  
-  `POST`
-  
-*  **URL Params**
-
-   **Required:**
- 
-   `nino=[Nino]`
-   
-   The nino given must be a valid nino. ([http://www.hmrc.gov.uk/manuals/nimmanual/nim39110.htm](http://www.hmrc.gov.uk/manuals/nimmanual/nim39110.htm))
-
-* **Success Response:**
-
-  * **Code:** 200 <br />
-    **Content:** 
-        TODO
 
 ### License
 

@@ -1,9 +1,9 @@
 <endpoint>
-  <name>PreFlight Check</name>
+  <name>PreFlight-Check</name>
   <description>This endpoint retrieves the accounts associated with the auth record, and validates the app version</description>
   <section id="resource">
     <title>Resource</title>
-    <resource>GET /native-app/preflight-check</resource>
+    <resource>POST /native-app/preflight-check</resource>
   </section>
   <section id="path-parameters">
     <title>Path Parameters</title>
@@ -44,7 +44,6 @@
     <httpStatus>200 (OK)</httpStatus>
     <json><![CDATA[{
       "nino" : "WX772755B",
-      "saUtr" : "618567"
 }]]></json>
     <table>
       <headings>
@@ -59,12 +58,6 @@
           <cell><code>String</code></cell>
           <cell><code>NS123456B</code></cell>
           <cell>The National Insurance Number (NINO) for the individual.</cell>
-        </row>
-        <row>
-          <cell><code>sautr</code></cell>
-          <cell><code>String</code></cell>
-          <cell><code>618567</code></cell>
-          <cell>The Self Assessment Unique Tax Reference for the individual.</cell>
         </row>
       </rows>
     </table>

@@ -1,0 +1,65 @@
+{
+  "scopes":[
+    {
+      "key":"read:native-apps-api-orchestration",
+      "name":"Execute native-apps-api-orchestration call",
+      "description":"Native Apps API Orchestration"
+    }
+  ],
+  "api":{
+    "name":"Native Apps API Orchestration",
+    "description":"The API is used to consolidate calls across multiple micro-services to two single API calls.",
+    "context":"native-apps-api-orchestration",
+    "requiresTrust": true,
+    "versions":[
+      {
+        "version":"1.0",
+        "status":"PUBLISHED",
+        "endpoints":[
+          {
+            "uriPattern":"/native-app/preflight-check",
+            "endpointName":"PreFlight Check",
+            "method":"POST",
+            "authType":"USER",
+            "throttlingTier":"UNLIMITED",
+            "scope":"read:native-apps-api-orchestration",
+            "queryParameters": [
+              {
+                "name": "journeyId",
+                "required": false
+              }
+            ]
+          },
+          {
+            "uriPattern":"/native-app/{nino}/startup",
+            "endpointName":"Startup",
+            "method":"POST",
+            "authType":"USER",
+            "throttlingTier":"UNLIMITED",
+            "scope":"read:native-apps-api-orchestration",
+            "queryParameters": [
+              {
+                "name": "journeyId",
+                "required": false
+              }
+            ]
+          },
+          {
+            "uriPattern":"/native-app/{nino}/poll",
+            "endpointName":"Poll",
+            "method":"GET",
+            "authType":"USER",
+            "throttlingTier":"UNLIMITED",
+            "scope":"read:native-apps-api-orchestration",
+            "queryParameters": [
+              {
+                "name": "journeyId",
+                "required": false
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

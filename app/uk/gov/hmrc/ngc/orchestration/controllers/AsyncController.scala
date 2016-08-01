@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.ngc.orchestration.controllers
 
+import play.api.Logger
 import play.api.libs.json.{JsObject, Json}
 import play.api.mvc._
 import uk.gov.hmrc.api.controllers._
@@ -25,6 +26,7 @@ import uk.gov.hmrc.play.asyncmvc.async.Cache
 import uk.gov.hmrc.play.asyncmvc.model.{TaskCache, ViewCodes}
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.microservice.controller.BaseController
+import play.api.libs.json._
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -34,26 +36,44 @@ object AsyncResponse {
   implicit val format = Json.format[AsyncResponse]
 }
 
-trait AsyncController extends BaseController with HeaderValidator with ErrorHandling with AsyncMvcIntegration {
+object ResponseStatus {
+  val timeout = "timeout"
+  val error = "error"
+  val poll = "poll"
+  val throttle = "throttle"
+  val complete = "complete"
+}
+
+case class AsyncStatusResponse(code:String, message:Option[String]=None)
+
+object AsyncStatusResponse {
+  implicit val format = Json.format[AsyncStatusResponse]
+}
+
+trait ResponseCode {
+  def buildResponseCode(code:String) = {
+    Json.obj("status" -> Json.toJson(AsyncStatusResponse(code)))
+  }
+}
+
+trait AsyncController extends BaseController with HeaderValidator with ErrorHandling with AsyncMvcIntegration with ResponseCode {
+
+  val authToken = "AuthToken"
 
   val accessControl: AccountAccessControlWithHeaderCheck
   val repository:AsyncRepository
 
-  // This is the first call that is made to return a session cookie that will then be presented to async services.
-  // The async services must have a secure key to identify the request before an async task is executed.
-  final def start() = accessControl.validateAccept(acceptHeaderValidationRules).async {
-    implicit authenticated =>
-    Future.successful(Ok.withSession("AppKey" -> "Example"))
-  }
-
   // Function wrapper verifies the session exists before proceeding to call an async function.
   protected def withAsyncSession(func: => Future[Result])(implicit request:Request[AnyContent]) : Future[Result] = {
-    request.session.get("AppKey").fold(Future.successful(BadRequest("Invalid request"))){ _ => func }
-  }
-
-  def noTaskRunning = Action.async {
-    implicit request =>
-      Future.successful(BadRequest("No async task running!"))
+    request.session.get(authToken).fold(Future.successful(BadRequest("Invalid request"))) { token => {
+        if (!hc.authorization.get.value.equals(token)) {
+          Logger.error("HC bearer token does not match session token!")
+          Future.failed(new BadRequestException("Invalid request - HC bearer token does not match session!"))
+        } else {
+          func
+        }
+      }
+    }
   }
 
   /**
@@ -64,49 +84,21 @@ trait AsyncController extends BaseController with HeaderValidator with ErrorHand
   }
 
   /**
-   *  Callback from async framework to generate the successful Result. The off-line has task completed.
-   */
-  def callbackWithSuccessResponse(response:AsyncResponse)(id:String)(implicit request:Request[AnyContent]) : Future[Result] = {
-    removeTaskFromCache(Some(id)) {
-      Future.successful(Ok(response.value))
-    }
-  }
-
-  /**
-   * Callback from async framework to process 'status'. Build a reply to the client.
+   * Callback from async framework to process 'status'. Build client reply.
    */
   def callbackWithStatus(status:Int)(id:Option[String])(implicit request:Request[AnyContent]) : Future[Result] = {
     val res = status match {
-      case ViewCodes.Timeout => Ok("TIMEOUT")
-      case ViewCodes.Polling => Ok("POLL WAIT - CALLBACK AND SEND THE URL TO CALL ") //+ routes.LiveAsyncController.poll(None).absoluteURL())
-      case ViewCodes.ThrottleReached => Ok("THROTTLE EXCEEDED")
-      case ViewCodes.Error | _ => Ok("ERROR")
+      case ViewCodes.Timeout => Ok(buildResponseCode(ResponseStatus.timeout))
+      case ViewCodes.Polling => Ok(buildResponseCode(ResponseStatus.poll))
+      case ViewCodes.ThrottleReached => Ok(buildResponseCode(ResponseStatus.throttle))
+      case ViewCodes.Error | _ => Ok(buildResponseCode(ResponseStatus.error))
     }
     Future.successful(res)
   }
 
-  /**
-   * Invoke the library poll function to determine the response to the client.
-   */
-  def poll(journeyId: Option[String] = None) = accessControl.validateAccept(acceptHeaderValidationRules).async {
-    implicit authenticated =>
-      withAsyncSession {
-        implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
-        implicit val req = authenticated.request
-
-        val response = pollTask(Call("GET", "/notaskrunning"), callbackWithSuccessResponse, callbackWithStatus)
-        // Convert 303 response to 404. The 303 is generated when no task exists in the users session!
-        response.map(resp => {
-          resp.header.status match {
-            case 303 => NotFound
-            case _ => resp
-          }
-        })
-      }
-  }
-
   override def taskCache: Cache[TaskCache] = new Cache[TaskCache] {
-    val expire = 900000L // Note: The expire time must be greater than the client timeout.
+
+    val expire = 300000L // Note: The expire time must be greater than the client timeout.
 
     override def put(id: String, value: TaskCache)(implicit hc: HeaderCarrier): Future[Unit] = {
       repository.save(value, expire).map(_ => ())

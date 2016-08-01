@@ -31,7 +31,7 @@ trait AsyncMvcIntegration extends AsyncMVC[AsyncResponse] {
   override def id = "async_native-apps-api-id"
 
   override def asyncPaths(implicit request:Request[AnyContent]) = Seq(
-    AsyncPaths(id, routes.LiveOrchestrationController.poll(None).url)
+    AsyncPaths(id, "/poll")
   )
 
   override def outputToString(in:AsyncResponse): String = {
@@ -47,10 +47,10 @@ trait AsyncMvcIntegration extends AsyncMVC[AsyncResponse] {
 
   override def waitForAsync = Call("GET","/poll")
 
-  override def      throttleLimit = 300
+  override def      throttleLimit = 10000  // API GATEWAY controls the throttle.
   override def  blockingDelayTime = 3000
 
-  final val CLIENT_TIMEOUT=5000L
+  final val CLIENT_TIMEOUT=35000L
 
   lazy val asyncActor: ActorRef = Akka.system.actorOf(Props(new AsyncMVCAsyncActor(taskCache, CLIENT_TIMEOUT)), actorName)
   override def         actorRef = asyncActor

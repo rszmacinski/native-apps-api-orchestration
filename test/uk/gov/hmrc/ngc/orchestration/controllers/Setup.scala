@@ -19,17 +19,18 @@ package uk.gov.hmrc.ngc.orchestration.controllers
 import java.util.UUID
 
 import play.api.libs.json._
-import play.api.mvc.{Result, Results}
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
-import play.mvc.Results.Status
-import uk.gov.hmrc.api.controllers.ErrorNotFound
+import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.domain.Nino
-import uk.gov.hmrc.ngc.orchestration.{MicroserviceAuditConnector, StubWsHttp}
+import uk.gov.hmrc.mongo.{Updated, DatabaseUpdate}
+import uk.gov.hmrc.msasync.repository.{TaskCachePersist, AsyncRepository}
+import uk.gov.hmrc.ngc.orchestration.config.{MicroserviceAuditConnector, WSHttp}
 import uk.gov.hmrc.ngc.orchestration.connectors._
-import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControl, AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
+import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckAccessOff, AccountAccessControl, AccountAccessControlWithHeaderCheck}
 import uk.gov.hmrc.ngc.orchestration.domain.Accounts
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, Mandatory, OrchestrationService, SandboxOrchestrationService}
+import uk.gov.hmrc.play.asyncmvc.model.TaskCache
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.auth.microservice.connectors.ConfidenceLevel
 import uk.gov.hmrc.play.http._
@@ -46,667 +47,295 @@ trait Setup {
 
   val nino = Nino("CS700100A")
   val testAccount = Accounts(Some(nino), None, false, false,"102030394AAA")
-  val testTaxSummary = Json.parse("""{
-                                    |  "taxSummaryDetails": {
-                                    |    "nino": "CS700100A",
-                                    |    "version": 154,
-                                    |    "increasesTax": {
-                                    |      "incomes": {
-                                    |        "taxCodeIncomes": {
-                                    |          "employments": {
-                                    |            "taxCodeIncomes": [
-                                    |              {
-                                    |                "name": "Sainsburys",
-                                    |                "taxCode": "1100L",
-                                    |                "employmentId": 2,
-                                    |                "employmentPayeRef": "BT456",
-                                    |                "employmentType": 1,
-                                    |                "incomeType": 0,
-                                    |                "employmentStatus": 1,
-                                    |                "tax": {
-                                    |                  "totalIncome": 18900,
-                                    |                  "totalTaxableIncome": 7900,
-                                    |                  "totalTax": 1580,
-                                    |                  "potentialUnderpayment": 0,
-                                    |                  "taxBands": [
-                                    |                    {
-                                    |                      "income": 7900,
-                                    |                      "tax": 1580,
-                                    |                      "lowerBand": 0,
-                                    |                      "upperBand": 32000,
-                                    |                      "rate": 20.00
-                                    |                    },
-                                    |                    {
-                                    |                      "income": 0,
-                                    |                      "tax": 0,
-                                    |                      "lowerBand": 32000,
-                                    |                      "upperBand": 150000,
-                                    |                      "rate": 40.00
-                                    |                    },
-                                    |                    {
-                                    |                      "income": 0,
-                                    |                      "tax": 0,
-                                    |                      "lowerBand": 150000,
-                                    |                      "upperBand": 0,
-                                    |                      "rate": 45.00
-                                    |                    }
-                                    |                  ],
-                                    |                  "allowReliefDeducts": 179.00
-                                    |                },
-                                    |                "worksNumber": "1",
-                                    |                "jobTitle": " ",
-                                    |                "startDate": "2008-04-06",
-                                    |                "income": 7900,
-                                    |                "otherIncomeSourceIndicator": false,
-                                    |                "isEditable": true,
-                                    |                "isLive": true,
-                                    |                "isOccupationalPension": false,
-                                    |                "isPrimary": true
-                                    |              }
-                                    |            ],
-                                    |            "totalIncome": 18900,
-                                    |            "totalTax": 1580,
-                                    |            "totalTaxableIncome": 7900
-                                    |          },
-                                    |          "hasDuplicateEmploymentNames": false,
-                                    |          "totalIncome": 18900,
-                                    |          "totalTaxableIncome": 7900,
-                                    |          "totalTax": 1580
-                                    |        },
-                                    |        "noneTaxCodeIncomes": {
-                                    |          "totalIncome": 0
-                                    |        },
-                                    |        "total": 18900
-                                    |      },
-                                    |      "total": 18900
-                                    |    },
-                                    |    "decreasesTax": {
-                                    |      "personalAllowance": 11000,
-                                    |      "personalAllowanceSourceAmount": 11000,
-                                    |      "paTapered": false,
-                                    |      "total": 11000
-                                    |    },
-                                    |    "totalLiability": {
-                                    |      "nonSavings": {
-                                    |        "totalIncome": 18900,
-                                    |        "totalTaxableIncome": 7900,
-                                    |        "totalTax": 1580,
-                                    |        "taxBands": [
-                                    |          {
-                                    |            "income": 7900,
-                                    |            "tax": 1580,
-                                    |            "lowerBand": 0,
-                                    |            "upperBand": 32000,
-                                    |            "rate": 20.00
-                                    |          },
-                                    |          {
-                                    |            "income": 0,
-                                    |            "tax": 0,
-                                    |            "lowerBand": 32000,
-                                    |            "upperBand": 150000,
-                                    |            "rate": 40.00
-                                    |          },
-                                    |          {
-                                    |            "income": 0,
-                                    |            "tax": 0,
-                                    |            "lowerBand": 150000,
-                                    |            "upperBand": 0,
-                                    |            "rate": 45.00
-                                    |          }
-                                    |        ],
-                                    |        "allowReliefDeducts": 11000
-                                    |      },
-                                    |      "mergedIncomes": {
-                                    |        "totalIncome": 18900,
-                                    |        "totalTaxableIncome": 7900,
-                                    |        "totalTax": 1580,
-                                    |        "taxBands": [
-                                    |          {
-                                    |            "income": 93,
-                                    |            "tax": 0.00,
-                                    |            "lowerBand": 0,
-                                    |            "upperBand": 5000,
-                                    |            "rate": 0.00
-                                    |          },
-                                    |          {
-                                    |            "income": 0,
-                                    |            "tax": 0,
-                                    |            "lowerBand": 5000,
-                                    |            "upperBand": 32000,
-                                    |            "rate": 7.50
-                                    |          },
-                                    |          {
-                                    |            "income": 7900,
-                                    |            "tax": 1580,
-                                    |            "lowerBand": 0,
-                                    |            "upperBand": 32000,
-                                    |            "rate": 20.00
-                                    |          },
-                                    |          {
-                                    |            "income": 0,
-                                    |            "tax": 0,
-                                    |            "lowerBand": 32000,
-                                    |            "upperBand": 150000,
-                                    |            "rate": 32.50
-                                    |          },
-                                    |          {
-                                    |            "income": 0,
-                                    |            "tax": 0,
-                                    |            "lowerBand": 150000,
-                                    |            "upperBand": 0,
-                                    |            "rate": 38.10
-                                    |          },
-                                    |          {
-                                    |            "income": 0,
-                                    |            "tax": 0,
-                                    |            "lowerBand": 32000,
-                                    |            "upperBand": 150000,
-                                    |            "rate": 40.00
-                                    |          },
-                                    |          {
-                                    |            "income": 0,
-                                    |            "tax": 0,
-                                    |            "lowerBand": 150000,
-                                    |            "upperBand": 0,
-                                    |            "rate": 45.00
-                                    |          }
-                                    |        ],
-                                    |        "allowReliefDeducts": 11000
-                                    |      },
-                                    |      "totalLiability": 7900,
-                                    |      "totalTax": 1580,
-                                    |      "totalTaxOnIncome": 1580,
-                                    |      "underpaymentPreviousYear": 0,
-                                    |      "outstandingDebt": 0,
-                                    |      "childBenefitAmount": 0,
-                                    |      "childBenefitTaxDue": 0,
-                                    |      "liabilityReductions": {
-                                    |        "enterpriseInvestmentSchemeRelief": {
-                                    |          "codingAmount": 0,
-                                    |          "amountInTermsOfTax": 0
-                                    |        },
-                                    |        "concessionalRelief": {
-                                    |          "codingAmount": 0,
-                                    |          "amountInTermsOfTax": 0
-                                    |        },
-                                    |        "maintenancePayments": {
-                                    |          "codingAmount": 0,
-                                    |          "amountInTermsOfTax": 0
-                                    |        },
-                                    |        "doubleTaxationRelief": {
-                                    |          "codingAmount": 0,
-                                    |          "amountInTermsOfTax": 0
-                                    |        }
-                                    |      },
-                                    |      "liabilityAdditions": {
-                                    |        "excessGiftAidTax": {
-                                    |          "codingAmount": 0,
-                                    |          "amountInTermsOfTax": 0
-                                    |        },
-                                    |        "excessWidowsAndOrphans": {
-                                    |          "codingAmount": 0,
-                                    |          "amountInTermsOfTax": 0
-                                    |        },
-                                    |        "pensionPaymentsAdjustment": {
-                                    |          "codingAmount": 0,
-                                    |          "amountInTermsOfTax": 0
-                                    |        }
-                                    |      }
-                                    |    },
-                                    |    "extensionReliefs": {
-                                    |      "giftAid": {
-                                    |        "sourceAmount": 0,
-                                    |        "reliefAmount": 0
-                                    |      },
-                                    |      "personalPension": {
-                                    |        "sourceAmount": 0,
-                                    |        "reliefAmount": 0
-                                    |      }
-                                    |    },
-                                    |    "taxCodeDetails": {
-                                    |      "employment": [
-                                    |        {
-                                    |          "id": 2,
-                                    |          "name": "Sainsburys",
-                                    |          "taxCode": "1100L"
-                                    |        }
-                                    |      ],
-                                    |      "taxCode": [
-                                    |        {
-                                    |          "taxCode": "L"
-                                    |        }
-                                    |      ],
-                                    |      "taxCodeDescriptions": [
-                                    |        {
-                                    |          "taxCode": "1100L",
-                                    |          "name": "Sainsburys",
-                                    |          "taxCodeDescriptors": [
-                                    |            {
-                                    |              "taxCode": "L"
-                                    |            }
-                                    |          ]
-                                    |        }
-                                    |      ],
-                                    |      "deductions": [
-                                    |
-                                    |      ],
-                                    |      "allowances": [
-                                    |        {
-                                    |          "description": "Tax Free Amount",
-                                    |          "amount": 11000,
-                                    |          "componentType": 0
-                                    |        }
-                                    |      ],
-                                    |      "splitAllowances": false,
-                                    |      "total": 0
-                                    |    }
-                                    |  },
-                                    |  "baseViewModel": {
-                                    |    "estimatedIncomeTax": 1580,
-                                    |    "taxableIncome": 7900,
-                                    |    "taxFree": 11000,
-                                    |    "personalAllowance": 11000,
-                                    |    "hasTamc": false,
-                                    |    "taxCodesList": [
-                                    |      "1100L"
-                                    |    ],
-                                    |    "hasChanges": false
-                                    |  },
-                                    |  "estimatedIncomeWrapper": {
-                                    |    "estimatedIncome": {
-                                    |      "increasesTax": true,
-                                    |      "incomeTaxEstimate": 1580,
-                                    |      "incomeEstimate": 18900,
-                                    |      "taxFreeEstimate": 11000,
-                                    |      "taxRelief": false,
-                                    |      "taxCodes": [
-                                    |        "1100L"
-                                    |      ],
-                                    |      "potentialUnderpayment": false,
-                                    |      "additionalTaxTable": [
-                                    |
-                                    |      ],
-                                    |      "additionalTaxTableTotal": "0.00",
-                                    |      "reductionsTable": [
-                                    |
-                                    |      ],
-                                    |      "reductionsTableTotal": "-0.00",
-                                    |      "graph": {
-                                    |        "id": "taxGraph",
-                                    |        "bands": [
-                                    |          {
-                                    |            "colour": "TaxFree",
-                                    |            "barPercentage": 58.21,
-                                    |            "tablePercentage": "0",
-                                    |            "income": 11000,
-                                    |            "tax": 0
-                                    |          },
-                                    |          {
-                                    |            "colour": "Band1",
-                                    |            "barPercentage": 41.79,
-                                    |            "tablePercentage": "20",
-                                    |            "income": 7900,
-                                    |            "tax": 1580
-                                    |          }
-                                    |        ],
-                                    |        "minBand": 0,
-                                    |        "nextBand": 18900,
-                                    |        "incomeTotal": 18900,
-                                    |        "incomeAsPercentage": 100.00,
-                                    |        "taxTotal": 1580
-                                    |      },
-                                    |      "hasChanges": false
-                                    |    }
-                                    |  },
-                                    |  "taxableIncome": {
-                                    |    "taxFreeAmount": 11000,
-                                    |    "incomeTax": 1580,
-                                    |    "income": 18900,
-                                    |    "taxCodeList": [
-                                    |      "1100L"
-                                    |    ],
-                                    |    "increasesTax": {
-                                    |      "incomes": {
-                                    |        "taxCodeIncomes": {
-                                    |          "employments": {
-                                    |            "taxCodeIncomes": [
-                                    |              {
-                                    |                "name": "Sainsburys",
-                                    |                "taxCode": "1100L",
-                                    |                "employmentId": 2,
-                                    |                "employmentPayeRef": "BT456",
-                                    |                "employmentType": 1,
-                                    |                "incomeType": 0,
-                                    |                "employmentStatus": 1,
-                                    |                "tax": {
-                                    |                  "totalIncome": 18900,
-                                    |                  "totalTaxableIncome": 7900,
-                                    |                  "totalTax": 1580,
-                                    |                  "potentialUnderpayment": 0,
-                                    |                  "taxBands": [
-                                    |                    {
-                                    |                      "income": 7900,
-                                    |                      "tax": 1580,
-                                    |                      "lowerBand": 0,
-                                    |                      "upperBand": 32000,
-                                    |                      "rate": 20.00
-                                    |                    },
-                                    |                    {
-                                    |                      "income": 0,
-                                    |                      "tax": 0,
-                                    |                      "lowerBand": 32000,
-                                    |                      "upperBand": 150000,
-                                    |                      "rate": 40.00
-                                    |                    },
-                                    |                    {
-                                    |                      "income": 0,
-                                    |                      "tax": 0,
-                                    |                      "lowerBand": 150000,
-                                    |                      "upperBand": 0,
-                                    |                      "rate": 45.00
-                                    |                    }
-                                    |                  ],
-                                    |                  "allowReliefDeducts": 179.00
-                                    |                },
-                                    |                "worksNumber": "1",
-                                    |                "jobTitle": " ",
-                                    |                "startDate": "2008-04-06",
-                                    |                "income": 7900,
-                                    |                "otherIncomeSourceIndicator": false,
-                                    |                "isEditable": true,
-                                    |                "isLive": true,
-                                    |                "isOccupationalPension": false,
-                                    |                "isPrimary": true
-                                    |              }
-                                    |            ],
-                                    |            "totalIncome": 18900,
-                                    |            "totalTax": 1580,
-                                    |            "totalTaxableIncome": 7900
-                                    |          },
-                                    |          "hasDuplicateEmploymentNames": false,
-                                    |          "totalIncome": 18900,
-                                    |          "totalTaxableIncome": 7900,
-                                    |          "totalTax": 1580
-                                    |        },
-                                    |        "noneTaxCodeIncomes": {
-                                    |          "totalIncome": 0
-                                    |        },
-                                    |        "total": 18900
-                                    |      },
-                                    |      "total": 18900
-                                    |    },
-                                    |    "employmentPension": {
-                                    |      "taxCodeIncomes": {
-                                    |        "employments": {
-                                    |          "taxCodeIncomes": [
-                                    |            {
-                                    |              "name": "Sainsburys",
-                                    |              "taxCode": "1100L",
-                                    |              "employmentId": 2,
-                                    |              "employmentPayeRef": "BT456",
-                                    |              "employmentType": 1,
-                                    |              "incomeType": 0,
-                                    |              "employmentStatus": 1,
-                                    |              "tax": {
-                                    |                "totalIncome": 18900,
-                                    |                "totalTaxableIncome": 7900,
-                                    |                "totalTax": 1580,
-                                    |                "potentialUnderpayment": 0,
-                                    |                "taxBands": [
-                                    |                  {
-                                    |                    "income": 7900,
-                                    |                    "tax": 1580,
-                                    |                    "lowerBand": 0,
-                                    |                    "upperBand": 32000,
-                                    |                    "rate": 20.00
-                                    |                  },
-                                    |                  {
-                                    |                    "income": 0,
-                                    |                    "tax": 0,
-                                    |                    "lowerBand": 32000,
-                                    |                    "upperBand": 150000,
-                                    |                    "rate": 40.00
-                                    |                  },
-                                    |                  {
-                                    |                    "income": 0,
-                                    |                    "tax": 0,
-                                    |                    "lowerBand": 150000,
-                                    |                    "upperBand": 0,
-                                    |                    "rate": 45.00
-                                    |                  }
-                                    |                ],
-                                    |                "allowReliefDeducts": 179.00
-                                    |              },
-                                    |              "worksNumber": "1",
-                                    |              "jobTitle": " ",
-                                    |              "startDate": "2008-04-06",
-                                    |              "income": 7354,
-                                    |              "otherIncomeSourceIndicator": false,
-                                    |              "isEditable": true,
-                                    |              "isLive": true,
-                                    |              "isOccupationalPension": false,
-                                    |              "isPrimary": true
-                                    |            }
-                                    |          ],
-                                    |          "totalIncome": 18900,
-                                    |          "totalTax": 1580,
-                                    |          "totalTaxableIncome": 7900
-                                    |        },
-                                    |        "hasDuplicateEmploymentNames": false,
-                                    |        "totalIncome": 18900,
-                                    |        "totalTaxableIncome": 7900,
-                                    |        "totalTax": 1580
-                                    |      },
-                                    |      "totalEmploymentPensionAmt": 18900,
-                                    |      "hasEmployment": true,
-                                    |      "isOccupationalPension": false
-                                    |    },
-                                    |    "investmentIncomeData": [
-                                    |
-                                    |    ],
-                                    |    "investmentIncomeTotal": 0,
-                                    |    "otherIncomeData": [
-                                    |
-                                    |    ],
-                                    |    "otherIncomeTotal": 0,
-                                    |    "benefitsData": [
-                                    |
-                                    |    ],
-                                    |    "benefitsTotal": 0,
-                                    |    "taxableBenefitsData": [
-                                    |
-                                    |    ],
-                                    |    "taxableBenefitsTotal": 0,
-                                    |    "hasChanges": false
-                                    |  }
-                                    |}""".stripMargin)
-  val testPreferences = Json.parse("""{"digital":true,"email":{"email":"name@email.co.uk","status":"verified"}}""")
-  val testState = Json.parse("""{"shuttered":true,"inSubmissionPeriod":true}""")
-  val testTaxCreditSummary = Json.parse("""{
-                                          |  "paymentSummary": {
-                                          |    "workingTaxCredit": {
-                                          |      "amount": 86.63,
-                                          |      "paymentDate": 1437004800000,
-                                          |      "paymentFrequency": "WEEKLY"
-                                          |    },
-                                          |    "childTaxCredit": {
-                                          |      "amount": 51.76,
-                                          |      "paymentDate": 1437004800000,
-                                          |      "paymentFrequency": "WEEKLY"
-                                          |    }
-                                          |  },
-                                          |  "personalDetails": {
-                                          |    "forename": "Nuala",
-                                          |    "surname": "O'Shea",
-                                          |    "nino": "CS700100A",
-                                          |    "address": {
-                                          |      "addressLine1": "19 Bushey Hall Road",
-                                          |      "addressLine2": "Bushey",
-                                          |      "addressLine3": "Watford",
-                                          |      "addressLine4": "Hertfordshire",
-                                          |      "postCode": "WD23 2EE"
-                                          |    }
-                                          |  },
-                                          |  "partnerDetails": {
-                                          |    "forename": "Frederick",
-                                          |    "otherForenames": "Tarquin",
-                                          |    "surname": "Hunter-Smith",
-                                          |    "nino": "CS700100A",
-                                          |    "address": {
-                                          |      "addressLine1": "19 Bushey Hall Road",
-                                          |      "addressLine2": "Bushey",
-                                          |      "addressLine3": "Watford",
-                                          |      "addressLine4": "Hertfordshire",
-                                          |      "postCode": "WD23 2EE"
-                                          |    }
-                                          |  },
-                                          |  "children": {
-                                          |    "child": [
-                                          |      {
-                                          |        "firstNames": "Sarah",
-                                          |        "surname": "Smith",
-                                          |        "dateOfBirth": 936057600000,
-                                          |        "hasFTNAE": false,
-                                          |        "hasConnexions": false,
-                                          |        "isActive": true
-                                          |      },
-                                          |      {
-                                          |        "firstNames": "Joseph",
-                                          |        "surname": "Smith",
-                                          |        "dateOfBirth": 884304000000,
-                                          |        "hasFTNAE": false,
-                                          |        "hasConnexions": false,
-                                          |        "isActive": true
-                                          |      },
-                                          |      {
-                                          |        "firstNames": "Mary",
-                                          |        "surname": "Smith",
-                                          |        "dateOfBirth": 852768000000,
-                                          |        "hasFTNAE": false,
-                                          |        "hasConnexions": false,
-                                          |        "isActive": true
-                                          |      }
-                                          |    ]
-                                          |  },
-                                          |  "showData": true
-                                          |}""".stripMargin)
-  val testAuthToken = JsString("someTestAuthToken")
-  val testTaxCreditDecision = JsBoolean(true)
-  val testPushReg = JsNull
 
-  val noNinoOnAccount = Json.parse("""{"code":"UNAUTHORIZED","message":"NINO does not exist on account"}""")
-  val lowCL = Json.parse("""{"code":"LOW_CONFIDENCE_LEVEL","message":"Confidence Level on account does not allow access"}""")
-  val weakCredStrength = Json.parse("""{"code":"WEAK_CRED_STRENGTH","message":"Credential Strength on account does not allow access"}""")
+  val requestWithAuthSession = FakeRequest().withSession(
+    "AuthToken" -> "Some Header"
+  ).withHeaders(
+      "Accept" -> "application/vnd.hmrc.1.0+json",
+      "Authorization" -> "Some Header"
+    )
 
-  lazy val testGenericConnector = new TestGenericConnector(true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+  lazy val testGenericConnector = new TestGenericConnector(true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData, TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
   lazy val authConnector = new TestAuthConnector(Some(nino))
   lazy val testOrchestrationService = new TestOrchestrationService(testGenericConnector, authConnector)
 
-  lazy val testGenericConnectorFAILURE = new TestFailureGenericConnector(true, true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+  lazy val testGenericConnectorFAILURE = new TestFailureGenericConnector(true, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData, TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
   lazy val testOrchestrationServiceFAILURE = new TestOrchestrationService(testGenericConnectorFAILURE, authConnector)
-  lazy val testGenericConnectorRETRY = new TestRetryGenericConnector(false, true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+  lazy val testGenericConnectorRETRY = new TestRetryGenericConnector(false, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData, TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
   lazy val testOrchestrationServiceRETRY = new TestOrchestrationService(testGenericConnectorRETRY, authConnector)
 
   lazy val testAccess = new TestAccessCheck(authConnector)
   lazy val testCompositeAction = new TestAccountAccessControlWithAccept(testAccess)
 
-  val servicesPreferencesFailMap = Map("profile/native-app/version-check" -> true,
-                                       "profile/preferences" -> false,
-                                       "income/CS700100A/tax-summary/2016" -> true,
-                                       "income/tax-credits/submission/state" -> true,
-                                       "income/CS700100A/tax-credits/tax-credits-summary" -> true,
-                                       "income/CS700100A/tax-credits/tax-credits-decision" -> true,
-                                       "/income/CS700100A/tax-credits/999999999999999/auth" -> true)
-  lazy val testGenericConnectorPreferencesFAILURE = new TestServiceFailureGenericConnector(servicesPreferencesFailMap ,false, true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+  val servicesSuccessMap = Map(
+    "/profile/native-app/version-check" -> true,
+    "/profile/preferences" -> true,
+    "/income/CS700100A/tax-summary/2016" -> true,
+    "/income/tax-credits/submission/state" -> true,
+    "/income/CS700100A/tax-credits/tax-credits-summary" -> true,
+    "/income/CS700100A/tax-credits/tax-credits-decision" -> true,
+    "/income/CS700100A/tax-credits/999999999999999/auth" -> true)
+
+  val servicesPreferencesFailMap = servicesSuccessMap ++ Map("/profile/preferences" -> false)
+  lazy val testGenericConnectorPreferencesFAILURE = new TestServiceFailureGenericConnector(servicesPreferencesFailMap ,false, false, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData, TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
   lazy val testOrchestrationServicePreferencesFAILURE = new TestOrchestrationService(testGenericConnectorPreferencesFAILURE, authConnector)
-  val servicesStateFailMap = Map("profile/native-app/version-check" -> true,
-                                       "profile/preferences" -> true,
-                                       "income/CS700100A/tax-summary/2016" -> true,
-                                       "income/tax-credits/submission/state" -> false,
-                                       "income/CS700100A/tax-credits/tax-credits-summary" -> true,
-                                       "income/CS700100A/tax-credits/tax-credits-decision" -> true,
-                                       "/income/CS700100A/tax-credits/999999999999999/auth" -> true)
-  lazy val testGenericConnectorStateFAILURE = new TestServiceFailureGenericConnector(servicesStateFailMap ,false, true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+
+  val servicesStateFailMap = servicesSuccessMap ++ Map("/income/tax-credits/submission/state" -> false)
+  lazy val testGenericConnectorStateFAILURE = new TestServiceFailureGenericConnector(servicesStateFailMap ,false, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData, TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
   lazy val testOrchestrationServiceStateFAILURE = new TestOrchestrationService(testGenericConnectorStateFAILURE, authConnector)
-  val servicesOptionalDataFailMap = Map("profile/native-app/version-check" -> true,
-                                       "profile/preferences" -> false,
-                                       "income/CS700100A/tax-summary/2016" -> true,
-                                       "income/tax-credits/submission/state" -> false,
-                                       "income/CS700100A/tax-credits/tax-credits-summary" -> false,
-                                       "income/CS700100A/tax-credits/tax-credits-decision" -> false,
+
+  val servicesAuthFailMap = servicesSuccessMap ++ Map("/income/CS700100A/tax-credits/999999999999999/auth" -> false)
+  lazy val testGenericConnectorAuthFAILURE = new TestServiceFailureGenericConnector(servicesAuthFailMap ,false, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData, TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
+  lazy val testOrchestrationServiceAuthFAILURE = new TestOrchestrationService(testGenericConnectorAuthFAILURE, authConnector)
+
+  lazy val testGenericConnectorRenewalSubmissionNotActive = new TestServiceFailureGenericConnector(servicesSuccessMap ,false, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData, TestData.testStateNotInSubmission, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
+  lazy val testOrchestrationServiceRenewalSubmissionNotActive = new TestOrchestrationService(testGenericConnectorRenewalSubmissionNotActive, authConnector)
+
+  lazy val testGenericConnectorRenewalShutterActive = new TestServiceFailureGenericConnector(servicesSuccessMap ,false, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData, TestData.testStateSubmissionShutterActive, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
+  lazy val testOrchestrationServiceRenewalShutterActive = new TestOrchestrationService(testGenericConnectorRenewalShutterActive, authConnector)
+
+  lazy val testGenericConnectorExclusionTrue = new TestServiceFailureGenericConnector(servicesSuccessMap ,false, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData, TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecisionNotDisplay, TestData.testAuthToken)
+  lazy val testOrchestrationServiceExclusionTrue = new TestOrchestrationService(testGenericConnectorExclusionTrue, authConnector)
+
+  val servicesOptionalDataFailMap = servicesSuccessMap ++ Map(
+                                       "/profile/preferences" -> false,
+                                       "/income/tax-credits/submission/state" -> false,
+                                       "/income/CS700100A/tax-credits/tax-credits-summary" -> false,
+                                       "/income/CS700100A/tax-credits/tax-credits-decision" -> false,
                                        "/income/CS700100A/tax-credits/999999999999999/auth" -> false)
-  lazy val testGenericConnectorOptionalDataFAILURE = new TestServiceFailureGenericConnector(servicesOptionalDataFailMap ,false, true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+
+  lazy val testGenericConnectorOptionalDataFAILURE = new TestServiceFailureGenericConnector(servicesOptionalDataFailMap ,false, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData, TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
   lazy val testOrchestrationServiceOptionalDataFAILURE = new TestOrchestrationService(testGenericConnectorOptionalDataFAILURE, authConnector)
 
-  val servicesRenewalFailMap = Map("profile/native-app/version-check" -> true,
-    "profile/preferences" -> true,
-    "income/CS700100A/tax-summary/2016" -> true,
-    "income/tax-credits/submission/state" -> true,
-    "income/CS700100A/tax-credits/tax-credits-summary" -> true,
-    "income/CS700100A/tax-credits/tax-credits-decision" -> true,
-    "/income/CS700100A/tax-credits/999999999999999/auth" -> false)
-  lazy val testGenericConnectorRenewalFAILURE = new TestServiceFailureGenericConnector(servicesRenewalFailMap ,false, true, testAccount, testPushReg, testPreferences, testTaxSummary, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
-  lazy val testOrchestrationServiceRenewalFAILURE = new TestOrchestrationService(testGenericConnectorRenewalFAILURE, authConnector)
+  val versionBody = Json.parse("""{"os":"android", "version":"1.0.1"}""")
+  val versionRequest = FakeRequest().withBody(versionBody)
+    .withHeaders("Content-Type" -> "application/json", "Accept" -> "application/vnd.hmrc.1.0+json")
 
+  val token = Json.parse("""{"token":"123456"}""")
 
+  val pushRegRequest = FakeRequest().withBody(token)
+    .withHeaders("Content-Type" -> "application/json", "Accept" -> "application/vnd.hmrc.1.0+json")
+
+  val asyncRepository = new AsyncRepository {
+
+    var cache:Option[TaskCache] = None
+
+    override def findByTaskId(id: String): Future[Option[TaskCachePersist]] = {
+      val update = TaskCachePersist(BSONObjectID.generate, cache.get)
+      Future.successful(Some(update))
+    }
+
+    override def removeById(id: String): Future[Unit] = Future.successful({})
+
+    override def save(expectation: TaskCache, expire: Long): Future[DatabaseUpdate[TaskCachePersist]] = {
+      cache = Some(expectation)
+      val update = TaskCachePersist(BSONObjectID.generate, expectation)
+      Future.successful(DatabaseUpdate(null, Updated(update,update)))
+    }
+  }
 
 }
 
 trait Success extends Setup {
   val controller = new NativeAppsOrchestrationController {
+
+    val testSessionId="Success"
+
+    override val actorName = s"async_native-apps-api-actor_"+testSessionId
+    override def id = "sandbox-async_native-apps-api-id"
+
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
     override val service: OrchestrationService = testOrchestrationService
     override val app: String = "Success Orchestration Controller"
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
+
   }
 }
 
 trait Failure extends Setup {
+
   val controller = new NativeAppsOrchestrationController {
+
+    val testSessionId="Failure"
+    override def buildUniqueId() = testSessionId
+
+    override val actorName = s"async_native-apps-api-actor_"+testSessionId
+    override def id = "async_native-apps-api-id"
+
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
     override val service: OrchestrationService = testOrchestrationServiceFAILURE
-    override val app: String = "Failure Orchestration Controller"
+    override val app: String = "Failure"
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
+
   }
   def invokeCount = testGenericConnectorFAILURE.counter
 }
 
 trait PreferenceFailure extends Setup {
   val controller = new NativeAppsOrchestrationController {
+
+    val testSessionId="PreferenceFailure"
+    override def buildUniqueId() = testSessionId
+
+    override val actorName = s"async_native-apps-api-actor_"+testSessionId
+    override def id = "async_native-apps-api-id"
+
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
     override val service: OrchestrationService = testOrchestrationServicePreferencesFAILURE
-    override val app: String = "Failure Orchestration Controller"
+    override val app: String = "PreferenceFailure"
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
+
   }
 }
 
-trait StateFailure extends Setup {
+trait AuthenticateRenewal extends Setup {
   val controller = new NativeAppsOrchestrationController {
+
+    val testSessionId="AuthenticateRenewal"
+    override def buildUniqueId() = testSessionId
+
+    override val actorName = s"async_native-apps-api-actor_"+testSessionId
+    override def id = "async_native-apps-api-id"
+
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
-    override val service: OrchestrationService = testOrchestrationServiceStateFAILURE
-    override val app: String = "Failure Orchestration Controller"
+    override val service: OrchestrationService = testOrchestrationServiceAuthFAILURE
+    override val app: String = "AuthenticateRenewal"
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
+
+  }
+}
+
+trait SessionChecker extends Setup {
+  val controller = new NativeAppsOrchestrationController {
+
+    val testSessionId="SessionChecker"
+    override def buildUniqueId() = testSessionId
+
+    override val actorName = s"async_native-apps-api-actor_"+testSessionId
+    override def id = "async_native-apps-api-id"
+
+    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val service: OrchestrationService = testOrchestrationServiceAuthFAILURE
+    override val app: String = "SessionChecker"
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
+
+  }
+
+}
+
+trait RenewalSubmissionNotActive extends Setup {
+  val controller = new NativeAppsOrchestrationController {
+
+    val testSessionId="RenewalSubmissionNotActive"
+    override def buildUniqueId() = testSessionId
+
+    override val actorName = s"async_native-apps-api-actor_"+testSessionId
+    override def id = "async_native-apps-api-id"
+
+    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val service: OrchestrationService = testOrchestrationServiceRenewalSubmissionNotActive
+    override val app: String = "RenewalSubmissionNotActive"
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
+
+  }
+}
+
+trait RenewalSubmissionShutterActive extends Setup {
+  val controller = new NativeAppsOrchestrationController {
+
+    val testSessionId="RenewalSubmissionShutterActive"
+    override def buildUniqueId() = testSessionId
+
+    override val actorName = s"async_native-apps-api-actor_"+testSessionId
+    override def id = "async_native-apps-api-id"
+
+    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val service: OrchestrationService = testOrchestrationServiceRenewalShutterActive
+    override val app: String = "RenewalSubmissionShutterActive"
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
+
+  }
+}
+
+trait ExclusionTrue extends Setup {
+  val controller = new NativeAppsOrchestrationController {
+
+    val testSessionId="ExclusionTrue"
+    override def buildUniqueId() = testSessionId
+
+    override val actorName = s"async_native-apps-api-actor_"+testSessionId
+    override def id = "async_native-apps-api-id"
+
+    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val service: OrchestrationService = testOrchestrationServiceExclusionTrue
+    override val app: String = "ExclusionTrue"
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
+
+  }
+}
+
+trait SecurityAsyncSetup extends Setup {
+  val controller = new NativeAppsOrchestrationController {
+
+    val testSessionId="SecurityAsyncSetup"
+    override def buildUniqueId() = testSessionId
+
+    override val actorName = s"async_native-apps-api-actor_"+testSessionId
+    override def id = "async_native-apps-api-id"
+
+
+    lazy val authConnector = new TestAuthConnector(Some(Nino("CS700100B")))
+    lazy val testAccess = new TestAccessCheck(authConnector)
+    lazy val compositeAuthAction = new TestAccountAccessControlWithAccept(testAccess)
+
+    override val accessControl: AccountAccessControlWithHeaderCheck = compositeAuthAction
+    override val service: OrchestrationService = testOrchestrationServiceExclusionTrue
+    override val app: String = "SecurityAsyncSetup"
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
   }
 }
 
 trait OptionalDataFailure extends Setup {
   val controller = new NativeAppsOrchestrationController {
+
+    val testSessionId="OptionalDataFailure"
+    override def buildUniqueId() = testSessionId
+
+    override val actorName = s"async_native-apps-api-actor_"+testSessionId
+    override def id = "async_native-apps-api-id"
+
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
     override val service: OrchestrationService = testOrchestrationServiceOptionalDataFAILURE
     override val app: String = "Failure Orchestration Controller"
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
   }
 }
-
-trait RenewalFailure extends Setup {
-  val controller = new NativeAppsOrchestrationController {
-    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
-    override val service: OrchestrationService = testOrchestrationServiceOptionalDataFAILURE
-    override val app: String = "Failure Orchestration Controller"
-  }
-}
-
 
 trait FailWithRetrySuccess extends Setup {
   val controller = new NativeAppsOrchestrationController {
+
+    val testSessionId="FailWithRetrySuccess"
+    override def buildUniqueId() = testSessionId
+
+    override val actorName = s"async_native-apps-api-actor_"+testSessionId
+    override def id = "async_native-apps-api-id"
+
+
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
     override val service: OrchestrationService = testOrchestrationServiceRETRY
     override val app: String = "Fail with Retry Success Orchestration Controller"
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
   }
 
   def invokeCount = testGenericConnectorRETRY.counter
@@ -735,29 +364,30 @@ class TestAuthConnector(nino: Option[Nino]) extends AuthConnector {
 
   override def accounts()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future(Accounts(nino, None, false, false, "102030394AAA"))
 
-  override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = Future(Unit)
+  override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = Future(Authority(nino.getOrElse(Nino("CS700100A")), ConfidenceLevel.L200, "Some Auth-Id"))
 }
 
 class TestGenericConnector(upgradeRequired: Boolean, accounts: Accounts, pushRegResult: JsValue, preferences: JsValue,
-                           taxSummary: JsValue, state: JsValue, taxCreditSummary: JsValue, taxCreditDecision: JsBoolean,
+                           taxSummary: JsValue, state: JsValue, taxCreditSummary: JsValue, taxCreditDecision: JsValue,
                            auth: JsValue) extends GenericConnector {
 
-  override def http: HttpPost with HttpGet = StubWsHttp
+  override def http: HttpPost with HttpGet = WSHttp
 
   override def doPost(json:JsValue, host:String, path:String, port:Int, hc: HeaderCarrier): Future[JsValue] = {
     path match {
-      case "push/registration" => Future.successful(JsNull)
+      case "/profile/native-app/version-check" => Future.successful(Json.parse(s"""{"upgrade":$upgradeRequired}"""))
+
+      case "/push/registration" => Future.successful(JsNull)
     }
   }
 
   override def doGet(host:String, path:String, port:Int, hc: HeaderCarrier): Future[JsValue] = {
     path match {
-      case "profile/native-app/version-check" => Future.successful(Json.toJson(upgradeRequired))
-      case "profile/preferences" => Future.successful(preferences)
-      case "income/CS700100A/tax-summary/2016" => Future.successful(taxSummary)
-      case "income/tax-credits/submission/state" => Future.successful(state)
-      case "income/CS700100A/tax-credits/tax-credits-summary" => Future.successful(taxCreditSummary)
-      case "income/CS700100A/tax-credits/tax-credits-decision" => Future.successful(taxCreditDecision)
+      case "/profile/preferences" => Future.successful(preferences)
+      case "/income/CS700100A/tax-summary/2016" => Future.successful(taxSummary)
+      case "/income/tax-credits/submission/state" => Future.successful(state)
+      case "/income/CS700100A/tax-credits/tax-credits-summary" => Future.successful(taxCreditSummary)
+      case "/income/CS700100A/tax-credits/tax-credits-decision" => Future.successful(taxCreditDecision)
     }
   }
 
@@ -768,23 +398,21 @@ class TestGenericConnector(upgradeRequired: Boolean, accounts: Accounts, pushReg
   }
 }
 
-
 class TestRetryGenericConnector(exceptionControl: Boolean, upgradeRequired: Boolean, accounts: Accounts, pushRegResult: JsValue,
                                 preferences: JsValue, taxSummary: JsValue, state: JsValue, taxCreditSummary: JsValue,
-                                taxCreditDecision: JsBoolean, auth: JsValue) extends TestGenericConnector(upgradeRequired: Boolean,
+                                taxCreditDecision: JsValue, auth: JsValue) extends TestGenericConnector(upgradeRequired: Boolean,
                                 accounts: Accounts, pushRegResult: JsValue, preferences: JsValue, taxSummary: JsValue, state: JsValue,
-                                taxCreditSummary: JsValue, taxCreditDecision: JsBoolean, auth: JsValue) {
+                                taxCreditSummary: JsValue, taxCreditDecision: JsValue, auth: JsValue) {
 
   var counter=0
 
   override def doGet(host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = {
     path match {
-      case "profile/native-app/version-check" => Future.successful(Json.toJson(upgradeRequired))
-      case "profile/preferences" => Future.successful(preferences)
-      case "income/CS700100A/tax-summary/2016" => Future.successful(taxSummary)
-      case "income/tax-credits/submission/state" => Future.successful(state)
-      case "income/CS700100A/tax-credits/tax-credits-summary" => Future.successful(taxCreditSummary)
-      case "income/CS700100A/tax-credits/tax-credits-decision" => {
+      case "/profile/preferences" => Future.successful(preferences)
+      case "/income/CS700100A/tax-summary/2016" => Future.successful(taxSummary)
+      case "/income/tax-credits/submission/state" => Future.successful(state)
+      case "/income/CS700100A/tax-credits/tax-credits-summary" => Future.successful(taxCreditSummary)
+      case "/income/CS700100A/tax-credits/tax-credits-decision" => {
         val res = if (exceptionControl==true) Future.failed(new ServiceUnavailableException("FAILED"))
         else {
           if (counter == 0) Future.failed(new ServiceUnavailableException("FAILED"))
@@ -801,89 +429,58 @@ class TestRetryGenericConnector(exceptionControl: Boolean, upgradeRequired: Bool
 
 class TestFailureGenericConnector(exceptionControl: Boolean, upgradeRequired: Boolean, accounts: Accounts, pushRegResult: JsValue,
                                    preferences: JsValue, taxSummary: JsValue, state: JsValue, taxCreditSummary: JsValue,
-                                   taxCreditDecision: JsBoolean, auth: JsValue) extends TestGenericConnector(upgradeRequired: Boolean,
+                                   taxCreditDecision: JsValue, auth: JsValue) extends TestGenericConnector(upgradeRequired: Boolean,
   accounts: Accounts, pushRegResult: JsValue, preferences: JsValue, taxSummary: JsValue, state: JsValue,
-  taxCreditSummary: JsValue, taxCreditDecision: JsBoolean, auth: JsValue) {
+  taxCreditSummary: JsValue, taxCreditDecision: JsValue, auth: JsValue) {
 
   var counter=0
 
   override def doGet(host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = {
     path match {
-      case "profile/native-app/version-check" => Future.successful(Json.toJson(upgradeRequired))
-      case "profile/preferences" => Future.successful(preferences)
-      case "income/CS700100A/tax-summary/2016" => {
-        val res = if(exceptionControl == true) {
-          Future.failed(Mandatory())
-        }
-        else {
-          Future.successful(taxSummary)
-        }
-        res
-      }
-      case "income/tax-credits/submission/state" => Future.successful(state)
-      case "income/CS700100A/tax-credits/tax-credits-summary" => Future.successful(taxCreditSummary)
-      case "income/CS700100A/tax-credits/tax-credits-decision" => Future.successful(taxCreditDecision)
+      case "/profile/preferences" => Future.successful(preferences)
+      case "/income/CS700100A/tax-summary/2016" =>
+        if(exceptionControl == true) Future.failed(Mandatory()) else Future.successful(taxSummary)
+      case "/income/tax-credits/submission/state" => Future.successful(state)
+      case "/income/CS700100A/tax-credits/tax-credits-summary" => Future.successful(taxCreditSummary)
+      case "/income/CS700100A/tax-credits/tax-credits-decision" => Future.successful(taxCreditDecision)
     }
   }
 }
 
 class TestServiceFailureGenericConnector(pathFailMap: Map[String, Boolean], exceptionControl: Boolean, upgradeRequired: Boolean, accounts: Accounts, pushRegResult: JsValue,
                                   preferences: JsValue, taxSummary: JsValue, state: JsValue, taxCreditSummary: JsValue,
-                                  taxCreditDecision: JsBoolean, auth: JsValue) extends TestGenericConnector(upgradeRequired: Boolean,
+                                  taxCreditDecision: JsValue, auth: JsValue) extends TestGenericConnector(upgradeRequired: Boolean,
   accounts: Accounts, pushRegResult: JsValue, preferences: JsValue, taxSummary: JsValue, state: JsValue,
-  taxCreditSummary: JsValue, taxCreditDecision: JsBoolean, auth: JsValue) {
+  taxCreditSummary: JsValue, taxCreditDecision: JsValue, auth: JsValue) {
 
   private def passFail(value: JsValue, success: Boolean): Future[JsValue] = {
-    val res = if (!success) {
-      Future.failed(new Exception())
-    }
-    else {
-      Future.successful(Json.toJson(value))
-    }
-    res
+    if (!success) Future.failed(new Exception()) else Future.successful(Json.toJson(value))
   }
 
   override def doGet(host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = {
 
-    def isSuccess(key: String): Boolean = {
-        pathFailMap.get(key).getOrElse(false)
-    }
+    def isSuccess(key: String): Boolean = pathFailMap.get(key).getOrElse(false)
 
     val result = path match {
-        case "profile/native-app/version-check" => passFail(Json.toJson(upgradeRequired), isSuccess(path))
-        case "profile/preferences" => passFail(preferences, isSuccess(path))
-        case "income/CS700100A/tax-summary/2016" => {
-          val res = if (exceptionControl) {
-            Future.failed(Mandatory())
-          }
-          else {
-            Future.successful(taxSummary)
-          }
-          res
+        case "/profile/preferences" => passFail(preferences, isSuccess(path))
+        case "/income/CS700100A/tax-summary/2016" => {
+          if (exceptionControl) Future.failed(Mandatory()) else Future.successful(taxSummary)
         }
-        case "income/tax-credits/submission/state" => passFail(state, isSuccess(path))
-        case "income/CS700100A/tax-credits/tax-credits-summary" => passFail(taxCreditSummary, isSuccess(path))
-        case "income/CS700100A/tax-credits/tax-credits-decision" => passFail(taxCreditDecision, isSuccess(path))
+        case "/income/tax-credits/submission/state" => passFail(state, isSuccess(path))
+        case "/income/CS700100A/tax-credits/tax-credits-summary" => passFail(taxCreditSummary, isSuccess(path))
+        case "/income/CS700100A/tax-credits/tax-credits-decision" => passFail(taxCreditDecision, isSuccess(path))
         case _ => Future.failed(new Exception("Test Scenario Error"))
       }
     result
   }
 
   override def doGetRaw(host:String, path:String, port:Int, hc: HeaderCarrier): Future[HttpResponse] = {
-
-    def isSuccess(key: String): Boolean = {
-      pathFailMap.get(key).getOrElse(false)
-    }
+    def isSuccess(key: String): Boolean = pathFailMap.get(key).getOrElse(false)
 
     path match {
       case "/income/CS700100A/tax-credits/999999999999999/auth" => {
-        val res = if (!isSuccess(path)) {
-          401
-        }
-        else {
-          200
-        }
-        Future.successful(HttpResponse(res, Option(auth), Map(), Option("")))
+        val res = if (!isSuccess(path)) 401 else 200
+        Future.successful(HttpResponse(res, Option(auth), Map.empty, Option("")))
       }
     }
   }
@@ -894,7 +491,7 @@ trait AuthWithoutTaxSummary extends Setup with AuthorityTest {
   override lazy val authConnector = new TestAuthConnector(None) {
     lazy val exception = new NinoNotFoundOnAccount("The user must have a National Insurance Number")
     override def accounts()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.failed(exception)
-    override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = Future.failed(exception)
+    override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = Future.failed(exception)
   }
 
   override lazy val testAccess = new TestAccessCheck(authConnector)
@@ -902,9 +499,11 @@ trait AuthWithoutTaxSummary extends Setup with AuthorityTest {
 
   val controller = new NativeAppsOrchestrationController {
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
-    val testCustomerProfileGenericConnector = new TestGenericConnector(true, testAccount, testPushReg, testPreferences, JsNull, testState, testTaxCreditSummary, testTaxCreditDecision, testAuthToken)
+    val testCustomerProfileGenericConnector = new TestGenericConnector(true, testAccount, TestData.testPushReg, TestData.testPreferences, JsNull, TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
     override val service: OrchestrationService = new TestOrchestrationService(testCustomerProfileGenericConnector, authConnector)
     override val app: String = "AuthWithoutNino Native Apps Orchestration"
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
   }
 }
 
@@ -913,7 +512,7 @@ trait AuthWithoutNino extends Setup with AuthorityTest {
   override lazy val authConnector = new TestAuthConnector(None) {
     lazy val exception = new NinoNotFoundOnAccount("The user must have a National Insurance Number")
     override def accounts()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.failed(exception)
-    override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = Future.failed(exception)
+    override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = Future.failed(exception)
   }
 
   override lazy val testAccess = new TestAccessCheck(authConnector)
@@ -923,6 +522,8 @@ trait AuthWithoutNino extends Setup with AuthorityTest {
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
     override val service: OrchestrationService = testOrchestrationService
     override val app: String = "AuthWithoutNino Native Apps Orchestration"
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
   }
 }
 
@@ -933,7 +534,7 @@ trait AuthWithLowCL extends Setup with AuthorityTest {
   override lazy val authConnector = new TestAuthConnector(None) {
     lazy val exception = new AccountWithLowCL("Forbidden to access since low CL")
     override def accounts()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.successful(Accounts(Some(nino), None, routeToIv, routeToTwoFactor, "102030394AAA"))
-    override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = Future.failed(exception)
+    override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = Future.failed(exception)
   }
 
   override lazy val testAccess = new TestAccessCheck(authConnector)
@@ -943,6 +544,9 @@ trait AuthWithLowCL extends Setup with AuthorityTest {
     val app = "AuthWithLowCL Native Apps Orchestration"
     override val service: LiveOrchestrationService = new TestOrchestrationService(testGenericConnector,authConnector)
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
+
   }
 }
 
@@ -953,7 +557,7 @@ trait AuthWithWeakCreds extends Setup with AuthorityTest {
   override lazy val authConnector = new TestAuthConnector(None) {
     lazy val exception = new AccountWithWeakCredStrength("Forbidden to access since weak cred strength")
     override def accounts()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.successful(Accounts(Some(nino), None, routeToIv, routeToTwoFactor, "102030394AAA"))
-    override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Unit] = Future.failed(exception)
+    override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = Future.failed(exception)
   }
 
   override lazy val testAccess = new TestAccessCheck(authConnector)
@@ -963,14 +567,27 @@ trait AuthWithWeakCreds extends Setup with AuthorityTest {
     val app = "AuthWithWeakCreds Native Apps Orchestration"
     override val service: LiveOrchestrationService = new TestOrchestrationService(testGenericConnector,authConnector)
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
   }
 }
 
 trait SandboxSuccess extends Setup {
   val controller = new NativeAppsOrchestrationController {
+
+    val testSessionId="SandboxSuccess"
+    override def buildUniqueId() = testSessionId
+
+    override val actorName = s"async_native-apps-api-actor_"+testSessionId
+    override def id = "async_native-apps-api-id"
+
+
     val app = "Sandbox Native Apps Orchestration"
     override val service: OrchestrationService = SandboxOrchestrationService
-    override val accessControl: AccountAccessControlWithHeaderCheck = AccountAccessControlCheckOff
+    override val accessControl: AccountAccessControlWithHeaderCheck = AccountAccessControlCheckAccessOff
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = false
+
   }
 }
 
@@ -981,20 +598,20 @@ trait AuthorityTest extends UnitSpec {
     val result: play.api.mvc.Result = func
 
     status(result) shouldBe 401
-    contentAsJson(result) shouldBe noNinoOnAccount
+    contentAsJson(result) shouldBe TestData.noNinoOnAccount
   }
 
   def testLowCL(func: => play.api.mvc.Result) = {
     val result: play.api.mvc.Result = func
 
     status(result) shouldBe 401
-    contentAsJson(result) shouldBe lowCL
+    contentAsJson(result) shouldBe TestData.lowCL
   }
 
   def testWeakCredStrength(func: => play.api.mvc.Result) = {
     val result: play.api.mvc.Result = func
 
     status(result) shouldBe 401
-    contentAsJson(result) shouldBe weakCredStrength
+    contentAsJson(result) shouldBe TestData.weakCredStrength
   }
 }

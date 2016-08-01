@@ -27,10 +27,15 @@ private object AppDependencies {
   private val playUrlBindersVersion = "1.0.0"
   private val playConfigVersion = "2.0.1"
   private val domainVersion = "3.7.0"
-  private val hmrcTestVersion = "1.6.0"
   private val playHmrcApiVersion = "0.5.0"
   private val hmrcEmailAddressVersion = "1.1.0"
   private val microserviceAsync = "0.2.0"
+
+  private val scalaTestVersion = "2.2.6"
+  private val pegdownVersion = "1.6.0"
+  private val wireMockVersion = "1.57"
+  private val hmrcTestVersion = "1.6.0"
+  private val cucumberVersion = "1.2.4"
 
   val compile = Seq(
 
@@ -44,7 +49,8 @@ private object AppDependencies {
     "uk.gov.hmrc" %% "play-json-logger" % playJsonLoggerVersion,
     "uk.gov.hmrc" %% "domain" % domainVersion,
     "uk.gov.hmrc" %% "play-hmrc-api" % playHmrcApiVersion,
-    "uk.gov.hmrc" %% "emailaddress" % hmrcEmailAddressVersion
+    "uk.gov.hmrc" %% "emailaddress" % hmrcEmailAddressVersion,
+    "uk.gov.hmrc" %% "play-reactivemongo" % "4.5.0"
   )
 
   trait TestDependencies {
@@ -70,9 +76,12 @@ private object AppDependencies {
 
       override lazy val test = Seq(
         "uk.gov.hmrc" %% "hmrctest" % hmrcTestVersion % scope,
-        "org.scalatest" %% "scalatest" % "2.2.6" % scope,
-        "org.pegdown" % "pegdown" % "1.5.0" % scope,
-        "com.typesafe.play" %% "play-test" % PlayVersion.current % scope
+        "org.scalatest" %% "scalatest" % scalaTestVersion % scope,
+        "org.pegdown" % "pegdown" % pegdownVersion % scope,
+        "com.typesafe.play" %% "play-test" % PlayVersion.current % scope,
+        "info.cukes" %% "cucumber-scala" % cucumberVersion % scope,
+        "info.cukes" % "cucumber-junit" % cucumberVersion % scope,
+        "com.github.tomakehurst" % "wiremock" % wireMockVersion % scope
       )
     }.test
   }

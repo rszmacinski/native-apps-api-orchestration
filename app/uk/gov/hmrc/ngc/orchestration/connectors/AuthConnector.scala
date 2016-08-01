@@ -20,10 +20,10 @@ import java.util.UUID
 
 import play.api.Play
 import play.api.libs.json.JsValue
+import uk.gov.hmrc.ngc.orchestration.config.WSHttp
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.http.{ForbiddenException, HeaderCarrier, HttpGet}
 import uk.gov.hmrc.domain.{Nino, SaUtr}
-import uk.gov.hmrc.ngc.orchestration.WSHttp
 import uk.gov.hmrc.ngc.orchestration.domain.Accounts
 import uk.gov.hmrc.play.auth.microservice.connectors.ConfidenceLevel
 
@@ -88,11 +88,6 @@ trait AuthConnector {
     val usersCL = (jsValue \ "confidenceLevel").as[Int]
     serviceConfidenceLevel.level > usersCL
   }
-
-  private def confirmCredStrength(jsValue : JsValue) =
-    if (twoFactorRequired(jsValue)) {
-      throw new AccountWithWeakCredStrength("The user does not have sufficient credential strength permissions to access this service")
-    }
 
   private def twoFactorRequired(jsValue : JsValue) = {
     val credStrength = (jsValue \ "credentialStrength").as[String]
