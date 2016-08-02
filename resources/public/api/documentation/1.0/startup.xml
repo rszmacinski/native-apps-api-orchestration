@@ -1,6 +1,6 @@
 <endpoint>
-  <name>startup</name>
-  <description>This endpoint retrieves the personal tax data</description>
+  <name>Startup</name>
+  <description>This endpoint retrieves the personal tax data and registers the device notification token.</description>
   <section id="resource">
     <title>Resource</title>
     <resource>POST /native-app/{nino}/startup</resource>

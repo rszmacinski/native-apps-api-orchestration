@@ -1,6 +1,6 @@
 preflight-check
 ----
-  Return the upgrade status and account information.
+  Return the upgrade status, account information.
   
 * **URL**
 
@@ -11,6 +11,8 @@ preflight-check
   `POST`
   
 *  **JSON**
+
+Supply version information. The "os" attribute can be either ios, android or windows.
 
 ```json
 {

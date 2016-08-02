@@ -17,9 +17,9 @@ API
 
 | *Task* | *Supported Methods* | *Description* |
 |--------|----|----|
-| ```/native-app/preflight-check``` | POST | Return pre-flight information. [More...](docs/preflight-check.md) |
-| ```/native-app/:nino/startup``` | POST | Initiate an async service call to return personal tax data  [More...](docs/startup.md) |
-| ```/native-app/:nino/poll``` | GET | Poll the status of the async task which was initiated from startup. [More...](docs/poll.md) |
+| ```/native-app/preflight-check``` | POST | Return pre-flight information. The cookie named mdtpapi will be returned from this service and must be supplied to the startup service. [More...](docs/preflight-check.md) |
+| ```/native-app/:nino/startup``` | POST | Initiate an async service call to return personal tax data. The cookie named mdtpapi will be returned from this service and must be supplied to the poll service.  [More...](docs/startup.md) |
+| ```/native-app/:nino/poll``` | GET | Poll the status of the async task which was initiated from startup. The cookie named mdtpapi must be returned from this service. [More...](docs/poll.md) |
 
 # Sandbox
 All the above endpoints are accessible on sandbox with `/sandbox` prefix on each endpoint, e.g.

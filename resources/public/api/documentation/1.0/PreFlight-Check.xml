@@ -1,5 +1,5 @@
 <endpoint>
-  <name>PreFlight-Check</name>
+  <name>PreFlight Check</name>
   <description>This endpoint retrieves the accounts associated with the auth record, and validates the app version</description>
   <section id="resource">
     <title>Resource</title>

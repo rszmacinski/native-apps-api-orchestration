@@ -1,5 +1,5 @@
 <endpoint>
-  <name>poll</name>
+  <name>Poll</name>
   <description>Poll for a response to the startup service call.</description>
   <section id="resource">
     <title>Resource</title>

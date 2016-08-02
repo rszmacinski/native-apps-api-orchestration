@@ -84,7 +84,7 @@ case class PushRegistration(connector: GenericConnector, inputRequest:JsValue) e
   override val id = "pushRegistration"
   override val serviceName = "push-registration"
   override def execute(nino: String, year: Int)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
-    connector.doPost(inputRequest, host, "/push/registration", port, hc)
+    connector.doPost(inputRequest, host, "/push/registration", port, hc).map( _ => {} ).recover{case ex:Exception => throw ex}
     Future.successful(None)
   }
 }
@@ -100,7 +100,7 @@ case class TaxCreditSummary(connector: GenericConnector) extends Executor {
     })
   }
 
-  def decision(nino:String): Future[Boolean] = {
+  def decision(nino:String)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Boolean] = {
     def taxCreditDecision(nino:String): Future[Option[Result]] = {
       val defaultDecision = Option(Result(id, Json.parse("""{"showData":true}""")))
       retry(defaultDecision) {
@@ -116,7 +116,7 @@ case class TaxCreditSummary(connector: GenericConnector) extends Executor {
     }
   }
 
-  def getSummary(nino:String): Future[Some[Result]] = {
+  def getSummary(nino:String)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Some[Result]] = {
     connector.doGet(host, s"/income/$nino/tax-credits/tax-credits-summary", port, hc).map(r => Some(Result(id, r)))
   }
 
