@@ -1,5 +1,5 @@
 <endpoint>
-  <name>Poll</name>
+  <name>Poll Async Task</name>
   <description>Poll for a response to the startup service call.</description>
   <section id="resource">
     <title>Resource</title>

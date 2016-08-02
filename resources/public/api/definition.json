@@ -32,7 +32,7 @@
           },
           {
             "uriPattern":"/native-app/{nino}/startup",
-            "endpointName":"Startup",
+            "endpointName":"Startup Async",
             "method":"POST",
             "authType":"USER",
             "throttlingTier":"UNLIMITED",
@@ -46,7 +46,7 @@
           },
           {
             "uriPattern":"/native-app/{nino}/poll",
-            "endpointName":"Poll",
+            "endpointName":"Poll Async Task",
             "method":"GET",
             "authType":"USER",
             "throttlingTier":"UNLIMITED",

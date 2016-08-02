@@ -1,6 +1,6 @@
 <endpoint>
-  <name>Startup</name>
-  <description>This endpoint retrieves the personal tax data and registers the device notification token.</description>
+  <name>Startup Async</name>
+  <description>This endpoint retrieves the personal tax data asynchronously and registers the device notification token. The /poll service must be invoked to obtain the respnose to this service.</description>
   <section id="resource">
     <title>Resource</title>
     <resource>POST /native-app/{nino}/startup</resource>
