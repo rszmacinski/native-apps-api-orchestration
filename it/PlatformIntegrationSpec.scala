@@ -99,7 +99,11 @@ class PlatformIntegrationSpec extends UnitSpec with MockitoSugar with ScalaFutur
           versions.zip(endpointNames).flatMap { case (version, endpoint) => {
             endpoint.map(endpointName => (version, endpointName))
           }
-          }.foreach { case (version, endpointName) => verifyDocumentationPresent(version, endpointName) }
+          }.foreach { case (version, endpointName) => {
+              println(s" Verifying version $version and endpoint name $endpointName.")
+              verifyDocumentationPresent(version, endpointName)
+            }
+          }
         }
       }
     }

@@ -93,7 +93,7 @@ case class TaxCreditSummary(connector: GenericConnector) extends Executor {
   override val id: String = "taxCreditSummary"
   override val serviceName: String = "personal-income"
 
-  def authenticateRenewal(nino:String): Future[Boolean] = {
+  def authenticateRenewal(nino:String)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Boolean] = {
     connector.doGetRaw(host, s"/income/$nino/tax-credits/999999999999999/auth", port, hc).map(r => r.status match {
       case 200 => true
       case _ => false
