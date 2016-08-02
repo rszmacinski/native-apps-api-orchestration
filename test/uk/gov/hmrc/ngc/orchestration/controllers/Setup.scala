@@ -292,7 +292,7 @@ trait SecurityAsyncSetup extends Setup {
     override def id = "async_native-apps-api-id"
 
 
-    lazy val authConnector = new TestAuthConnector(Some(Nino("CS700100B")))
+    lazy val authConnector = new TestAuthConnector(Some(Nino("CS722100B")))
     lazy val testAccess = new TestAccessCheck(authConnector)
     lazy val compositeAuthAction = new TestAccountAccessControlWithAccept(testAccess)
 

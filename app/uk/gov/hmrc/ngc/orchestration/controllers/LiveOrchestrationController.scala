@@ -138,16 +138,18 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
   def callbackWithSuccessResponse(response:AsyncResponse)(id:String)(implicit request:Request[AnyContent], authority:Option[Authority]) : Future[Result] = {
     removeTaskFromCache(Some(id)) {
       def noAuthority = throw new Exception("Failed to resolve authority")
+      def success = Ok(response.value)
 
       // Verify the nino from the users authority matches the nino returned in the tax summary  response.
       val responseNino = (response.value \ "taxSummary" \ "taxSummaryDetails" \ "nino").asOpt[String]
-      val nino =responseNino.getOrElse("No NINO found in response!").take(8)
-      val authNino =authority.getOrElse(noAuthority).nino.value.take(8)
-
-      val result = if (checkSecurity && !nino.equals(authNino)) {
-        Logger.error("Failed to match tax summary response NINO with authority NINO!")
-        Unauthorized
-      } else Ok(response.value)
+      val result = if (checkSecurity) {
+        val nino = responseNino.getOrElse("No NINO found in response!").take(8)
+        val authNino = authority.getOrElse(noAuthority).nino.value.take(8)
+        if (!nino.equals(authNino)) {
+          Logger.error("Failed to match tax summary response NINO with authority NINO!")
+          Unauthorized
+        } else success
+      } else success
       Future.successful(result)
     }
   }
