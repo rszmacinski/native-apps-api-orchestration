@@ -20,6 +20,8 @@ startup
 
 *  **Request body**
 
+If no token exists, then send an empty json payload ```{}```.
+
 ```json
 {
     "token": "some-token"

@@ -43,11 +43,11 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     }
   }
 
-  def invokeTestNonBlockAction(controller:NativeAppsOrchestrationController, testSessionId:String, nino:Nino, response:JsValue, resultCode:Int = 200)(implicit request:Request[_]) = {
+  def invokeTestNonBlockAction(controller:NativeAppsOrchestrationController, testSessionId:String, nino:Nino, response:JsValue, resultCode:Int = 200, inputBody:String="""{"token":"123456"}""")(implicit request:Request[_]) = {
     val token = "Bearer 123456789"
     val authToken = "AuthToken" -> token
     val authHeader = "Authorization" -> token
-    val body :JsValue= Json.parse("""{"token":"123456"}""")
+    val body :JsValue= Json.parse(inputBody)
 
     val requestWithSessionKeyAndId = FakeRequest()
       .withSession(
@@ -73,8 +73,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     val jsonSession = Json.parse(session.get).as[AsyncMvcSession]
     jsonSession.id shouldBe testSessionId
 
-    // TODO...
-    eventually(Timeout(Span(7, Seconds))) {
+    eventually(Timeout(Span(10, Seconds))) {
       val result3: Result = await(controller.poll(nino)(requestWithSessionKeyAndIdNoBody))
 
       status(result3) shouldBe resultCode
@@ -164,6 +163,17 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
       invokeTestNonBlockAction(controller, "async_native-apps-api-id-OptionalDataFailure", Nino("CS700100A"),
         jsonMatch)(versionRequest)
+
+      controller.pushRegistrationInvokeCount shouldBe 1
+    }
+
+    "not invoke push-registration service when the POST payload is empty" in new OptionalFirebaseToken {
+      val jsonMatch = Seq(TestData.taxSummary, TestData.submissionState, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+
+      invokeTestNonBlockAction(controller, "async_native-apps-api-id-OptionalFirebaseToken", Nino("CS700100A"),
+        jsonMatch, 200, "{}")(versionRequest)
+
+      controller.pushRegistrationInvokeCount shouldBe 0
     }
 
   }

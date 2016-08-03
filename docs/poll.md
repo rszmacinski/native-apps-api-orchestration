@@ -1,6 +1,6 @@
 poll
 ----
-  Request for outcome to the startup service. A call to startup MUST have been performed first.
+  Request for outcome to the Startup service. A call to startup MUST have been performed first. This service should be invoked every 2 seconds to verify the outcome of the Startup service call.
   
 * **URL**
 

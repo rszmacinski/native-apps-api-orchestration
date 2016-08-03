@@ -315,11 +315,33 @@ trait OptionalDataFailure extends Setup {
 
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
     override val service: OrchestrationService = testOrchestrationServiceOptionalDataFAILURE
-    override val app: String = "Failure Orchestration Controller"
+    override val app: String = "OptionalDataFailure"
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
+
+    def pushRegistrationInvokeCount = testGenericConnectorOptionalDataFAILURE.countPushRegistration
   }
 }
+
+trait OptionalFirebaseToken extends Setup {
+  val controller = new NativeAppsOrchestrationController {
+
+    val testSessionId="OptionalFirebaseToken"
+    override def buildUniqueId() = testSessionId
+
+    override val actorName = s"async_native-apps-api-actor_"+testSessionId
+    override def id = "async_native-apps-api-id"
+
+    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val service: OrchestrationService = testOrchestrationServiceOptionalDataFAILURE
+    override val app: String = "OptionalFirebaseToken"
+    override val repository: AsyncRepository = asyncRepository
+    override def checkSecurity: Boolean = true
+
+    def pushRegistrationInvokeCount = testGenericConnectorOptionalDataFAILURE.countPushRegistration
+  }
+}
+
 
 trait FailWithRetrySuccess extends Setup {
   val controller = new NativeAppsOrchestrationController {
@@ -370,6 +392,7 @@ class TestAuthConnector(nino: Option[Nino]) extends AuthConnector {
 class TestGenericConnector(upgradeRequired: Boolean, accounts: Accounts, pushRegResult: JsValue, preferences: JsValue,
                            taxSummary: JsValue, state: JsValue, taxCreditSummary: JsValue, taxCreditDecision: JsValue,
                            auth: JsValue) extends GenericConnector {
+  var countPushRegistration = 0
 
   override def http: HttpPost with HttpGet = WSHttp
 
@@ -377,7 +400,10 @@ class TestGenericConnector(upgradeRequired: Boolean, accounts: Accounts, pushReg
     path match {
       case "/profile/native-app/version-check" => Future.successful(Json.parse(s"""{"upgrade":$upgradeRequired}"""))
 
-      case "/push/registration" => Future.successful(JsNull)
+      case "/push/registration" => {
+        countPushRegistration = countPushRegistration + 1
+        Future.successful(JsNull)
+      }
     }
   }
 

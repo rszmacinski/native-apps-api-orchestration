@@ -84,7 +84,12 @@ case class PushRegistration(connector: GenericConnector, inputRequest:JsValue) e
   override val id = "pushRegistration"
   override val serviceName = "push-registration"
   override def execute(nino: String, year: Int)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
-    connector.doPost(inputRequest, host, "/push/registration", port, hc).map( _ => {} ).recover{case ex:Exception => throw ex}
+
+    if ((inputRequest \ "token").asOpt[String] == None) {
+      Logger.info("No token supplied!")
+    } else {
+      connector.doPost(inputRequest, host, "/push/registration", port, hc)
+    }
     Future.successful(None)
   }
 }
