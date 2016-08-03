@@ -35,12 +35,13 @@ trait Executor {
 
   def execute(nino: String, year: Int)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]]
 
-  def retry(default: Option[Result] = None)(func: => Future[Option[Result]]) = {
+  def retry(default: Option[Result] = None)(func: => Future[Option[Result]])(implicit hc: HeaderCarrier, ex: ExecutionContext) = {
     def retry: Future[Option[Result]] = {
-      TimedEvent.delayedSuccess(2000,
-        func.recover {
+      TimedEvent.delayedSuccess(2000,{
+          Logger.info(" Retry is being executed.")
+          func.recover {
           case _ => default
-        })
+        }})
     }.flatMap(r => r)
 
     func.recover {
@@ -106,8 +107,8 @@ case class TaxCreditSummary(connector: GenericConnector) extends Executor {
   }
 
   def decision(nino:String)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Boolean] = {
-    def taxCreditDecision(nino:String): Future[Option[Result]] = {
-      val defaultDecision = Option(Result(id, Json.parse("""{"showData":true}""")))
+    def taxCreditDecision(nino:String)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
+      val defaultDecision = Option(Result(id, Json.parse("""{"showData":false}""")))
       retry(defaultDecision) {
         connector.doGet(host, s"/income/$nino/tax-credits/tax-credits-decision", port, hc).map(res => {
           Some(Result("decision", res))

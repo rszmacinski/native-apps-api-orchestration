@@ -100,7 +100,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
               flag =>
                 // Async function wrapper responsible for executing below code onto a background queue.
                 asyncWrapper(callbackWithStatus) {
-                  implicit hc =>
+                  headerCarrier =>
                     service.startup(json, nino, journeyId).map { response =>
                       AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete))
                     }
