@@ -92,8 +92,6 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor {
       TaxSummary(genericConnector),
       TaxCreditSummary(genericConnector),
       State(genericConnector),
-
-      // Fire and forget...
       PushRegistration(genericConnector, inputRequest)
     ).map(item => item.execute(nino, year))
 

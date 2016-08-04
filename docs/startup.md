@@ -1,10 +1,15 @@
 startup
 ----
-  Request to initiate startup information. Please note this is an asynchronous request.
+  Request for customer startup data. Please note this is an asynchronous service where the poll service must be used to check the status of the running task.
+
+  Before this service is invoked, the preflight-check must be called first.
+
+  This service will return an encrypted cookie called mdtpapi which is used to drive the identity of the off-line task and must be supplied to the poll service request.
+
   
 * **URL**
 
-  `/native-app/{nino}/startup`
+  `/native-app/{nino}/startup?journeyId={id}`
 
 * **Method:**
   

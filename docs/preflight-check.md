@@ -1,6 +1,11 @@
 preflight-check
 ----
-  Return the upgrade status, account information.
+  Return initial application startup data. The response to this service includes an upgrade status flag, account data and Journey Id.
+
+  The upgrade status is derived from using the supplied POST data against application configuration.
+
+  The service will return an encrypted cookie called mdtpapi which is used to drive the identity of the off-line task and must be supplied to the startup service request.
+
   
 * **URL**
 
@@ -12,7 +17,7 @@ preflight-check
   
 *  **JSON**
 
-Supply version information. The "os" attribute can be either ios, android or windows.
+Current version information of application. The "os" attribute can be either ios, android or windows.
 
 ```json
 {
@@ -33,7 +38,8 @@ Supply version information. The "os" attribute can be either ios, android or win
       "nino" : "WX772755B",
       "saUtr" : "618567",
       "routeToIV" : false
-  }
+  },
+  "journeyId:"some-id"
 }
 ```
  

@@ -116,19 +116,21 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
    */
   def poll(nino: Nino, journeyId: Option[String] = None) = accessControl.validateAccept(acceptHeaderValidationRules).async {
     implicit authenticated =>
-      withAsyncSession {
-        implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
-        implicit val req = authenticated.request
-        implicit val authority = authenticated.authority
+      errorWrapper {
+        withAsyncSession {
+          implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
+          implicit val req = authenticated.request
+          implicit val authority = authenticated.authority
 
-        val response = pollTask(Call("GET", "/notaskrunning"), callbackWithSuccessResponse, callbackWithStatus)
-        // Convert 303 response to 404. The 303 is generated (with URL "notaskrunning") when no task exists in the users session!
-        response.map(resp => {
-          resp.header.status match {
-            case 303 => NotFound
-            case _ => resp
-          }
-        })
+          val response = pollTask(Call("GET", "/notaskrunning"), callbackWithSuccessResponse, callbackWithStatus)
+          // Convert 303 response to 404. The 303 is generated (with URL "notaskrunning") when no task exists in the users session!
+          response.map(resp => {
+            resp.header.status match {
+              case 303 => NotFound
+              case _ => resp
+            }
+          })
+        }
       }
   }
 
