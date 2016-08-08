@@ -44,9 +44,10 @@ If no token exists, then send an empty json payload ```{}```.
 }
 ```
 
-Please note the above status could be poll, error or throttle.
+Please note the above status could be poll, error, throttle or timeout.
 If the response status is poll, then a call is required to the `/native-app/{nino}/poll` service to understand the outcome of the call.
 If the response status is error then a server-side failure occurred.
+If the response status is timeout then server-side timed-out waiting for the backend to reply. 
 If the response status is throttle then too many current requests are being performed by the server, and the request should be re-tried.
 
 * **Error Response:**

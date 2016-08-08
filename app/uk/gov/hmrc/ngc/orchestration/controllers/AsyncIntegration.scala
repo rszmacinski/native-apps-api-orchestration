@@ -50,7 +50,7 @@ trait AsyncMvcIntegration extends AsyncMVC[AsyncResponse] {
   override def      throttleLimit = 10000  // API GATEWAY controls the throttle.
   override def  blockingDelayTime = 3000
 
-  final val CLIENT_TIMEOUT=35000L
+  final val CLIENT_TIMEOUT=50000L
 
   lazy val asyncActor: ActorRef = Akka.system.actorOf(Props(new AsyncMVCAsyncActor(taskCache, CLIENT_TIMEOUT)), actorName)
   override def         actorRef = asyncActor

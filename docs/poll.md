@@ -400,11 +400,10 @@ On success the below JSON will be returned. Please see notes below detailing the
 }
 ```
 
-
-Please note the above "status" attribute could be complete, poll, error or throttle.
+Please note the above "status" attribute could be complete, poll, error or timeout.
 If the response status is "poll", the request has not completed processing. A new call is required to the `/native-app/{nino}/poll` service to understand the outcome of the call.
 If the response status is "error" then a server-side failure occurred building mandatory response data.
-If the response status is "throttle" then too many current requests are being performed by the server, and the request should be re-tried.
+If the response status is "timeout" then the server-side timed-out waiting for the backend services to reply.
 
 If the response status is complete then the async service call has completed. The response will contain a set of attributes which is taxSummary, state and an optional taxCreditSummary attribute.
 If the response attribute 'taxCreditSummary' is empty (contains no attributes) then this indicates Tax-Credits are available for the user, however there is no user data to display.
