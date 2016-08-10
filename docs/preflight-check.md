@@ -33,16 +33,20 @@ Current version information of application. The "os" attribute can be either ios
 
 ```json
 {
-  "upgradeRequired" : true,
-  "accounts" : {
-      "nino" : "WX772755B",
-      "saUtr" : "618567",
-      "routeToIV" : false
-  },
-  "journeyId:"some-id"
+  "upgradeRequired": true,
+  "accounts": {
+    "nino": "WX772755B",
+    "saUtr": "618567",
+    "routeToIV": false,
+    "routeToTwoFactor": false,
+    "journeyId": "f880d43b-bc44-4a68-b2e3-c0197963f01e"
+  }
 }
 ```
- 
+
+Please note the only attribute that is optional is saUtr.
+
+
 * **Error Response:**
 
   * **Code:** 400 BADREQUEST <br />

@@ -21,10 +21,11 @@ import net.ceedubs.ficus.Ficus._
 import play.api._
 import play.api.libs.json.Json
 import play.api.mvc.Results._
-import play.api.mvc.{RequestHeader, Result}
+import play.api.mvc.{Filters, EssentialAction, RequestHeader, Result}
 import uk.gov.hmrc.api.config.{ServiceLocatorConfig, ServiceLocatorRegistration}
 import uk.gov.hmrc.api.connector.ServiceLocatorConnector
 import uk.gov.hmrc.api.controllers._
+import uk.gov.hmrc.msasync.config.CookieSessionFilter
 import uk.gov.hmrc.play.audit.filters.AuditFilter
 import uk.gov.hmrc.play.auth.controllers.AuthParamsControllerConfig
 import uk.gov.hmrc.play.auth.microservice.filters.AuthorisationFilter
@@ -75,6 +76,11 @@ object MicroserviceGlobal extends DefaultMicroserviceGlobal with RunMode with Se
   override val slConnector: ServiceLocatorConnector = ServiceLocatorConnector(WSHttp)
 
   override implicit val hc: HeaderCarrier = HeaderCarrier()
+
+  private lazy val sessionFilter = CookieSessionFilter.SessionCookieFilter
+  override def doFilter(a: EssentialAction): EssentialAction = {
+    Filters(super.doFilter(a), microserviceFilters ++ sessionFilter : _*)
+  }
 
   override def onError(request: RequestHeader, ex: Throwable): Future[Result] = {
     super.onError(request, ex) map (res => {
