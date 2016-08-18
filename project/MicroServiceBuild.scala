@@ -50,7 +50,7 @@ private object AppDependencies {
     "uk.gov.hmrc" %% "domain" % domainVersion,
     "uk.gov.hmrc" %% "play-hmrc-api" % playHmrcApiVersion,
     "uk.gov.hmrc" %% "emailaddress" % hmrcEmailAddressVersion,
-    "uk.gov.hmrc" %% "play-reactivemongo" % "4.5.0"
+    "uk.gov.hmrc" %% "play-reactivemongo" % "4.8.0"
   )
 
   trait TestDependencies {
