@@ -391,8 +391,7 @@ On success the below JSON will be returned. Please see notes below detailing the
     }
   },
   "state": {
-    "shuttered": false,
-    "inSubmissionPeriod": true
+    "enableRenewals": true
   },
   "status": {
     "code": "complete"
