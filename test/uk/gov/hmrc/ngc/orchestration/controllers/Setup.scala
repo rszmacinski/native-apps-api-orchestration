@@ -71,7 +71,7 @@ trait Setup {
     "/profile/native-app/version-check" -> true,
     "/profile/preferences" -> true,
     "/income/CS700100A/tax-summary/2016" -> true,
-    "/income/tax-credits/submission/state" -> true,
+    "/income/tax-credits/submission/state/enabled" -> true,
     "/income/CS700100A/tax-credits/tax-credits-summary" -> true,
     "/income/CS700100A/tax-credits/tax-credits-decision" -> true,
     "/income/CS700100A/tax-credits/999999999999999/auth" -> true)
@@ -80,7 +80,7 @@ trait Setup {
   lazy val testGenericConnectorPreferencesFAILURE = new TestServiceFailureGenericConnector(servicesPreferencesFailMap ,false, false, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData, TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
   lazy val testOrchestrationServicePreferencesFAILURE = new TestOrchestrationService(testGenericConnectorPreferencesFAILURE, authConnector)
 
-  val servicesStateFailMap = servicesSuccessMap ++ Map("/income/tax-credits/submission/state" -> false)
+  val servicesStateFailMap = servicesSuccessMap ++ Map("/income/tax-credits/submission/state/enabled" -> false)
   lazy val testGenericConnectorStateFAILURE = new TestServiceFailureGenericConnector(servicesStateFailMap ,false, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData, TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
   lazy val testOrchestrationServiceStateFAILURE = new TestOrchestrationService(testGenericConnectorStateFAILURE, authConnector)
 
@@ -99,7 +99,7 @@ trait Setup {
 
   val servicesOptionalDataFailMap = servicesSuccessMap ++ Map(
                                        "/profile/preferences" -> false,
-                                       "/income/tax-credits/submission/state" -> false,
+                                       "/income/tax-credits/submission/state/enabled" -> false,
                                        "/income/CS700100A/tax-credits/tax-credits-summary" -> false,
                                        "/income/CS700100A/tax-credits/tax-credits-decision" -> false,
                                        "/income/CS700100A/tax-credits/999999999999999/auth" -> false)
@@ -411,7 +411,7 @@ class TestGenericConnector(upgradeRequired: Boolean, accounts: Accounts, pushReg
     path match {
       case "/profile/preferences" => Future.successful(preferences)
       case "/income/CS700100A/tax-summary/2016" => Future.successful(taxSummary)
-      case "/income/tax-credits/submission/state" => Future.successful(state)
+      case "/income/tax-credits/submission/state/enabled" => Future.successful(state)
       case "/income/CS700100A/tax-credits/tax-credits-summary" => Future.successful(taxCreditSummary)
       case "/income/CS700100A/tax-credits/tax-credits-decision" => Future.successful(taxCreditDecision)
     }
@@ -436,7 +436,7 @@ class TestRetryGenericConnector(exceptionControl: Boolean, upgradeRequired: Bool
     path match {
       case "/profile/preferences" => Future.successful(preferences)
       case "/income/CS700100A/tax-summary/2016" => Future.successful(taxSummary)
-      case "/income/tax-credits/submission/state" => Future.successful(state)
+      case "/income/tax-credits/submission/state/enabled" => Future.successful(state)
       case "/income/CS700100A/tax-credits/tax-credits-summary" => Future.successful(taxCreditSummary)
       case "/income/CS700100A/tax-credits/tax-credits-decision" => {
         val res = if (exceptionControl==true) Future.failed(new ServiceUnavailableException("FAILED"))
@@ -466,7 +466,7 @@ class TestFailureGenericConnector(exceptionControl: Boolean, upgradeRequired: Bo
       case "/profile/preferences" => Future.successful(preferences)
       case "/income/CS700100A/tax-summary/2016" =>
         if(exceptionControl == true) Future.failed(Mandatory()) else Future.successful(taxSummary)
-      case "/income/tax-credits/submission/state" => Future.successful(state)
+      case "/income/tax-credits/submission/state/enabled" => Future.successful(state)
       case "/income/CS700100A/tax-credits/tax-credits-summary" => Future.successful(taxCreditSummary)
       case "/income/CS700100A/tax-credits/tax-credits-decision" => Future.successful(taxCreditDecision)
     }
@@ -492,7 +492,7 @@ class TestServiceFailureGenericConnector(pathFailMap: Map[String, Boolean], exce
         case "/income/CS700100A/tax-summary/2016" => {
           if (exceptionControl) Future.failed(Mandatory()) else Future.successful(taxSummary)
         }
-        case "/income/tax-credits/submission/state" => passFail(state, isSuccess(path))
+        case "/income/tax-credits/submission/state/enabled" => passFail(state, isSuccess(path))
         case "/income/CS700100A/tax-credits/tax-credits-summary" => passFail(taxCreditSummary, isSuccess(path))
         case "/income/CS700100A/tax-credits/tax-credits-decision" => passFail(taxCreditDecision, isSuccess(path))
         case _ => Future.failed(new Exception("Test Scenario Error"))

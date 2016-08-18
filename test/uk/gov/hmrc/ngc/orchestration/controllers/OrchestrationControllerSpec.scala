@@ -108,7 +108,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     "return 401 when the Tax Summary response NINO does match the authority NINO" in new SecurityAsyncSetup {
 
       val emptyTaxCreditSummary = Json.obj("taxCreditSummary" -> Json.parse("""{}"""))
-      val jsonMatch = Seq(TestData.taxSummary, emptyTaxCreditSummary, TestData.submissionState, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+      val jsonMatch = Seq(TestData.taxSummary, emptyTaxCreditSummary, TestData.submissionStateB, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
       invokeTestNonBlockAction(controller, "async_native-apps-api-id-SecurityAsyncSetup", Nino("CS700100A"),
         jsonMatch, 401)(versionRequest)
@@ -124,14 +124,14 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     }
 
     "return taxCreditSummary attribute when submission state is not active" in new RenewalSubmissionNotActive {
-        val jsonMatch = Seq(TestData.taxSummary, TestData.taxCreditSummary, TestData.submissionStateD, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+        val jsonMatch = Seq(TestData.taxSummary, TestData.taxCreditSummary, TestData.submissionState, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
         invokeTestNonBlockAction(controller, "async_native-apps-api-id-RenewalSubmissionNotActive", Nino("CS700100A"),
           jsonMatch)(versionRequest)
       }
 
     "return taxCreditSummary attribute when submission shutter is active" in new RenewalSubmissionShutterActive {
-      val jsonMatch = Seq(TestData.taxSummary, TestData.taxCreditSummary, TestData.submissionStateC, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+      val jsonMatch = Seq(TestData.taxSummary, TestData.taxCreditSummary, TestData.submissionState, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
       invokeTestNonBlockAction(controller, "async_native-apps-api-id-RenewalSubmissionShutterActive", Nino("CS700100A"),
         jsonMatch)(versionRequest)

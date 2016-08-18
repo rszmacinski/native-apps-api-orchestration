@@ -75,8 +75,8 @@ case class State(connector: GenericConnector) extends Executor {
   override val id = "state"
   override val serviceName = "personal-income"
   override def execute(nino: String, year: Int)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
-    connector.doGet(host, "/income/tax-credits/submission/state", port, hc).map(res => Some(Result(id, res))).recover{
-      case ex: Exception => Some(Result(id, JsObject(Seq("shuttered" -> JsBoolean(true), "inSubmissionPeriod" -> JsBoolean(false)))))
+    connector.doGet(host, "/income/tax-credits/submission/state/enabled", port, hc).map(res =>  Some(Result(id, JsObject(Seq("enableRenewals" -> Json.toJson(res).\("submissionState")))))).recover{
+      case ex: Exception => Some(Result(id, JsObject(Seq("enableRenewals" -> JsBoolean(false)))))
     }
   }
 }

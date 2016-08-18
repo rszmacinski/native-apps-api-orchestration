@@ -25,11 +25,11 @@ object TestData {
 
   val testPreferences = Json.parse("""{"digital":true,"email":{"email":"name@email.co.uk","status":"verified"}}""")
 
-  val testState = Json.parse("""{"shuttered":false,"inSubmissionPeriod":true}""")
+  val testState = Json.parse("""{"submissionState":true}""")
 
-  val testStateNotInSubmission = Json.parse("""{"shuttered":false,"inSubmissionPeriod":false}""")
+  val testStateNotInSubmission = Json.parse("""{"submissionState":false}""")
 
-  val testStateSubmissionShutterActive = Json.parse("""{"shuttered":true,"inSubmissionPeriod":true}""")
+  val testStateSubmissionShutterActive = Json.parse("""{"submissionState":false}""")
 
   val testAuthToken = JsString("someTestAuthToken")
 
@@ -531,17 +531,11 @@ object TestData {
       |}
     """.stripMargin)
 
-  val submissionStateData =   Json.parse("""{"shuttered": true, "inSubmissionPeriod": false}""")
+  val submissionStateData =   Json.parse("""{"enableRenewals": false}""")
   val submissionState: JsObject = Json.obj("state" -> submissionStateData)
 
-  val submissionStateDataB =   Json.parse("""{"shuttered": false, "inSubmissionPeriod": true}""")
+  val submissionStateDataB =   Json.parse("""{"enableRenewals": true}""")
   val submissionStateB: JsObject = Json.obj("state" -> submissionStateDataB)
-
-  val submissionStateDataC =   Json.parse("""{"shuttered": true, "inSubmissionPeriod": true}""")
-  val submissionStateC: JsObject = Json.obj("state" -> submissionStateDataC)
-
-  val submissionStateDataD =   Json.parse("""{"shuttered": false, "inSubmissionPeriod": false}""")
-  val submissionStateD: JsObject = Json.obj("state" -> submissionStateDataD)
 
   val statusCompleteData = Json.parse(
     """
