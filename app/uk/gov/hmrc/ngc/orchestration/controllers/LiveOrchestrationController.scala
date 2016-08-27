@@ -16,10 +16,13 @@
 
 package uk.gov.hmrc.ngc.orchestration.controllers
 
+import java.util.concurrent.TimeUnit
+
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import play.api.{Logger, mvc}
 import uk.gov.hmrc.api.controllers.{ErrorInternalServerError, ErrorNotFound}
+import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.msasync.repository.AsyncRepository
 import uk.gov.hmrc.ngc.orchestration.connectors.{Authority, NinoNotFoundOnAccount}
 import uk.gov.hmrc.ngc.orchestration.controllers.action.AccountAccessControlWithHeaderCheck
@@ -28,7 +31,8 @@ import uk.gov.hmrc.play.http.{HeaderCarrier, NotFoundException}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 
 
 class BadRequestException(message:String) extends uk.gov.hmrc.play.http.HttpException(message, 400)
@@ -175,5 +179,43 @@ object SandboxOrchestrationController extends NativeAppsOrchestrationController 
   override val app: String = "Sandbox-Orchestration-Controller"
   override lazy val repository:AsyncRepository = AsyncRepository()
   override def checkSecurity: Boolean = false
+
+  override def poll(nino: Nino, journeyId: Option[String] = None) = accessControl.validateAccept(acceptHeaderValidationRules).async {
+    implicit authenticated =>
+      errorWrapper {
+        withAsyncSession {
+          implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
+          implicit val req = authenticated.request
+          implicit val authority = authenticated.authority
+
+          val asyncResponse: AsyncResponse = Await.result(service.poll(), Duration(1000, SECONDS))
+          val response: Future[Result] = callbackWithSuccessResponse(asyncResponse)
+          // Convert 303 response to 404. The 303 is generated (with URL "notaskrunning") when no task exists in the users session!
+          response.map(resp => {
+            resp.header.status match {
+              case 303 => NotFound
+              case _ => resp
+            }
+          })
+        }
+      }
+  }
+
+  def callbackWithSuccessResponse(response:AsyncResponse)(implicit authority:Option[Authority]) : Future[Result] = {
+      def noAuthority = throw new Exception("Failed to resolve authority")
+      def success = Ok(response.value)
+
+      // Verify the nino from the users authority matches the nino returned in the tax summary  response.
+      val responseNino = (response.value \ "taxSummary" \ "taxSummaryDetails" \ "nino").asOpt[String]
+      val result = if (checkSecurity) {
+        val nino = responseNino.getOrElse("No NINO found in response!").take(8)
+        val authNino = authority.getOrElse(noAuthority).nino.value.take(8)
+        if (!nino.equals(authNino)) {
+          Logger.error("Failed to match tax summary response NINO with authority NINO!")
+          Unauthorized
+        } else success
+      } else success
+      Future.successful(result)
+  }
 }
 

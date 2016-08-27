@@ -20,9 +20,10 @@ package uk.gov.hmrc.ngc.orchestration.controllers
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Seconds, Span}
+import play.api.libs.iteratee.Iteratee
 import play.api.libs.json._
-import play.api.mvc.{ Result, Request}
-import play.api.test.{FakeRequest, FakeApplication}
+import play.api.mvc.{Request, Result}
+import play.api.test.{FakeApplication, FakeRequest}
 import play.api.test.Helpers._
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.ngc.orchestration.domain.{Accounts, PreFlightCheckResponse}
@@ -208,9 +209,10 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
   "startup sandbox controller" should {
 
-    "return a OrchestrationResult " in new SandboxSuccess {
+    "return a status of async process " in new SandboxSuccess {
+
         invokeTestNonBlockAction(controller, "async_native-apps-api-id-SandboxSuccess", Nino("CS700100A"),
-          TestData.sandboxStartupResponse)(requestWithAuthSession.withBody(versionBody))
+          TestData.statusComplete)(requestWithAuthSession.withBody(versionBody))
       }
   }
 }

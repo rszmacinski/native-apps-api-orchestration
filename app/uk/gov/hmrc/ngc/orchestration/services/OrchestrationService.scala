@@ -26,7 +26,7 @@ import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.emailaddress.EmailAddress
 import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{AuthConnector, GenericConnector}
-import uk.gov.hmrc.ngc.orchestration.controllers.{LiveOrchestrationController, MandatoryResponse}
+import uk.gov.hmrc.ngc.orchestration.controllers.{AsyncResponse, LiveOrchestrationController, MandatoryResponse}
 import uk.gov.hmrc.ngc.orchestration.domain._
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.HeaderCarrier
@@ -113,13 +113,18 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
   }
 
   def startup(jsValue:JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
+
+    Future.successful(Json.obj("status" -> Json.parse("""{"code":"poll"}""")))
+  }
+
+  def poll(): Future[AsyncResponse] =  {
     val resource: Option[String] = findResource(s"/resources/getsummary/${nino.value}_2016.json")
     val taxSummary = Result("taxSummary",Json.parse(resource.get))
     val emailPreferences  = JsObject(Seq("email" -> JsString(email), "status" -> JsString("verified")))
     val preferences = Result("preference", JsObject(Seq("digital" -> JsBoolean(true), "email" -> emailPreferences)))
     val taxCreditSummary = Result("taxCreditSummary", Json.parse(findResource(s"/resources/taxcreditsummary/${nino.value}.json").get))
     val res = Future.successful(Seq(taxSummary, preferences, taxCreditSummary).map(b => Json.obj(b.id -> b.jsValue)))
-    res.map(r => r.foldLeft(Json.obj())((b, a) => b ++ a))
+    res.map(r => AsyncResponse(r.foldLeft(Json.obj())((b, a) => b ++ a)))
   }
 }
 

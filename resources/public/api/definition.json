@@ -1,7 +1,7 @@
 {
   "scopes":[
     {
-      "key":"read:native-apps-api-orchestration",
+      "key":"read:personal-income",
       "name":"Execute native-apps-api-orchestration call",
       "description":"Native Apps API Orchestration"
     }
@@ -22,7 +22,7 @@
             "method":"POST",
             "authType":"USER",
             "throttlingTier":"UNLIMITED",
-            "scope":"read:native-apps-api-orchestration",
+            "scope":"read:personal-income",
             "queryParameters": [
               {
                 "name": "journeyId",
@@ -36,7 +36,7 @@
             "method":"POST",
             "authType":"USER",
             "throttlingTier":"UNLIMITED",
-            "scope":"read:native-apps-api-orchestration",
+            "scope":"read:personal-income",
             "queryParameters": [
               {
                 "name": "journeyId",
@@ -50,7 +50,7 @@
             "method":"GET",
             "authType":"USER",
             "throttlingTier":"UNLIMITED",
-            "scope":"read:native-apps-api-orchestration",
+            "scope":"read:personal-income",
             "queryParameters": [
               {
                 "name": "journeyId",
