@@ -40,7 +40,9 @@ If no token exists, then send an empty json payload ```{}```.
 
 ```json
 {
-  "status" : "poll"
+  "status": {
+    "code": "poll"
+  }
 }
 ```
 

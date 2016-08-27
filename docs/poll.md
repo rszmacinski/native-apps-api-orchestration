@@ -405,7 +405,7 @@ If the response status is "error" then a server-side failure occurred building m
 If the response status is "timeout" then the server-side timed-out waiting for the backend services to reply.
 
 If the response status is complete then the async service call has completed. The response will contain a set of attributes which is taxSummary, state and an optional taxCreditSummary attribute.
-If the response attribute 'taxCreditSummary' is empty (contains no attributes) then this indicates Tax-Credits are available for the user, however there is no user data to display.
+If the response attribute 'taxCreditSummary' is empty (contains no attributes) then this indicates Tax-Credits are available for the user, however there is no user data to display. If the response attribute 'taxCreditSummary' is not returned, then the user is not defined for tax-credits.
 
 | *json attribute* | *Mandatory* | *Description* |
 |------------------|-------------|---------------|
