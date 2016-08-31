@@ -26,7 +26,7 @@ import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.emailaddress.EmailAddress
 import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{AuthConnector, GenericConnector}
-import uk.gov.hmrc.ngc.orchestration.controllers.{AsyncResponse, LiveOrchestrationController, MandatoryResponse}
+import uk.gov.hmrc.ngc.orchestration.controllers.{LiveOrchestrationController, MandatoryResponse}
 import uk.gov.hmrc.ngc.orchestration.domain._
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.HeaderCarrier
@@ -79,7 +79,7 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor {
     withAudit("startup", Map("nino" -> nino.value)) {
       val year = Calendar.getInstance().get(Calendar.YEAR)
 
-      val result = run(inputRequest:JsValue, nino.value, year).map(item => item).map(r => r.foldLeft(Json.obj())((b, a) => b ++ a))
+      val result = run(inputRequest:JsValue, nino.value, year, journeyId).map(item => item).map(r => r.foldLeft(Json.obj())((b, a) => b ++ a))
       result.recover {
         case ex:Exception => MandatoryResponse
       }
@@ -87,12 +87,12 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor {
     }
   }
 
-  private def run(inputRequest:JsValue, nino: String, year: Int)(implicit hc: HeaderCarrier, ex: ExecutionContext) : Future[Seq[JsObject]] = {
+  private def run(inputRequest:JsValue, nino: String, year: Int, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext) : Future[Seq[JsObject]] = {
     val futuresSeq = Seq(
-      TaxSummary(genericConnector),
-      TaxCreditSummary(genericConnector),
-      State(genericConnector),
-      PushRegistration(genericConnector, inputRequest)
+      TaxSummary(genericConnector, journeyId),
+      TaxCreditSummary(genericConnector, journeyId),
+      State(genericConnector, journeyId),
+      PushRegistration(genericConnector, inputRequest, journeyId)
     ).map(item => item.execute(nino, year))
 
     // Drop off results which returned None.
@@ -113,19 +113,9 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
   }
 
   def startup(jsValue:JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
-
-    Future.successful(Json.obj("status" -> Json.parse("""{"code":"poll"}""")))
+    Future.successful(Json.obj("status" -> Json.obj("code" -> "poll")))
   }
 
-  def poll(): Future[AsyncResponse] =  {
-    val resource: Option[String] = findResource(s"/resources/getsummary/${nino.value}_2016.json")
-    val taxSummary = Result("taxSummary",Json.parse(resource.get))
-    val emailPreferences  = JsObject(Seq("email" -> JsString(email), "status" -> JsString("verified")))
-    val preferences = Result("preference", JsObject(Seq("digital" -> JsBoolean(true), "email" -> emailPreferences)))
-    val taxCreditSummary = Result("taxCreditSummary", Json.parse(findResource(s"/resources/taxcreditsummary/${nino.value}.json").get))
-    val res = Future.successful(Seq(taxSummary, preferences, taxCreditSummary).map(b => Json.obj(b.id -> b.jsValue)))
-    res.map(r => AsyncResponse(r.foldLeft(Json.obj())((b, a) => b ++ a)))
-  }
 }
 
 object LiveOrchestrationService extends LiveOrchestrationService {

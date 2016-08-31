@@ -16,8 +16,6 @@
 
 package uk.gov.hmrc.ngc.orchestration.controllers
 
-import java.util.concurrent.TimeUnit
-
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import play.api.{Logger, mvc}
@@ -25,14 +23,13 @@ import uk.gov.hmrc.api.controllers.{ErrorInternalServerError, ErrorNotFound}
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.msasync.repository.AsyncRepository
 import uk.gov.hmrc.ngc.orchestration.connectors.{Authority, NinoNotFoundOnAccount}
-import uk.gov.hmrc.ngc.orchestration.controllers.action.AccountAccessControlWithHeaderCheck
+import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckAccessOff, AccountAccessControl, AccountAccessControlWithHeaderCheck}
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
 import uk.gov.hmrc.play.http.{HeaderCarrier, NotFoundException}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
+import scala.concurrent.Future
 
 
 class BadRequestException(message:String) extends uk.gov.hmrc.play.http.HttpException(message, 400)
@@ -69,13 +66,12 @@ trait SecurityCheck {
 }
 
 trait NativeAppsOrchestrationController extends AsyncController with SecurityCheck {
-
-  import uk.gov.hmrc.domain.Nino
-
   val service: OrchestrationService
   val accessControl: AccountAccessControlWithHeaderCheck
+  val accessControlOff: AccountAccessControlWithHeaderCheck
 
-  final def preFlightCheck(journeyId: Option[String] = None): Action[JsValue] = accessControl.validateAccept(acceptHeaderValidationRules).async(BodyParsers.parse.json) {
+
+  final def preFlightCheck(journeyId: Option[String] = None): Action[JsValue] = accessControlOff.validateAccept(acceptHeaderValidationRules).async(BodyParsers.parse.json) {
     implicit request =>
       errorWrapper {
         implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
@@ -88,7 +84,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       }
   }
 
-  final def startup(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControl.validateAccept(acceptHeaderValidationRules).async {
+  def startup(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControl.validateAccept(acceptHeaderValidationRules).async {
     implicit authenticated =>
       implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
       implicit val req = authenticated.request
@@ -159,63 +155,53 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       Future.successful(result)
     }
   }
-
 }
 
 object LiveOrchestrationController extends NativeAppsOrchestrationController {
   override val service = LiveOrchestrationService
   override val accessControl = AccountAccessControlWithHeaderCheck
+  override val accessControlOff = AccountAccessControlCheckAccessOff
   override val app: String = "Live-Orchestration-Controller"
   override lazy val repository:AsyncRepository = AsyncRepository()
   override def checkSecurity: Boolean = true
 }
 
-object SandboxOrchestrationController extends NativeAppsOrchestrationController {
+
+object SandboxOrchestrationController extends SandboxOrchestrationController
+
+trait SandboxOrchestrationController extends NativeAppsOrchestrationController with SandboxPoll {
   override val actorName = "sandbox-async_native-apps-api-actor"
   override def id = "sandbox-async_native-apps-api-id"
 
-  override val service = SandboxOrchestrationService
+  override val service: OrchestrationService = SandboxOrchestrationService
   override val accessControl = AccountAccessControlWithHeaderCheck
+  override val accessControlOff = AccountAccessControlCheckAccessOff
   override val app: String = "Sandbox-Orchestration-Controller"
-  override lazy val repository:AsyncRepository = AsyncRepository()
+  override lazy val repository:AsyncRepository = sandboxRepository
   override def checkSecurity: Boolean = false
 
-  override def poll(nino: Nino, journeyId: Option[String] = None) = accessControl.validateAccept(acceptHeaderValidationRules).async {
+
+  // Must override the startup call since live talks to a queue in production.
+  override def startup(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControlOff.validateAccept(acceptHeaderValidationRules).async {
     implicit authenticated =>
+      implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
+      implicit val req = authenticated.request
+
       errorWrapper {
         withAsyncSession {
-          implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
-          implicit val req = authenticated.request
-          implicit val authority = authenticated.authority
-
-          val asyncResponse: AsyncResponse = Await.result(service.poll(), Duration(1000, SECONDS))
-          val response: Future[Result] = callbackWithSuccessResponse(asyncResponse)
-          // Convert 303 response to 404. The 303 is generated (with URL "notaskrunning") when no task exists in the users session!
-          response.map(resp => {
-            resp.header.status match {
-              case 303 => NotFound
-              case _ => resp
-            }
-          })
+          service.startup(Json.parse("""{}"""), nino, journeyId).map(resp => Ok(resp))
         }
       }
   }
 
-  def callbackWithSuccessResponse(response:AsyncResponse)(implicit authority:Option[Authority]) : Future[Result] = {
-      def noAuthority = throw new Exception("Failed to resolve authority")
-      def success = Ok(response.value)
-
-      // Verify the nino from the users authority matches the nino returned in the tax summary  response.
-      val responseNino = (response.value \ "taxSummary" \ "taxSummaryDetails" \ "nino").asOpt[String]
-      val result = if (checkSecurity) {
-        val nino = responseNino.getOrElse("No NINO found in response!").take(8)
-        val authNino = authority.getOrElse(noAuthority).nino.value.take(8)
-        if (!nino.equals(authNino)) {
-          Logger.error("Failed to match tax summary response NINO with authority NINO!")
-          Unauthorized
-        } else success
-      } else success
-      Future.successful(result)
+  // Override the poll and return static resource.
+  override def poll(nino: Nino, journeyId: Option[String] = None) = accessControlOff.validateAccept(acceptHeaderValidationRules).async {
+  implicit authenticated =>
+    errorWrapper {
+      withAsyncSession {
+        Future.successful(Ok(pollSandboxResult(nino).value))
+      }
+    }
   }
 }
 

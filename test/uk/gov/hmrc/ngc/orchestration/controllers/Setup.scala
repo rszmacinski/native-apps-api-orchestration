@@ -66,6 +66,7 @@ trait Setup {
 
   lazy val testAccess = new TestAccessCheck(authConnector)
   lazy val testCompositeAction = new TestAccountAccessControlWithAccept(testAccess)
+  lazy val testAccessControlOff = AccountAccessControlCheckAccessOff
 
   val servicesSuccessMap = Map(
     "/profile/native-app/version-check" -> true,
@@ -145,11 +146,11 @@ trait Success extends Setup {
     override def id = "sandbox-async_native-apps-api-id"
 
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
     override val service: OrchestrationService = testOrchestrationService
     override val app: String = "Success Orchestration Controller"
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
-
   }
 }
 
@@ -164,6 +165,7 @@ trait Failure extends Setup {
     override def id = "async_native-apps-api-id"
 
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
     override val service: OrchestrationService = testOrchestrationServiceFAILURE
     override val app: String = "Failure"
     override val repository: AsyncRepository = asyncRepository
@@ -183,6 +185,7 @@ trait PreferenceFailure extends Setup {
     override def id = "async_native-apps-api-id"
 
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
     override val service: OrchestrationService = testOrchestrationServicePreferencesFAILURE
     override val app: String = "PreferenceFailure"
     override val repository: AsyncRepository = asyncRepository
@@ -201,6 +204,7 @@ trait AuthenticateRenewal extends Setup {
     override def id = "async_native-apps-api-id"
 
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
     override val service: OrchestrationService = testOrchestrationServiceAuthFAILURE
     override val app: String = "AuthenticateRenewal"
     override val repository: AsyncRepository = asyncRepository
@@ -219,6 +223,7 @@ trait SessionChecker extends Setup {
     override def id = "async_native-apps-api-id"
 
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
     override val service: OrchestrationService = testOrchestrationServiceAuthFAILURE
     override val app: String = "SessionChecker"
     override val repository: AsyncRepository = asyncRepository
@@ -238,6 +243,7 @@ trait RenewalSubmissionNotActive extends Setup {
     override def id = "async_native-apps-api-id"
 
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
     override val service: OrchestrationService = testOrchestrationServiceRenewalSubmissionNotActive
     override val app: String = "RenewalSubmissionNotActive"
     override val repository: AsyncRepository = asyncRepository
@@ -256,6 +262,7 @@ trait RenewalSubmissionShutterActive extends Setup {
     override def id = "async_native-apps-api-id"
 
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
     override val service: OrchestrationService = testOrchestrationServiceRenewalShutterActive
     override val app: String = "RenewalSubmissionShutterActive"
     override val repository: AsyncRepository = asyncRepository
@@ -274,6 +281,7 @@ trait ExclusionTrue extends Setup {
     override def id = "async_native-apps-api-id"
 
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
     override val service: OrchestrationService = testOrchestrationServiceExclusionTrue
     override val app: String = "ExclusionTrue"
     override val repository: AsyncRepository = asyncRepository
@@ -297,6 +305,7 @@ trait SecurityAsyncSetup extends Setup {
     lazy val compositeAuthAction = new TestAccountAccessControlWithAccept(testAccess)
 
     override val accessControl: AccountAccessControlWithHeaderCheck = compositeAuthAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
     override val service: OrchestrationService = testOrchestrationServiceExclusionTrue
     override val app: String = "SecurityAsyncSetup"
     override val repository: AsyncRepository = asyncRepository
@@ -314,6 +323,7 @@ trait OptionalDataFailure extends Setup {
     override def id = "async_native-apps-api-id"
 
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
     override val service: OrchestrationService = testOrchestrationServiceOptionalDataFAILURE
     override val app: String = "OptionalDataFailure"
     override val repository: AsyncRepository = asyncRepository
@@ -333,6 +343,8 @@ trait OptionalFirebaseToken extends Setup {
     override def id = "async_native-apps-api-id"
 
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
+
     override val service: OrchestrationService = testOrchestrationServiceOptionalDataFAILURE
     override val app: String = "OptionalFirebaseToken"
     override val repository: AsyncRepository = asyncRepository
@@ -354,6 +366,7 @@ trait FailWithRetrySuccess extends Setup {
 
 
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
     override val service: OrchestrationService = testOrchestrationServiceRETRY
     override val app: String = "Fail with Retry Success Orchestration Controller"
     override val repository: AsyncRepository = asyncRepository
@@ -525,6 +538,7 @@ trait AuthWithoutTaxSummary extends Setup with AuthorityTest {
 
   val controller = new NativeAppsOrchestrationController {
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
     val testCustomerProfileGenericConnector = new TestGenericConnector(true, testAccount, TestData.testPushReg, TestData.testPreferences, JsNull, TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
     override val service: OrchestrationService = new TestOrchestrationService(testCustomerProfileGenericConnector, authConnector)
     override val app: String = "AuthWithoutNino Native Apps Orchestration"
@@ -546,6 +560,7 @@ trait AuthWithoutNino extends Setup with AuthorityTest {
 
   val controller = new NativeAppsOrchestrationController {
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
     override val service: OrchestrationService = testOrchestrationService
     override val app: String = "AuthWithoutNino Native Apps Orchestration"
     override val repository: AsyncRepository = asyncRepository
@@ -570,6 +585,7 @@ trait AuthWithLowCL extends Setup with AuthorityTest {
     val app = "AuthWithLowCL Native Apps Orchestration"
     override val service: LiveOrchestrationService = new TestOrchestrationService(testGenericConnector,authConnector)
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
 
@@ -593,25 +609,25 @@ trait AuthWithWeakCreds extends Setup with AuthorityTest {
     val app = "AuthWithWeakCreds Native Apps Orchestration"
     override val service: LiveOrchestrationService = new TestOrchestrationService(testGenericConnector,authConnector)
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
+
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
   }
 }
 
 trait SandboxSuccess extends Setup {
-  val controller = new NativeAppsOrchestrationController {
+  val controller = new SandboxOrchestrationController {
 
     val testSessionId="SandboxSuccess"
-    override def buildUniqueId() = testSessionId
 
     override val actorName = s"async_native-apps-api-actor_"+testSessionId
     override def id = "async_native-apps-api-id"
 
-
-    val app = "Sandbox Native Apps Orchestration"
+    override val app = "Sandbox Native Apps Orchestration"
     override val service: OrchestrationService = SandboxOrchestrationService
-    override val accessControl: AccountAccessControlWithHeaderCheck = AccountAccessControlCheckAccessOff
-    override val repository: AsyncRepository = asyncRepository
+    override val accessControl = AccountAccessControlCheckAccessOff
+    override lazy val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = false
 
   }

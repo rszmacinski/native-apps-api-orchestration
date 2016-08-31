@@ -20,7 +20,6 @@ package uk.gov.hmrc.ngc.orchestration.controllers
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Seconds, Span}
-import play.api.libs.iteratee.Iteratee
 import play.api.libs.json._
 import play.api.mvc.{Request, Result}
 import play.api.test.{FakeApplication, FakeRequest}
@@ -44,11 +43,11 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     }
   }
 
-  def invokeTestNonBlockAction(controller:NativeAppsOrchestrationController, testSessionId:String, nino:Nino, response:JsValue, resultCode:Int = 200, inputBody:String="""{"token":"123456"}""")(implicit request:Request[_]) = {
+  def invokeTestNonBlockAction(controller: NativeAppsOrchestrationController, testSessionId: String, nino: Nino, response: JsValue, resultCode: Int = 200, inputBody: String = """{"token":"123456"}""")(implicit request: Request[_]) = {
     val token = "Bearer 123456789"
     val authToken = "AuthToken" -> token
     val authHeader = "Authorization" -> token
-    val body :JsValue= Json.parse(inputBody)
+    val body: JsValue = Json.parse(inputBody)
 
     val requestWithSessionKeyAndId = FakeRequest()
       .withSession(
@@ -59,7 +58,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       ).withJsonBody(body)
 
     val requestWithSessionKeyAndIdNoBody = FakeRequest().withSession(
-      controller.AsyncMVCSessionId -> controller.buildSession(controller.id,testSessionId),
+      controller.AsyncMVCSessionId -> controller.buildSession(controller.id, testSessionId),
       authToken
 
     ).withHeaders(
@@ -195,24 +194,27 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     }
   }
 
-  "preFlightCheck sandbox controller " should {
 
-    "return the PreFlightCheckResponse from a resource" in new SandboxSuccess {
+  "sandbox controller " should {
 
+    "return the PreFlightCheckResponse response from a static resource" in new SandboxSuccess {
       val result = await(controller.preFlightCheck()(requestWithAuthSession.withBody(versionBody)))
-
       status(result) shouldBe 200
       val journeyIdRetrieve: String = (contentAsJson(result) \ "accounts" \ "journeyId").as[String]
       contentAsJson(result) shouldBe Json.toJson(PreFlightCheckResponse(true, Accounts(Some(nino), None, false, false, journeyIdRetrieve)))
     }
+
+    "return startup response from a static resource" in new SandboxSuccess {
+      val result = await(controller.startup(nino)(requestWithAuthSession))//.withBody(versionBody)))
+      status(result) shouldBe 200
+      contentAsJson(result) shouldBe TestData.sandboxStartupResponse
+    }
+
+    "return poll response from a static resource" in new SandboxSuccess {
+      val result = await(controller.poll(nino)(requestWithAuthSession))//.withBody(versionBody)))
+      status(result) shouldBe 200
+      contentAsJson(result) shouldBe TestData.sandboxPollResponse
+    }
   }
 
-  "startup sandbox controller" should {
-
-    "return a status of async process " in new SandboxSuccess {
-
-        invokeTestNonBlockAction(controller, "async_native-apps-api-id-SandboxSuccess", Nino("CS700100A"),
-          TestData.statusComplete)(requestWithAuthSession.withBody(versionBody))
-      }
-  }
 }

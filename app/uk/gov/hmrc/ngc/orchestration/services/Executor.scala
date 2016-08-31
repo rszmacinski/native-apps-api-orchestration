@@ -33,7 +33,11 @@ trait Executor {
   lazy val host: String = getConfigProperty("host")
   lazy val port: Int = getConfigProperty("port").toInt
 
+  def logJourneyId(journeyId: Option[String]) = s"Native Error - ${journeyId.fold("no id")(id => id)}"
+
   def execute(nino: String, year: Int)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]]
+
+  def buildJourneyQueryParam(journeyId: Option[String]) = journeyId.fold("")(id => s"?journeyId=$id")
 
   def retry(default: Option[Result] = None)(func: => Future[Option[Result]])(implicit hc: HeaderCarrier, ex: ExecutionContext) = {
     def retry: Future[Option[Result]] = {
@@ -57,50 +61,53 @@ trait Executor {
   }
 }
 
-case class TaxSummary(connector: GenericConnector) extends Executor with ResponseCode {
+case class TaxSummary(connector: GenericConnector, journeyId: Option[String]) extends Executor with ResponseCode {
   override val id  = "taxSummary"
   override val serviceName: String = "personal-income"
 
   override def execute(nino: String, year: Int)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
-    connector.doGet(host, s"/income/$nino/tax-summary/$year" , port, hc).map(res => Some(Result(id, res))).recover {
+    connector.doGet(host, s"/income/$nino/tax-summary/$year${buildJourneyQueryParam(journeyId)}" , port, hc).map(res => Some(Result(id, res))).recover {
       case ex: Exception => {
-        Logger.error("Failed to retrieve the tax-summary data!")
+        Logger.error(s"Async - Failed to retrieve the tax-summary data and exception is ${ex}!")
         throw new Mandatory
       }
     }
   }
 }
 
-case class State(connector: GenericConnector) extends Executor {
+case class State(connector: GenericConnector, journeyId: Option[String]) extends Executor {
   override val id = "state"
   override val serviceName = "personal-income"
   override def execute(nino: String, year: Int)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
-    connector.doGet(host, "/income/tax-credits/submission/state/enabled", port, hc).map(res =>  Some(Result(id, JsObject(Seq("enableRenewals" -> Json.toJson(res).\("submissionState")))))).recover{
-      case ex: Exception => Some(Result(id, JsObject(Seq("enableRenewals" -> JsBoolean(false)))))
+    connector.doGet(host, s"/income/tax-credits/submission/state/enabled${buildJourneyQueryParam(journeyId)}", port, hc).map(res =>  Some(Result(id, JsObject(Seq("enableRenewals" -> Json.toJson(res).\("submissionState")))))).recover{
+      case ex: Exception => {
+        Logger.error(s"${logJourneyId(journeyId)} - Failed to retrieve state and exception is ${ex}!")
+        Some(Result(id, JsObject(Seq("enableRenewals" -> JsBoolean(false)))))
+        }
     }
   }
 }
 
-case class PushRegistration(connector: GenericConnector, inputRequest:JsValue) extends Executor {
+case class PushRegistration(connector: GenericConnector, inputRequest:JsValue, journeyId: Option[String]) extends Executor {
   override val id = "pushRegistration"
   override val serviceName = "push-registration"
   override def execute(nino: String, year: Int)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
 
     if ((inputRequest \ "token").asOpt[String] == None) {
-      Logger.info("No token supplied!")
+      Logger.info(s"${logJourneyId(journeyId)} - No token supplied!")
     } else {
-      connector.doPost(inputRequest, host, "/push/registration", port, hc)
+      connector.doPost(inputRequest, host, s"/push/registration${buildJourneyQueryParam(journeyId)}", port, hc)
     }
     Future.successful(None)
   }
 }
 
-case class TaxCreditSummary(connector: GenericConnector) extends Executor {
+case class TaxCreditSummary(connector: GenericConnector, journeyId: Option[String]) extends Executor {
   override val id: String = "taxCreditSummary"
   override val serviceName: String = "personal-income"
 
   def authenticateRenewal(nino:String)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Boolean] = {
-    connector.doGetRaw(host, s"/income/$nino/tax-credits/999999999999999/auth", port, hc).map(r => r.status match {
+    connector.doGetRaw(host, s"/income/$nino/tax-credits/999999999999999/auth${buildJourneyQueryParam(journeyId)}", port, hc).map(r => r.status match {
       case 200 => true
       case _ => false
     })
@@ -110,7 +117,7 @@ case class TaxCreditSummary(connector: GenericConnector) extends Executor {
     def taxCreditDecision(nino:String)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
       val defaultDecision = Option(Result(id, Json.parse("""{"showData":false}""")))
       retry(defaultDecision) {
-        connector.doGet(host, s"/income/$nino/tax-credits/tax-credits-decision", port, hc).map(res => {
+        connector.doGet(host, s"/income/$nino/tax-credits/tax-credits-decision${buildJourneyQueryParam(journeyId)}", port, hc).map(res => {
           Some(Result("decision", res))
         })
       }
@@ -123,7 +130,7 @@ case class TaxCreditSummary(connector: GenericConnector) extends Executor {
   }
 
   def getSummary(nino:String)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Some[Result]] = {
-    connector.doGet(host, s"/income/$nino/tax-credits/tax-credits-summary", port, hc).map(r => Some(Result(id, r)))
+    connector.doGet(host, s"/income/$nino/tax-credits/tax-credits-summary${buildJourneyQueryParam(journeyId)}", port, hc).map(r => Some(Result(id, r)))
   }
 
   override def execute(nino: String, year: Int)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
@@ -138,10 +145,15 @@ case class TaxCreditSummary(connector: GenericConnector) extends Executor {
       // Store the active status and the optional tax credit summary.
     } yield (isAuthenticateRenewal, b)
 
+
     taxCreditSummaryOutcome.map {
       case (true, None) => Some(Result(id, Json.obj())) // Tax-Credit-Summary tab can be displayed but no summary data returned.
       case (false, _) => None
       case (_, result) => result
+    }.recover {
+      case ex:Exception =>
+        Logger.error(s"${logJourneyId(journeyId)} - Failed to orchestrate TaxCreditSummary and exception is ${ex}!")
+        throw ex
     }
   }
 }
