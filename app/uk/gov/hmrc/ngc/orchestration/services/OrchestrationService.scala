@@ -106,7 +106,7 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
 
   private val nino = Nino("CS700100A")
   private val email = EmailAddress("name@email.co.uk")
-  private val preFlightResponse = PreFlightCheckResponse(true, Accounts(Some(nino), None, false, false, UUID.randomUUID().toString))
+  private val preFlightResponse = PreFlightCheckResponse(false, Accounts(Some(nino), None, false, false, UUID.randomUUID().toString))
 
   def preFlightCheck(jsValue:JsValue)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse] = {
     Future.successful(preFlightResponse)

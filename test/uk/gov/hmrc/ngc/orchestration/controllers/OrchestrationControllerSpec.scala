@@ -201,7 +201,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       val result = await(controller.preFlightCheck()(requestWithAuthSession.withBody(versionBody)))
       status(result) shouldBe 200
       val journeyIdRetrieve: String = (contentAsJson(result) \ "accounts" \ "journeyId").as[String]
-      contentAsJson(result) shouldBe Json.toJson(PreFlightCheckResponse(true, Accounts(Some(nino), None, false, false, journeyIdRetrieve)))
+      contentAsJson(result) shouldBe Json.toJson(PreFlightCheckResponse(false, Accounts(Some(nino), None, false, false, journeyIdRetrieve)))
     }
 
     "return startup response from a static resource" in new SandboxSuccess {
