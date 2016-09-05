@@ -77,13 +77,13 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
   val accessControlOff: AccountAccessControlWithHeaderCheck
 
 
-  final def preFlightCheck(journeyId: Option[String] = None): Action[JsValue] = accessControlOff.validateAccept(acceptHeaderValidationRules).async(BodyParsers.parse.json) {
+  final def preFlightCheck(): Action[JsValue] = accessControlOff.validateAccept(acceptHeaderValidationRules).async(BodyParsers.parse.json) {
     implicit request =>
       errorWrapper {
         implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
 
         hc.authorization match {
-          case Some(auth) => service.preFlightCheck(request.body, journeyId).flatMap(
+          case Some(auth) => service.preFlightCheck(request.body).flatMap(
             response => Future.successful(Ok(Json.toJson(response)).withSession(authToken -> auth.value))
           )
 

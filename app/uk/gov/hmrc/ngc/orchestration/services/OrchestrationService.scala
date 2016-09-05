@@ -36,7 +36,7 @@ trait OrchestrationService {
 
   def genericConnector: GenericConnector = GenericConnector
 
-  def preFlightCheck(inputRequest:JsValue, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse]
+  def preFlightCheck(inputRequest:JsValue)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse]
 
   def startup(inputRequest:JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]
 
@@ -55,16 +55,15 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor {
 
   def authConnector: AuthConnector = AuthConnector
 
-  def preFlightCheck(inputRequest:JsValue, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse] = {
+  def preFlightCheck(inputRequest:JsValue)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse] = {
     withAudit("preFlightCheck", Map.empty) {
-      val journey = new Journey {}
 
       def getVersion = {
-        genericConnector.doPost(inputRequest, getConfigProperty("customer-profile","host"), s"/profile/native-app/version-check${journey.buildJourneyQueryParam(journeyId)}", getConfigProperty("customer-profile","port").toInt, hc)
+        genericConnector.doPost(inputRequest, getConfigProperty("customer-profile","host"), s"/profile/native-app/version-check", getConfigProperty("customer-profile","port").toInt, hc)
           .map(response => (response \ "upgrade").as[Boolean]).recover {
           // Default to false - i.e. no upgrade required.
           case e:Exception =>
-            Logger.error(s"Native Error - failure with processing /profile/native-app/version-check for $journeyId. Exception is $ex")
+            Logger.error(s"Native Error - failure with processing /profile/native-app/version-check. Exception is $ex")
             false
         }
       }
@@ -110,7 +109,7 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
   private val nino = Nino("CS700100A")
   private val preFlightResponse = PreFlightCheckResponse(upgradeRequired = false, Accounts(Some(nino), None, routeToIV = false, routeToTwoFactor = false, UUID.randomUUID().toString))
 
-  def preFlightCheck(jsValue:JsValue, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse] = {
+  def preFlightCheck(jsValue:JsValue)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse] = {
     Future.successful(preFlightResponse)
   }
 
