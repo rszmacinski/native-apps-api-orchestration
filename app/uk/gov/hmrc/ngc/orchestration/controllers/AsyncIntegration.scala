@@ -50,7 +50,7 @@ trait AsyncMvcIntegration extends AsyncMVC[AsyncResponse] {
   override def      throttleLimit = 1000 // Max number of async tasks that can run on each server.
   override def  blockingDelayTime = 3000
 
-  final val CLIENT_TIMEOUT=50000L
+  final val CLIENT_TIMEOUT=115000L
 
   lazy val asyncActor: ActorRef = Akka.system.actorOf(Props(new AsyncMVCAsyncActor(taskCache, CLIENT_TIMEOUT)), actorName)
   override def         actorRef = asyncActor
