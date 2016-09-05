@@ -44,7 +44,7 @@ Current version information of application. The "os" attribute can be either ios
 }
 ```
 
-Please note the only attribute that is optional is saUtr.
+Please note the optional attributes are "nino" and "sautr".
 
 
 * **Error Response:**

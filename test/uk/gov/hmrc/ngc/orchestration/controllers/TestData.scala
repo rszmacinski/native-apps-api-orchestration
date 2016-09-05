@@ -28,8 +28,6 @@ object TestData {
 
   val testStateNotInSubmission = Json.parse("""{"submissionState":false}""")
 
-  val testStateSubmissionShutterActive = Json.parse("""{"submissionState":false}""")
-
   val testAuthToken = JsString("someTestAuthToken")
 
   val testTaxCreditDecision: JsValue = Json.parse("""{"showData":true}""")
@@ -41,8 +39,8 @@ object TestData {
   val weakCredStrength = Json.parse("""{"code":"WEAK_CRED_STRENGTH","message":"Credential Strength on account does not allow access"}""")
 
 
-  val taxSummaryData = Json.parse(
-    """{
+  def taxSummaryData(additional:Option[String]=None) : JsValue = Json.parse(
+    s"""{
       |    "taxSummaryDetails": {
       |      "nino": "CS700100A",
       |      "version": 154,
@@ -515,39 +513,26 @@ object TestData {
       |      "taxableBenefitsTotal": 0,
       |      "hasChanges": false
       |    }
+      |    ${additional.fold(""){id => s""","ASYNC_TEST_ID":"$id""""}}
       |}
     """.stripMargin)
 
-  val taxSummary = Json.obj("taxSummary" -> taxSummaryData)
 
-//  val preferencesData = Json.parse(
-//    """{
-//      |    "digital": true,
-//      |    "email": {
-//      |      "email": "name@email.co.uk",
-//      |      "status": "verified"
-//      |    }
-//      |}
-//    """.stripMargin)
+  def taxSummary(id:Option[String]=None) = Json.obj("taxSummary" -> taxSummaryData(id))
 
-  val submissionStateData =   Json.parse("""{"enableRenewals": false}""")
-  val submissionState: JsObject = Json.obj("state" -> submissionStateData)
+  val submissionStateDataOff =   Json.parse("""{"enableRenewals": false}""")
+  val submissionStateOff: JsObject = Json.obj("state" -> submissionStateDataOff)
 
-  val submissionStateDataB =   Json.parse("""{"enableRenewals": true}""")
-  val submissionStateB: JsObject = Json.obj("state" -> submissionStateDataB)
+  val submissionStateDataOn =   Json.parse("""{"enableRenewals": true}""")
+  val submissionStateOn: JsObject = Json.obj("state" -> submissionStateDataOn)
 
-  val statusCompleteData = Json.parse(
-    """
-      {"code": "complete"}
-    """.stripMargin)
-
+  val statusCompleteData = Json.parse("""{"code": "complete"}""")
   val statusComplete = Json.obj("status" -> statusCompleteData)
 
-  val statusErrorData = Json.parse(
-    """
-      {"code": "error"}
-    """.stripMargin)
+  val statusThrottleData = Json.parse("""{"code": "throttle"}""")
+  val statusThrottle = Json.obj("status" -> statusThrottleData)
 
+  val statusErrorData = Json.parse("""{"code": "error"}""")
   val statusError = Json.obj("status" -> statusErrorData)
 
   val taxCreditSummaryData = Json.parse(
@@ -622,6 +607,9 @@ object TestData {
       |  }
     """.stripMargin)
   val taxCreditSummary = Json.obj("taxCreditSummary" -> taxCreditSummaryData)
+
+  val taxCreditSummaryEmpty = Json.obj("taxCreditSummary" -> Json.obj())
+
 
   val sandboxStartupResponse = Json.obj("status" -> Json.parse("""{"code":"poll"}"""))
 
