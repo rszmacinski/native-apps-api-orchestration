@@ -20,11 +20,14 @@ import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import play.api.{Logger, mvc}
 import uk.gov.hmrc.api.controllers.{ErrorInternalServerError, ErrorNotFound}
+import uk.gov.hmrc.api.service.Auditor
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.msasync.repository.AsyncRepository
+import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{Authority, NinoNotFoundOnAccount}
-import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckAccessOff, AccountAccessControl, AccountAccessControlWithHeaderCheck}
+import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckAccessOff, AccountAccessControlWithHeaderCheck}
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
+import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.{HeaderCarrier, NotFoundException}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
@@ -41,6 +44,7 @@ trait ErrorHandling {
   def log(message:String) = Logger.info(s"$app $message")
 
   def errorWrapper(func: => Future[mvc.Result])(implicit hc: HeaderCarrier) = {
+
     func.recover {
       case ex: NotFoundException =>
         log("Resource not found!")
@@ -54,10 +58,12 @@ trait ErrorHandling {
         log("User has no NINO. Unauthorized!")
         Unauthorized(Json.toJson(ErrorUnauthorizedNoNino))
 
-      case e: Throwable =>
-        Logger.error(s"$app Internal server error: ${e.getMessage}", e)
+      case e: Exception =>
+        Logger.error(s"Native Error - $app Internal server error: ${e.getMessage}", e)
         Status(ErrorInternalServerError.httpStatusCode)(Json.toJson(ErrorInternalServerError))
     }
+
+
   }
 }
 
@@ -65,7 +71,7 @@ trait SecurityCheck {
   def checkSecurity:Boolean
 }
 
-trait NativeAppsOrchestrationController extends AsyncController with SecurityCheck {
+trait NativeAppsOrchestrationController extends AsyncController with SecurityCheck with Auditor {
   val service: OrchestrationService
   val accessControl: AccountAccessControlWithHeaderCheck
   val accessControlOff: AccountAccessControlWithHeaderCheck
@@ -76,10 +82,12 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       errorWrapper {
         implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
 
-        hc.authorization.fold(throw new Exception("No auth token found for gateway request!?")) { t =>
-          service.preFlightCheck(request.body).map(response => Ok(Json.toJson(response))
-            .withSession(authToken -> t.value)
+        hc.authorization match {
+          case Some(auth) => service.preFlightCheck(request.body, journeyId).flatMap(
+            response => Future.successful(Ok(Json.toJson(response)).withSession(authToken -> auth.value))
           )
+
+          case _ => Future.failed(new Exception("Failed to resolve authentication from HC!"))
         }
       }
   }
@@ -116,20 +124,22 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
    */
   def poll(nino: Nino, journeyId: Option[String] = None) = accessControl.validateAccept(acceptHeaderValidationRules).async {
     implicit authenticated =>
-      errorWrapper {
-        withAsyncSession {
-          implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
-          implicit val req = authenticated.request
-          implicit val authority = authenticated.authority
+      withAudit("poll", Map("nino" -> nino.value)) {
+        errorWrapper {
+          withAsyncSession {
+            implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
+            implicit val req = authenticated.request
+            implicit val authority = authenticated.authority
 
-          val response = pollTask(Call("GET", "/notaskrunning"), callbackWithSuccessResponse, callbackWithStatus)
-          // Convert 303 response to 404. The 303 is generated (with URL "notaskrunning") when no task exists in the users session!
-          response.map(resp => {
-            resp.header.status match {
-              case 303 => NotFound
-              case _ => resp
-            }
-          })
+            val response = pollTask(Call("GET", "/notaskrunning"), callbackWithSuccessResponse, callbackWithStatus)
+            // Convert 303 response to 404. The 303 is generated (with URL "notaskrunning") when no task Id exists in the users session!
+            response.map(resp => {
+              resp.header.status match {
+                case 303 => NotFound
+                case _ => resp
+              }
+            })
+          }
         }
       }
   }
@@ -147,8 +157,9 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       val result = if (checkSecurity) {
         val nino = responseNino.getOrElse("No NINO found in response!").take(8)
         val authNino = authority.getOrElse(noAuthority).nino.value.take(8)
+
         if (!nino.equals(authNino)) {
-          Logger.error("Failed to match tax summary response NINO with authority NINO!")
+          Logger.error(s"Native Error - Failed to match tax summary response NINO $responseNino with authority NINO $authNino! Response is ${response.value}")
           Unauthorized
         } else success
       } else success
@@ -164,10 +175,12 @@ object LiveOrchestrationController extends NativeAppsOrchestrationController {
   override val app: String = "Live-Orchestration-Controller"
   override lazy val repository:AsyncRepository = AsyncRepository()
   override def checkSecurity: Boolean = true
+  override val auditConnector: AuditConnector = MicroserviceAuditConnector
 }
 
-
-object SandboxOrchestrationController extends SandboxOrchestrationController
+object SandboxOrchestrationController extends SandboxOrchestrationController {
+  override val auditConnector: AuditConnector = MicroserviceAuditConnector
+}
 
 trait SandboxOrchestrationController extends NativeAppsOrchestrationController with SandboxPoll {
   override val actorName = "sandbox-async_native-apps-api-actor"
@@ -180,8 +193,7 @@ trait SandboxOrchestrationController extends NativeAppsOrchestrationController w
   override lazy val repository:AsyncRepository = sandboxRepository
   override def checkSecurity: Boolean = false
 
-
-  // Must override the startup call since live talks to a queue in production.
+  // Must override the startup call since live controller talks to a queue.
   override def startup(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControlOff.validateAccept(acceptHeaderValidationRules).async {
     implicit authenticated =>
       implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)

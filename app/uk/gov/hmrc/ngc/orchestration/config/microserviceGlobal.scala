@@ -79,6 +79,7 @@ object MicroserviceGlobal extends DefaultMicroserviceGlobal with RunMode with Se
 
   private lazy val sessionFilter = CookieSessionFilter.SessionCookieFilter
   override def doFilter(a: EssentialAction): EssentialAction = {
+    // Note: Add the session filter to the controller in order for session cookie handling.
     Filters(super.doFilter(a), microserviceFilters ++ sessionFilter : _*)
   }
 

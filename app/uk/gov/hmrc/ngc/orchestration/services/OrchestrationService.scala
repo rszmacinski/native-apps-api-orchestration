@@ -19,26 +19,24 @@ package uk.gov.hmrc.ngc.orchestration.services
 import java.util.{Calendar, UUID}
 
 import play.api.libs.json._
-import play.api.{Configuration, Play}
+import play.api.{Logger, Configuration, Play}
 import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.api.service.Auditor
 import uk.gov.hmrc.domain.Nino
-import uk.gov.hmrc.emailaddress.EmailAddress
 import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{AuthConnector, GenericConnector}
-import uk.gov.hmrc.ngc.orchestration.controllers.{LiveOrchestrationController, MandatoryResponse}
+import uk.gov.hmrc.ngc.orchestration.controllers.LiveOrchestrationController
 import uk.gov.hmrc.ngc.orchestration.domain._
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.HeaderCarrier
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.ExecutionContext.Implicits.global
 
 trait OrchestrationService {
 
   def genericConnector: GenericConnector = GenericConnector
 
-  def preFlightCheck(inputRequest:JsValue) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse]
+  def preFlightCheck(inputRequest:JsValue, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse]
 
   def startup(inputRequest:JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]
 
@@ -57,12 +55,18 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor {
 
   def authConnector: AuthConnector = AuthConnector
 
-  def preFlightCheck(inputRequest:JsValue) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse] = {
+  def preFlightCheck(inputRequest:JsValue, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse] = {
     withAudit("preFlightCheck", Map.empty) {
+      val journey = new Journey {}
 
       def getVersion = {
-        genericConnector.doPost(inputRequest, getConfigProperty("customer-profile","host"), "/profile/native-app/version-check", getConfigProperty("customer-profile","port") toInt, hc)
-          .map(response => (response \ "upgrade").as[Boolean])
+        genericConnector.doPost(inputRequest, getConfigProperty("customer-profile","host"), s"/profile/native-app/version-check${journey.buildJourneyQueryParam(journeyId)}", getConfigProperty("customer-profile","port").toInt, hc)
+          .map(response => (response \ "upgrade").as[Boolean]).recover {
+          // Default to false - i.e. no upgrade required.
+          case e:Exception =>
+            Logger.error(s"Native Error - failure with processing /profile/native-app/version-check for $journeyId. Exception is $ex")
+            false
+        }
       }
 
       val accountsF = authConnector.accounts()
@@ -79,36 +83,34 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor {
     withAudit("startup", Map("nino" -> nino.value)) {
       val year = Calendar.getInstance().get(Calendar.YEAR)
 
-      val result = run(inputRequest:JsValue, nino.value, year, journeyId).map(item => item).map(r => r.foldLeft(Json.obj())((b, a) => b ++ a))
-      result.recover {
-        case ex:Exception => MandatoryResponse
+      buildResponse(inputRequest:JsValue, nino.value, year, journeyId).map(item => item).map(r => r.foldLeft(Json.obj())((b, a) => b ++ a)).recover {
+        case ex:Exception =>
+          Logger.error(s"Native Error - failure with processing startup for $journeyId. Exception is $ex")
+          throw ex
       }
-      result
     }
   }
 
-  private def run(inputRequest:JsValue, nino: String, year: Int, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext) : Future[Seq[JsObject]] = {
-    val futuresSeq = Seq(
+  private def buildResponse(inputRequest:JsValue, nino: String, year: Int, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext) : Future[Seq[JsObject]] = {
+    val futuresSeq: Seq[Future[Option[Result]]] = Seq(
       TaxSummary(genericConnector, journeyId),
       TaxCreditSummary(genericConnector, journeyId),
-      State(genericConnector, journeyId),
+      TaxCreditsSubmissionState(genericConnector, journeyId),
       PushRegistration(genericConnector, inputRequest, journeyId)
     ).map(item => item.execute(nino, year))
 
-    // Drop off results which returned None.
+    // Drop off Result's which returned None.
     val res: Future[Seq[Result]] = Future.sequence(futuresSeq).map(item => item.flatMap(a => a))
-    // Combine the json results from each of the functions to generate the result.
+    // Combine the JSON results from each of the functions to generate the final JSON result.
     res.map(r => r.map(b => Json.obj(b.id -> b.jsValue)))
   }
 }
 
 object SandboxOrchestrationService extends OrchestrationService with FileResource {
-
   private val nino = Nino("CS700100A")
-  private val email = EmailAddress("name@email.co.uk")
-  private val preFlightResponse = PreFlightCheckResponse(false, Accounts(Some(nino), None, false, false, UUID.randomUUID().toString))
+  private val preFlightResponse = PreFlightCheckResponse(upgradeRequired = false, Accounts(Some(nino), None, routeToIV = false, routeToTwoFactor = false, UUID.randomUUID().toString))
 
-  def preFlightCheck(jsValue:JsValue)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse] = {
+  def preFlightCheck(jsValue:JsValue, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse] = {
     Future.successful(preFlightResponse)
   }
 

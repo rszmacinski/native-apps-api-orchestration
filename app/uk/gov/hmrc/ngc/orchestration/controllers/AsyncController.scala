@@ -26,7 +26,6 @@ import uk.gov.hmrc.play.asyncmvc.async.Cache
 import uk.gov.hmrc.play.asyncmvc.model.{TaskCache, ViewCodes}
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.microservice.controller.BaseController
-import play.api.libs.json._
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -37,11 +36,11 @@ object AsyncResponse {
 }
 
 object ResponseStatus {
-  val timeout = "timeout"
-  val error = "error"
-  val poll = "poll"
-  val throttle = "throttle"
-  val complete = "complete"
+  val timeout = "timeout" // Timed out waiting for task to complete.
+  val error = "error" // Offline task generated a failure.
+  val poll = "poll" // Poll status. Task not complete.
+  val throttle = "throttle" // Throttle limit hit. Too many tasks executing.
+  val complete = "complete" // Success.
 }
 
 case class AsyncStatusResponse(code:String, message:Option[String]=None)
@@ -90,7 +89,7 @@ trait AsyncController extends BaseController with HeaderValidator with ErrorHand
     val res = status match {
       case ViewCodes.Timeout => Ok(buildResponseCode(ResponseStatus.timeout))
       case ViewCodes.Polling => Ok(buildResponseCode(ResponseStatus.poll))
-      case ViewCodes.ThrottleReached => Ok(buildResponseCode(ResponseStatus.throttle))
+      case ViewCodes.ThrottleReached => TooManyRequest(buildResponseCode(ResponseStatus.throttle))
       case ViewCodes.Error | _ => Ok(buildResponseCode(ResponseStatus.error))
     }
     Future.successful(res)
@@ -98,7 +97,7 @@ trait AsyncController extends BaseController with HeaderValidator with ErrorHand
 
   override def taskCache: Cache[TaskCache] = new Cache[TaskCache] {
 
-    val expire = 300000L // Note: The expire time must be greater than the client timeout.
+    val expire = 300000L // Note: The expire time must be greater than the client timeout. 5 mins. Client timeout is 2 minutes.
 
     override def put(id: String, value: TaskCache)(implicit hc: HeaderCarrier): Future[Unit] = {
       repository.save(value, expire).map(_ => ())
