@@ -9,7 +9,7 @@
   "api":{
     "name":"Native Apps API Orchestration",
     "description":"The API is used to consolidate calls across multiple micro-services to two single API calls.",
-    "context":"personal-income",
+    "context":"native-apps-api-orchestration",
     "requiresTrust": true,
     "versions":[
       {
