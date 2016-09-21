@@ -65,6 +65,9 @@ If the response status is throttle then too many current requests are being exec
   * **Code:** 406 NOT ACCEPTABLE <br />
     **Content:** `{"code":"ACCEPT_HEADER_INVALID","message":"The accept header is missing or invalid"}`
 
+* **Code:** 429 TOO MANY REQUESTS <br />
+    **Content:** `{"status": { "code": "throttle"}}`
+
   OR when a user does not exist or server failure
 
   * **Code:** 500 INTERNAL_SERVER_ERROR <br/>
