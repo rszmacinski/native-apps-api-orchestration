@@ -30,6 +30,7 @@ import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, Orchest
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.{HeaderCarrier, NotFoundException}
 import uk.gov.hmrc.play.microservice.controller.BaseController
+import uk.gov.hmrc.time.DateTimeUtils
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -135,7 +136,12 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
             // Convert 303 response to 404. The 303 is generated (with URL "notaskrunning") when no task Id exists in the users session!
             response.map(resp => {
               resp.header.status match {
-                case 303 => NotFound
+                case 303 =>
+                  val now = DateTimeUtils.now.getMillis
+                  val session = getSessionObject.getOrElse(throw new Exception(s"Session not found for async task. JourneyId $journeyId"))
+                  Logger.info(s"Native - Poll Task not not in cache. Client start request time ${session.start-getClientTimeout} - Client timeout ${session.start} - Current time $now.")
+                  NotFound
+
                 case _ => resp
               }
             })
