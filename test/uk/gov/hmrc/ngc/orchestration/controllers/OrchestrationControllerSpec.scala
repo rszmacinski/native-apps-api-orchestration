@@ -396,7 +396,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     jsonSession.id shouldBe testSessionId
 
     // Poll for the result.
-      eventually(Timeout(Span(10, Seconds))) {
+    eventually(Timeout(Span(10, Seconds))) {
       val result3: Result = await(controller.poll(nino)(requestWithSessionKeyAndIdNoBody))
 
       status(result3) shouldBe resultCode

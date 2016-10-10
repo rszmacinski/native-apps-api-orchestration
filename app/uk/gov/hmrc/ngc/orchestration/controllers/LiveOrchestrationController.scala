@@ -27,6 +27,7 @@ import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{Authority, NinoNotFoundOnAccount}
 import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckAccessOff, AccountAccessControlWithHeaderCheck}
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
+import uk.gov.hmrc.play.asyncmvc.model.AsyncMvcSession
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.{HeaderCarrier, NotFoundException}
 import uk.gov.hmrc.play.microservice.controller.BaseController
@@ -132,17 +133,30 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
             implicit val req = authenticated.request
             implicit val authority = authenticated.authority
 
+            val session: Option[AsyncMvcSession] = getSessionObject
+            def withASyncSession(data:Map[String,String]): Map[String, String] = {
+              data - AsyncMVCSessionId + (AsyncMVCSessionId -> Json.stringify(Json.toJson(session)))
+            }
+
+            // Make a request to understand the status of the async task. Please note the async library will update the session and remove the task id from session once the task completes.
             val response = pollTask(Call("GET", "/notaskrunning"), callbackWithSuccessResponse, callbackWithStatus)
             // Convert 303 response to 404. The 303 is generated (with URL "notaskrunning") when no task Id exists in the users session!
             response.map(resp => {
               resp.header.status match {
                 case 303 =>
                   val now = DateTimeUtils.now.getMillis
-                  val session = getSessionObject.getOrElse(throw new Exception(s"Session not found for async task. JourneyId $journeyId"))
-                  Logger.info(s"Native - Poll Task not not in cache. Client start request time ${session.start-getClientTimeout} - Client timeout ${session.start} - Current time $now.")
+                  session match {
+                    case Some(s) =>
+                      Logger.info(s"Native - Poll Task not not in cache! Client start request time ${s.start-getClientTimeout} - Client timeout ${s.start} - Current time $now.")
+
+                    case None =>
+                      Logger.info(s"Native - Poll - no session object found!")
+                  }
                   NotFound
 
-                case _ => resp
+                case _ =>
+                  // Add the task Id back into session. This allows the user to re-call the poll service once complete.
+                  resp.withSession(resp.session.copy(data = withASyncSession(resp.session.data)))
               }
             })
           }
