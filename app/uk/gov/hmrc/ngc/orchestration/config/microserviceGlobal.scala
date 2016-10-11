@@ -21,7 +21,7 @@ import net.ceedubs.ficus.Ficus._
 import play.api._
 import play.api.libs.json.Json
 import play.api.mvc.Results._
-import play.api.mvc.{Filters, EssentialAction, RequestHeader, Result}
+import play.api.mvc._
 import uk.gov.hmrc.api.config.{ServiceLocatorConfig, ServiceLocatorRegistration}
 import uk.gov.hmrc.api.connector.ServiceLocatorConnector
 import uk.gov.hmrc.api.controllers._
@@ -30,6 +30,7 @@ import uk.gov.hmrc.play.audit.filters.AuditFilter
 import uk.gov.hmrc.play.auth.controllers.AuthParamsControllerConfig
 import uk.gov.hmrc.play.auth.microservice.filters.AuthorisationFilter
 import uk.gov.hmrc.play.config.{AppName, ControllerConfig, RunMode}
+import uk.gov.hmrc.play.filters.NoCacheFilter
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.filters.LoggingFilter
 import uk.gov.hmrc.play.microservice.bootstrap.DefaultMicroserviceGlobal
@@ -77,10 +78,13 @@ object MicroserviceGlobal extends DefaultMicroserviceGlobal with RunMode with Se
 
   override implicit val hc: HeaderCarrier = HeaderCarrier()
 
+  override def microserviceFilters: Seq[EssentialFilter] = Seq.empty
+
   private lazy val sessionFilter = CookieSessionFilter.SessionCookieFilter
+
   override def doFilter(a: EssentialAction): EssentialAction = {
     // Note: Add the session filter to the controller in order for session cookie handling.
-    Filters(super.doFilter(a), microserviceFilters ++ sessionFilter : _*)
+    Filters(super.doFilter(a), defaultMicroserviceFilters.filterNot( _.isInstanceOf[NoCacheFilter.type] ) ++ sessionFilter : _*)
   }
 
   override def onError(request: RequestHeader, ex: Throwable): Future[Result] = {

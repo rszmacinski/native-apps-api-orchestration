@@ -32,6 +32,30 @@ import uk.gov.hmrc.play.http._
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
+
+class ConfigCheckSpec extends UnitSpec {
+
+  "Verify configuration loader for max-age caching" should {
+    "throw an exception if the configuration cannot be loaded" in {
+      val config = new ConfigLoad {
+        override def getConfigForPollMaxAge: Option[Long] = None
+      }
+
+      intercept[Exception] {
+        config.maxAgeForSuccess
+      }
+    }
+
+    "Return the configuration when defined" in {
+      val config = new ConfigLoad {
+        override def getConfigForPollMaxAge: Option[Long] = Some(123456789)
+      }
+
+      config.maxAgeForSuccess shouldBe 123456789
+    }
+  }
+}
+
 class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with ScalaFutures with Eventually with StubApplicationConfiguration {
 
   override lazy val fakeApplication = FakeApplication(additionalConfiguration = config)
@@ -108,7 +132,6 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       }
 
     "first call fail to exclusion decision with 2nd call returning successfully - validate retry mechanism" in new FailWithRetrySuccess {
-
       val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummary, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
       invokeStartupAndPollForResult(controller, "async_native-apps-api-id-FailWithRetrySuccess", Nino("CS700100A"),
@@ -345,15 +368,16 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     }
 
     "return startup response from a static resource" in new SandboxSuccess {
-      val result = await(controller.startup(nino)(requestWithAuthSession))//.withBody(versionBody)))
+      val result = await(controller.startup(nino)(requestWithAuthSession))
       status(result) shouldBe 200
       contentAsJson(result) shouldBe TestData.sandboxStartupResponse
     }
 
     "return poll response from a static resource" in new SandboxSuccess {
-      val result = await(controller.poll(nino)(requestWithAuthSession))//.withBody(versionBody)))
+      val result = await(controller.poll(nino)(requestWithAuthSession))
       status(result) shouldBe 200
       contentAsJson(result) shouldBe TestData.sandboxPollResponse
+      result.header.headers.get("Cache-Control") shouldBe Some("max-age=14400")
     }
   }
 
@@ -387,25 +411,26 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       )
 
     // Perform startup request.
-    val result2 = performStartup(inputBody, controller, testSessionId, nino)
-    status(result2) shouldBe 200
+    val startupResponse = performStartup(inputBody, controller, testSessionId, nino)
+    status(startupResponse) shouldBe 200
 
     // Verify the Id within the session matches the expected test Id.
-    val session = result2.session.get(controller.AsyncMVCSessionId)
+    val session = startupResponse.session.get(controller.AsyncMVCSessionId)
     val jsonSession = Json.parse(session.get).as[AsyncMvcSession]
     jsonSession.id shouldBe testSessionId
 
     // Poll for the result.
     eventually(Timeout(Span(10, Seconds))) {
-      val result3: Result = await(controller.poll(nino)(requestWithSessionKeyAndIdNoBody))
+      val pollResponse: Result = await(controller.poll(nino)(requestWithSessionKeyAndIdNoBody))
 
-      status(result3) shouldBe resultCode
+      status(pollResponse) shouldBe resultCode
       if (resultCode!=401) {
-        jsonBodyOf(result3) shouldBe response
+        jsonBodyOf(pollResponse) shouldBe response
+        pollResponse.header.headers.get("Cache-Control") shouldBe Some("max-age=14400")
       } else {
         if (resultCode!=401) {
           // Verify the returned cookie still has the same Id expected for the test.
-          val session = result3.session.get(controller.AsyncMVCSessionId)
+          val session = pollResponse.session.get(controller.AsyncMVCSessionId)
           val jsonSession = Json.parse(session.get).as[AsyncMvcSession]
           jsonSession.id shouldBe testSessionId
         }

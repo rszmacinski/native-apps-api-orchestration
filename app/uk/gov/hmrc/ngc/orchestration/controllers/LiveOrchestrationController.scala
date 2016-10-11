@@ -16,9 +16,10 @@
 
 package uk.gov.hmrc.ngc.orchestration.controllers
 
+import play.api.http.HeaderNames
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
-import play.api.{Logger, mvc}
+import play.api.{Play, Logger, mvc}
 import uk.gov.hmrc.api.controllers.{ErrorInternalServerError, ErrorNotFound}
 import uk.gov.hmrc.api.service.Auditor
 import uk.gov.hmrc.domain.Nino
@@ -65,7 +66,6 @@ trait ErrorHandling {
         Status(ErrorInternalServerError.httpStatusCode)(Json.toJson(ErrorInternalServerError))
     }
 
-
   }
 }
 
@@ -77,7 +77,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
   val service: OrchestrationService
   val accessControl: AccountAccessControlWithHeaderCheck
   val accessControlOff: AccountAccessControlWithHeaderCheck
-
+  val maxAgeForSuccess: Long
 
   final def preFlightCheck(): Action[JsValue] = accessControlOff.validateAccept(acceptHeaderValidationRules).async(BodyParsers.parse.json) {
     implicit request =>
@@ -156,12 +156,16 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
 
                 case _ =>
                   // Add the task Id back into session. This allows the user to re-call the poll service once complete.
-                  resp.withSession(resp.session.copy(data = withASyncSession(resp.session.data)))
+                  addCacheHeader(maxAgeForSuccess, resp.withSession(resp.session.copy(data = withASyncSession(resp.session.data))))
               }
             })
           }
         }
       }
+  }
+
+  def addCacheHeader(maxAge:Long, result:Result):Result = {
+    result.withHeaders(HeaderNames.CACHE_CONTROL -> s"max-age=$maxAge")
   }
 
   /**
@@ -186,7 +190,15 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
   }
 }
 
-object LiveOrchestrationController extends NativeAppsOrchestrationController {
+trait ConfigLoad {
+  val pollMaxAge = "poll.success.maxAge"
+  def getConfigForPollMaxAge:Option[Long]
+
+  lazy val maxAgeForSuccess: Long = getConfigForPollMaxAge
+    .getOrElse(throw new Exception(s"Failed to resolve config key $pollMaxAge"))
+}
+
+object LiveOrchestrationController extends NativeAppsOrchestrationController with ConfigLoad {
   override val service = LiveOrchestrationService
   override val accessControl = AccountAccessControlWithHeaderCheck
   override val accessControlOff = AccountAccessControlCheckAccessOff
@@ -194,10 +206,12 @@ object LiveOrchestrationController extends NativeAppsOrchestrationController {
   override lazy val repository:AsyncRepository = AsyncRepository()
   override def checkSecurity: Boolean = true
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
+  override def getConfigForPollMaxAge = Play.current.configuration.getLong(pollMaxAge)
 }
 
 object SandboxOrchestrationController extends SandboxOrchestrationController {
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
+  override val maxAgeForSuccess: Long = 3600
 }
 
 trait SandboxOrchestrationController extends NativeAppsOrchestrationController with SandboxPoll {
@@ -229,7 +243,7 @@ trait SandboxOrchestrationController extends NativeAppsOrchestrationController w
   implicit authenticated =>
     errorWrapper {
       withAsyncSession {
-        Future.successful(Ok(pollSandboxResult(nino).value))
+        Future.successful(addCacheHeader(maxAgeForSuccess, Ok(pollSandboxResult(nino).value)))
       }
     }
   }

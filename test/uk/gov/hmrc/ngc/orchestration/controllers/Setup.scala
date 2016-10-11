@@ -63,6 +63,7 @@ trait Setup {
     "/income/CS700100A/tax-credits/tax-credits-decision" -> true,
     "/income/CS700100A/tax-credits/999999999999999/auth" -> true)
 
+  val maxAgeForPollSuccess = 14400
 
   lazy val testGenericConnector  = new TestServiceFailureGenericConnector(servicesAuthFailMap ,false, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
   lazy val authConnector = new TestAuthConnector(Some(nino))
@@ -147,6 +148,7 @@ trait Success extends Setup {
 
     override def checkSecurity: Boolean = true
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 }
 
@@ -169,9 +171,9 @@ trait FailurePreFlight extends Setup {
     override val service: OrchestrationService = testOrchestrationService
     override val app: String = "Success Orchestration Controller"
     override val repository: AsyncRepository = asyncRepository
-
     override def checkSecurity: Boolean = true
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 }
 
@@ -191,6 +193,7 @@ trait AuthenticateRenewal extends Setup {
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 }
 
@@ -209,6 +212,7 @@ trait SessionChecker extends Setup {
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 
 }
@@ -228,6 +232,7 @@ trait RenewalSubmissionNotActive extends Setup {
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 }
 
@@ -246,6 +251,7 @@ trait ExclusionTrue extends Setup {
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 }
 
@@ -265,6 +271,7 @@ trait ThrottleLimit extends Setup {
     override def checkSecurity : Boolean = true
     override def throttleLimit : Long = 0
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 }
 
@@ -287,6 +294,7 @@ trait SecurityAsyncSetup extends Setup {
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 }
 
@@ -303,6 +311,7 @@ trait FailWithRetrySuccess extends Setup {
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 
   def invokeCount = testGenericConnectorRETRY.counter
@@ -321,6 +330,7 @@ trait ExclusionException extends Setup {
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 
   def invokeCount = testGenericConnectorRETRY.counter
@@ -349,6 +359,7 @@ trait TestGenericController extends Setup {
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 
   def invokeCount = testGenericConnectorRETRY.counter
@@ -468,6 +479,7 @@ trait AuthWithoutTaxSummary extends Setup with AuthorityTest {
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 }
 
@@ -490,6 +502,7 @@ trait AuthWithoutNino extends Setup with AuthorityTest {
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 }
 
@@ -514,6 +527,7 @@ trait AuthWithLowCL extends Setup with AuthorityTest {
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 }
 
@@ -538,6 +552,7 @@ trait AuthWithWeakCreds extends Setup with AuthorityTest {
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 }
 
@@ -552,6 +567,7 @@ trait SandboxSuccess extends Setup {
     override lazy val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = false
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
 }
 
