@@ -156,7 +156,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
 
                 case _ =>
                   // Add the task Id back into session. This allows the user to re-call the poll service once complete.
-                  addCacheHeader(maxAgeForSuccess, resp.withSession(resp.session.copy(data = withASyncSession(resp.session.data))))
+                  resp.withSession(resp.session.copy(data = withASyncSession(resp.session.data)))
               }
             })
           }
@@ -173,7 +173,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
    */
   def callbackWithSuccessResponse(response:AsyncResponse)(id:String)(implicit request:Request[AnyContent], authority:Option[Authority]) : Future[Result] = {
     def noAuthority = throw new Exception("Failed to resolve authority")
-    def success = Ok(response.value)
+    def success = addCacheHeader(maxAgeForSuccess, Ok(response.value))
 
     // Verify the nino from the users authority matches the nino returned in the tax summary  response.
     val responseNino = (response.value \ "taxSummary" \ "taxSummaryDetails" \ "nino").asOpt[String]

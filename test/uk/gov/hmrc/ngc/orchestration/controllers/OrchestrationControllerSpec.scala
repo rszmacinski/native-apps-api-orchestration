@@ -242,7 +242,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       val jsonMatch = Seq(TestData.statusError).foldLeft(Json.obj())((b, a) => b ++ a)
 
       invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
-        jsonMatch)(versionRequest)
+        jsonMatch, 200, """{"token":"123456"}""", None)(versionRequest)
 
       pushRegistrationInvokeCount shouldBe 1
     }
@@ -398,7 +398,8 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     await(controller.startup(nino).apply(requestWithSessionKeyAndId))
   }
 
-  def invokeStartupAndPollForResult(controller: NativeAppsOrchestrationController, testSessionId: String, nino: Nino, response: JsValue, resultCode: Int = 200, inputBody: String = """{"token":"123456"}""")(implicit request: Request[_]) = {
+  def invokeStartupAndPollForResult(controller: NativeAppsOrchestrationController, testSessionId: String, nino: Nino, response: JsValue, resultCode: Int = 200,
+                                    inputBody: String = """{"token":"123456"}""", cacheHeader : Option[String] = Some("max-age=14400"))(implicit request: Request[_]) = {
     val authToken = "AuthToken" -> token
     val authHeader = "Authorization" -> token
 
@@ -426,7 +427,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       status(pollResponse) shouldBe resultCode
       if (resultCode!=401) {
         jsonBodyOf(pollResponse) shouldBe response
-        pollResponse.header.headers.get("Cache-Control") shouldBe Some("max-age=14400")
+        pollResponse.header.headers.get("Cache-Control") shouldBe cacheHeader
       } else {
         if (resultCode!=401) {
           // Verify the returned cookie still has the same Id expected for the test.
