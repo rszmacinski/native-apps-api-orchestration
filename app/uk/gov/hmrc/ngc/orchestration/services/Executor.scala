@@ -22,7 +22,6 @@ import uk.gov.hmrc.ngc.orchestration.connectors.GenericConnector
 import uk.gov.hmrc.ngc.orchestration.controllers.ResponseCode
 import uk.gov.hmrc.play.http.HeaderCarrier
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 
 
@@ -77,7 +76,8 @@ case class TaxSummary(connector: GenericConnector, journeyId: Option[String]) ex
     }).recover {
       case ex: Exception =>
         Logger.error(s"${logJourneyId(journeyId)} - Failed to retrieve the tax-summary data and exception is ${ex.getMessage}!")
-        throw ex
+        // An empty JSON object indicates failed to retrieve the tax-summary.
+        Some(Result(id, Json.obj()))
     }
   }
 }
@@ -92,7 +92,7 @@ case class TaxCreditsSubmissionState(connector: GenericConnector, journeyId: Opt
         case ex: Exception =>
           // Return a default state which indicates renewals are disabled.
           Logger.error(s"${logJourneyId(journeyId)} - Failed to retrieve TaxCreditsSubmissionState and exception is ${ex.getMessage}! Default of enabled state is false!")
-          Some(Result(id, JsObject(Seq("enableRenewals" -> JsBoolean(false)))))
+          Some(Result(id, JsObject(Seq("enableRenewals" -> JsBoolean(value = false)))))
     }
   }
 }

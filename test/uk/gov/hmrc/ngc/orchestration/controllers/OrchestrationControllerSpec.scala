@@ -109,16 +109,15 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     }
 
     "return 401 when the Tax Summary response NINO does match the authority NINO" in new SecurityAsyncSetup {
-      val emptyTaxCreditSummary = Json.obj("taxCreditSummary" -> Json.parse("""{}"""))
-      val jsonMatch = Seq(TestData.taxSummary(), emptyTaxCreditSummary, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+      val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
       invokeStartupAndPollForResult(controller, "async_native-apps-api-id-SecurityAsyncSetup", Nino("CS700100A"),
         jsonMatch, 401)(versionRequest)
     }
 
     "return taxCreditSummary attribute with no summary data when Exclusion returns false" in new ExclusionTrue {
-      val emptyTaxCreditSummary = Json.obj("taxCreditSummary" -> Json.parse("""{}"""))
-      val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+      val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.statusComplete).
+        foldLeft(Json.obj())((b, a) => b ++ a)
 
       invokeStartupAndPollForResult(controller, "async_native-apps-api-id-ExclusionTrue", Nino("CS700100A"),
         jsonMatch)(versionRequest)
@@ -231,7 +230,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
         jsonMatch)(versionRequest)
     }
 
-    "return error status response when mandatory service tax-summary returns non 200 response and push-registration executed successfully" in new TestGenericController {
+    "return empty tax-credit-summary response when retrieval of tax-summary returns non 200 response and push-registration executed successfully" in new TestGenericController {
       override val statusCode: Option[Int] = None
       override val exception:Option[Exception]=Some(new BadRequestException("controlled explosion"))
       override val exceptionControl: Boolean = false
@@ -239,15 +238,36 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       override lazy val test_id: String = s"test_id_testOrchestrationDecisionFailure_$time"
       override val taxSummaryData: JsValue = TestData.taxSummaryData()
 
-      val jsonMatch = Seq(TestData.statusError).foldLeft(Json.obj())((b, a) => b ++ a)
+      val jsonMatch = Seq(TestData.taxSummaryEmpty, TestData.taxCreditSummary, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
       invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
-        jsonMatch, 200, """{"token":"123456"}""", None)(versionRequest)
+        jsonMatch, 200, """{"token":"123456"}""")(versionRequest)
 
       pushRegistrationInvokeCount shouldBe 1
     }
 
-    "return taxCreditSummary empty block when the tax-credit-summary service returns a non 200 response + not invoke PushReg when payload is empty" in new TestGenericController {
+    "return empty tax-credit-summary response when retrieval of tax-summary returns non 200 and empty taxCreditSummary when retrieval of tax-credit-summary returns non 200 response" in new TestGenericController {
+      override val statusCode: Option[Int] = None
+      override val exception:Option[Exception]=Some(new BadRequestException("controlled explosion"))
+      override val exceptionControl: Boolean = false
+      override val mapping:Map[String, Boolean] = servicesSuccessMap ++
+        Map(
+          "/income/CS700100A/tax-summary/2016" -> false,
+          "/income/CS700100A/tax-credits/tax-credits-summary" -> false
+        )
+
+      override lazy val test_id: String = s"test_id_testOrchestrationDecisionFailure_$time"
+      override val taxSummaryData: JsValue = TestData.taxSummaryData()
+
+      val jsonMatch = Seq(TestData.taxSummaryEmpty, TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+
+      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
+        jsonMatch, 200, """{"token":"123456"}""")(versionRequest)
+
+      pushRegistrationInvokeCount shouldBe 1
+    }
+
+    "return taxCreditSummary empty JSON when the tax-credit-summary service returns a non 200 response + not invoke PushReg when payload is empty" in new TestGenericController {
       override val statusCode : Option[Int] = None
       override val exception :Option[Exception] = Some(new BadRequestException("controlled explosion"))
       override val mapping :Map[String, Boolean] = servicesSuccessMap ++ Map("/income/CS700100A/tax-credits/tax-credits-summary" -> false)
@@ -268,7 +288,6 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       status(result) shouldBe 429
       jsonBodyOf(result) shouldBe TestData.statusThrottle
     }
-
 
     "Simulating concurrent http requests through the async framework " should {
 
@@ -428,13 +447,6 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       if (resultCode!=401) {
         jsonBodyOf(pollResponse) shouldBe response
         pollResponse.header.headers.get("Cache-Control") shouldBe cacheHeader
-      } else {
-        if (resultCode!=401) {
-          // Verify the returned cookie still has the same Id expected for the test.
-          val session = pollResponse.session.get(controller.AsyncMVCSessionId)
-          val jsonSession = Json.parse(session.get).as[AsyncMvcSession]
-          jsonSession.id shouldBe testSessionId
-        }
       }
     }
   }
