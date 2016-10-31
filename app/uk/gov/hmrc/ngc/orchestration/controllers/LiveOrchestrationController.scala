@@ -175,17 +175,26 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
     def noAuthority = throw new Exception("Failed to resolve authority")
     def success = addCacheHeader(maxAgeForSuccess, Ok(response.value))
 
-    // Verify the nino from the users authority matches the nino returned in the tax summary  response.
-    val responseNino = (response.value \ "taxSummary" \ "taxSummaryDetails" \ "nino").asOpt[String]
-    val result = if (checkSecurity) {
-      val nino = responseNino.getOrElse("No NINO found in response!").take(8)
+    val responseNinoTaxSummary = (response.value \ "taxSummary" \ "taxSummaryDetails" \ "nino").asOpt[String]
+    val responseNinoCreditSummary = (response.value \ "taxCreditSummary" \ "personalDetails" \ "nino").asOpt[String]
+
+    val ninoCheck = (responseNinoTaxSummary, responseNinoCreditSummary) match {
+      case (None, None) => None
+      case (taxSummaryNino, None) => taxSummaryNino
+      case (None, taxCreditSummaryNino) => taxCreditSummaryNino
+      case (taxSummaryNino, taxCreditSummaryNino) => taxSummaryNino
+    }
+
+    val result = if (checkSecurity && ninoCheck.isDefined) {
+      val nino = ninoCheck.getOrElse("No NINO found in response!").take(8)
       val authNino = authority.getOrElse(noAuthority).nino.value.take(8)
 
       if (!nino.equals(authNino)) {
-        Logger.error(s"Native Error - Failed to match tax summary response NINO $responseNino with authority NINO $authNino! Response is ${response.value}")
+        Logger.error(s"Native Error - Failed to match tax summary response NINO $ninoCheck with authority NINO $authNino! Response is ${response.value}")
         Unauthorized
       } else success
     } else success
+
     Future.successful(result)
   }
 }

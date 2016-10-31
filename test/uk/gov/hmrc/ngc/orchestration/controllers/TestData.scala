@@ -608,8 +608,9 @@ object TestData {
     """.stripMargin)
   val taxCreditSummary = Json.obj("taxCreditSummary" -> taxCreditSummaryData)
 
-  val taxCreditSummaryEmpty = Json.obj("taxCreditSummary" -> Json.obj())
+  val taxSummaryEmpty = Json.obj("taxSummary" -> Json.obj())
 
+  val taxCreditSummaryEmpty = Json.obj("taxCreditSummary" -> Json.obj())
 
   val sandboxStartupResponse = Json.obj("status" -> Json.parse("""{"code":"poll"}"""))
 
