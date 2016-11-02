@@ -102,12 +102,14 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       errorWrapper {
         // Only 1 task to be running per session. If session contains Id then request routed to poll response.
         withAsyncSession {
-          // This code will return an AsyncResponse. The actual Result is controlled through the callbacks. Please see poll().
+
+          // This function will return an AsyncResponse. The actual Result is controlled through the callbacks. Please see poll().
           req.body.asJson.fold(throw new BadRequestException(s"Failed to build JSON payload! ${req.body}")) { json =>
 
             // Do not allow more than one task to be executing - if task is running then poll status will be returned.
             asyncActionWrapper.async(callbackWithStatus) {
               flag =>
+
                 // Async function wrapper responsible for executing below code onto a background queue.
                 asyncWrapper(callbackWithStatus) {
                   headerCarrier =>

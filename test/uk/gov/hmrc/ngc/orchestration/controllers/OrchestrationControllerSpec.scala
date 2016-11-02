@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.ngc.orchestration.controllers
 
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Milliseconds, Seconds, Span}
@@ -57,6 +59,9 @@ class ConfigCheckSpec extends UnitSpec {
 }
 
 class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with ScalaFutures with Eventually with StubApplicationConfiguration {
+
+  implicit val system = ActorSystem()
+  implicit val materializer = ActorMaterializer()
 
   override lazy val fakeApplication = FakeApplication(additionalConfiguration = config)
 

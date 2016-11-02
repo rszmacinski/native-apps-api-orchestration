@@ -87,7 +87,7 @@ case class TaxCreditsSubmissionState(connector: GenericConnector, journeyId: Opt
   override val serviceName = "personal-income"
   override def execute(nino: String, year: Int)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
     connector.doGet(host, s"/income/tax-credits/submission/state/enabled${buildJourneyQueryParam(journeyId)}", port, hc).map(res =>
-      Some(Result(id, JsObject(Seq("enableRenewals" -> Json.toJson(res).\("submissionState"))))))
+      Some(Result(id, JsObject(Seq("enableRenewals" -> JsBoolean(res.\("submissionState").as[Boolean]))))))
       .recover {
         case ex: Exception =>
           // Return a default state which indicates renewals are disabled.
