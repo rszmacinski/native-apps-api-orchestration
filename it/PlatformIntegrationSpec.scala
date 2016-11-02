@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
 import org.scalatest.BeforeAndAfter
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.PatienceConfiguration.Timeout
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.mock.MockitoSugar
+import org.scalatest.time.{Millis, Span}
 import play.api.test.FakeRequest
 import uk.gov.hmrc.api.controllers.DocumentationController
 import uk.gov.hmrc.domain.Nino
@@ -37,7 +41,7 @@ import com.github.tomakehurst.wiremock.client.WireMock._
  *
  * See: https://confluence.tools.tax.service.gov.uk/display/ApiPlatform/API+Platform+Architecture+with+Flows
  */
-class PlatformIntegrationSpec extends UnitSpec with MockitoSugar with ScalaFutures with WiremockServiceLocatorSugar with BeforeAndAfter {
+class PlatformIntegrationSpec extends UnitSpec with MockitoSugar with ScalaFutures with WiremockServiceLocatorSugar with BeforeAndAfter with Eventually {
 
   before {
     startMockServer()
@@ -49,8 +53,11 @@ class PlatformIntegrationSpec extends UnitSpec with MockitoSugar with ScalaFutur
   }
 
   trait Setup {
-    val documentationController = new DocumentationController {}
+    val documentationController = DocumentationController
     val request = FakeRequest()
+
+    implicit val system = ActorSystem()
+    implicit val materializer = ActorMaterializer()
   }
 
   "microservice" should {
@@ -62,11 +69,12 @@ class PlatformIntegrationSpec extends UnitSpec with MockitoSugar with ScalaFutur
         "microservice.services.service-locator.host" -> stubHost,
         "microservice.services.service-locator.port" -> stubPort)
       run {
-        () => {
-          verify(1,postRequestedFor(urlMatching("/registration")).
-            withHeader("content-type", equalTo("application/json")).
-            withRequestBody(equalTo(regPayloadStringFor("application-name", "http://microservice-name.service"))))
-        }
+        () =>
+          eventually(Timeout(Span(1000 * 2, Millis))) {
+            verify(1, postRequestedFor(urlMatching("/registration")).
+              withHeader("content-type", equalTo("application/json")).
+              withRequestBody(equalTo(regPayloadStringFor("application-name", "http://microservice-name.service"))))
+          }
       }
     }
 
@@ -78,7 +86,7 @@ class PlatformIntegrationSpec extends UnitSpec with MockitoSugar with ScalaFutur
         "microservice.services.service-locator.host" -> stubHost,
         "microservice.services.service-locator.port" -> stubPort)
       run {
-        () => {
+        () =>
           def normalizeEndpointName(endpointName: String): String = endpointName.replaceAll(" ", "-")
 
           def verifyDocumentationPresent(version: String, endpointName: String) {
@@ -107,5 +115,4 @@ class PlatformIntegrationSpec extends UnitSpec with MockitoSugar with ScalaFutur
         }
       }
     }
-  }
 }

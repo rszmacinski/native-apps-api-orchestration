@@ -89,7 +89,7 @@ trait AsyncController extends BaseController with HeaderValidator with ErrorHand
     val res = status match {
       case ViewCodes.Timeout => Ok(buildResponseCode(ResponseStatus.timeout))
       case ViewCodes.Polling => Ok(buildResponseCode(ResponseStatus.poll))
-      case ViewCodes.ThrottleReached => TooManyRequest(buildResponseCode(ResponseStatus.throttle))
+      case ViewCodes.ThrottleReached => TooManyRequests(buildResponseCode(ResponseStatus.throttle))
       case ViewCodes.Error | _ => Ok(buildResponseCode(ResponseStatus.error))
     }
     Future.successful(res)
