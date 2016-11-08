@@ -22,7 +22,7 @@ private object AppDependencies {
   import play.sbt.PlayImport._
   import play.core.PlayVersion
 
-  private val microserviceBootstrapVersion = "5.4.0"
+  private val microserviceBootstrapVersion = "5.7.0"
   private val playAuthVersion = "4.2.0"
   private val playHealthVersion = "2.0.0"
   private val playJsonLoggerVersion = "3.0.0"
@@ -47,7 +47,7 @@ private object AppDependencies {
     "uk.gov.hmrc" %% "play-health" % playHealthVersion,
     "uk.gov.hmrc" %% "play-url-binders" % playUrlBindersVersion,
     "uk.gov.hmrc" %% "play-config" % playConfigVersion,
-    "uk.gov.hmrc" %% "logback-json-logger" % playJsonLoggerVersion,
+    "uk.gov.hmrc" %% "play-json-logger" % playJsonLoggerVersion,
     "uk.gov.hmrc" %% "domain" % domainVersion,
     "uk.gov.hmrc" %% "play-hmrc-api" % playHmrcApiVersion,
     "uk.gov.hmrc" %% "emailaddress" % hmrcEmailAddressVersion,
