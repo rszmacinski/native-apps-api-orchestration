@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package uk.gov.hmrc.ngc.orchestration.services
 import java.util.{Calendar, UUID}
 
 import play.api.libs.json._
-import play.api.{Logger, Configuration, Play}
+import play.api.{Configuration, Logger, Play}
 import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.api.service.Auditor
 import uk.gov.hmrc.domain.Nino
@@ -29,6 +29,7 @@ import uk.gov.hmrc.ngc.orchestration.controllers.LiveOrchestrationController
 import uk.gov.hmrc.ngc.orchestration.domain._
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.HeaderCarrier
+import uk.gov.hmrc.time.{DateTimeUtils, TaxYearResolver}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -80,7 +81,7 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor {
 
   def startup(inputRequest:JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]= {
     withAudit("startup", Map("nino" -> nino.value)) {
-      val year = Calendar.getInstance().get(Calendar.YEAR)
+      val year = TaxYearResolver.currentTaxYear
 
       buildResponse(inputRequest:JsValue, nino.value, year, journeyId).map(item => item).map(r => r.foldLeft(Json.obj())((b, a) => b ++ a)).recover {
         case ex:Exception =>
