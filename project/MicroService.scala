@@ -30,6 +30,7 @@ trait MicroService {
     .settings(defaultSettings(): _*)
     .settings(staticCompileResourceSettings)
     .settings(
+      scalaVersion := "2.11.8",
       libraryDependencies ++= appDependencies,
       retrieveManaged := true,
       evictionWarningOptions in update := EvictionWarningOptions.default.withWarnScalaVersionEviction(false),
