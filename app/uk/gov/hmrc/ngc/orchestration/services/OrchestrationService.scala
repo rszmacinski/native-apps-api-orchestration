@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.ngc.orchestration.services
 
-import java.util.{Calendar, UUID}
+import java.util.UUID
 
 import play.api.libs.json._
 import play.api.{Configuration, Logger, Play}
@@ -29,7 +29,7 @@ import uk.gov.hmrc.ngc.orchestration.controllers.LiveOrchestrationController
 import uk.gov.hmrc.ngc.orchestration.domain._
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.HeaderCarrier
-import uk.gov.hmrc.time.{DateTimeUtils, TaxYearResolver}
+import uk.gov.hmrc.time.TaxYear
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -81,7 +81,7 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor {
 
   def startup(inputRequest:JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]= {
     withAudit("startup", Map("nino" -> nino.value)) {
-      val year = TaxYearResolver.currentTaxYear
+      val year = TaxYear.current.currentYear
 
       buildResponse(inputRequest:JsValue, nino.value, year, journeyId).map(item => item).map(r => r.foldLeft(Json.obj())((b, a) => b ++ a)).recover {
         case ex:Exception =>
