@@ -26,6 +26,7 @@ import play.api.mvc.{Request, Result}
 import play.api.test.{FakeApplication, FakeRequest}
 import play.api.test.Helpers._
 import uk.gov.hmrc.domain.Nino
+import uk.gov.hmrc.ngc.orchestration.domain.{Accounts, PreFlightCheckResponse}
 import uk.gov.hmrc.play.asyncmvc.model.AsyncMvcSession
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 import uk.gov.hmrc.play.http._
@@ -313,44 +314,44 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     }
   }
 
-//  "startup live controller authentication " should {
-//
-//    "return unauthorized when authority record does not contain a NINO" in new AuthWithoutNino {
-//      testNoNINO(await(controller.startup(nino)(emptyRequestWithHeader)))
-//    }
-//
-//    "return 401 result with json status detailing low CL on authority" in new AuthWithLowCL {
-//      testLowCL(await(controller.startup(nino)(emptyRequestWithHeader)))
-//    }
-//
-//    "return status code 406 when the headers are invalid" in new Success {
-//      val result = await(controller.startup(nino)(emptyRequest))
-//      status(result) shouldBe 406
-//    }
-//  }
-//
-//  "sandbox controller " should {
-//
-//    "return the PreFlightCheckResponse response from a static resource" in new SandboxSuccess {
-//      val result = await(controller.preFlightCheck()(requestWithAuthSession.withBody(versionBody)))
-//      status(result) shouldBe 200
-//      val journeyIdRetrieve: String = (contentAsJson(result) \ "accounts" \ "journeyId").as[String]
-//      contentAsJson(result) shouldBe Json.toJson(PreFlightCheckResponse(upgradeRequired = false, Accounts(Some(nino), None, routeToIV = false, routeToTwoFactor = false, journeyIdRetrieve)))
-//    }
-//
-//    "return startup response from a static resource" in new SandboxSuccess {
-//      val result = await(controller.startup(nino)(requestWithAuthSession))
-//      status(result) shouldBe 200
-//      contentAsJson(result) shouldBe TestData.sandboxStartupResponse
-//    }
-//
-//    "return poll response from a static resource" in new SandboxSuccess {
-//      val result = await(controller.poll(nino)(requestWithAuthSession))
-//      status(result) shouldBe 200
-//      contentAsJson(result) shouldBe TestData.sandboxPollResponse
-//      result.header.headers.get("Cache-Control") shouldBe Some("max-age=14400")
-//    }
-//  }
+  "startup live controller authentication " should {
+
+    "return unauthorized when authority record does not contain a NINO" in new AuthWithoutNino {
+      testNoNINO(await(controller.startup(nino)(emptyRequestWithHeader)))
+    }
+
+    "return 401 result with json status detailing low CL on authority" in new AuthWithLowCL {
+      testLowCL(await(controller.startup(nino)(emptyRequestWithHeader)))
+    }
+
+    "return status code 406 when the headers are invalid" in new Success {
+      val result = await(controller.startup(nino)(emptyRequest))
+      status(result) shouldBe 406
+    }
+  }
+
+  "sandbox controller " should {
+
+    "return the PreFlightCheckResponse response from a static resource" in new SandboxSuccess {
+      val result = await(controller.preFlightCheck()(requestWithAuthSession.withBody(versionBody)))
+      status(result) shouldBe 200
+      val journeyIdRetrieve: String = (contentAsJson(result) \ "accounts" \ "journeyId").as[String]
+      contentAsJson(result) shouldBe Json.toJson(PreFlightCheckResponse(upgradeRequired = false, Accounts(Some(nino), None, routeToIV = false, routeToTwoFactor = false, journeyIdRetrieve)))
+    }
+
+    "return startup response from a static resource" in new SandboxSuccess {
+      val result = await(controller.startup(nino)(requestWithAuthSession))
+      status(result) shouldBe 200
+      contentAsJson(result) shouldBe TestData.sandboxStartupResponse
+    }
+
+    "return poll response from a static resource" in new SandboxSuccess {
+      val result = await(controller.poll(nino)(requestWithAuthSession))
+      status(result) shouldBe 200
+      contentAsJson(result) shouldBe TestData.sandboxPollResponse
+      result.header.headers.get("Cache-Control") shouldBe Some("max-age=14400")
+    }
+  }
 
   val token = "Bearer 123456789"
   def performStartup(inputBody: String, controller: NativeAppsOrchestrationController, testSessionId: String, nino: Nino) = {
@@ -388,8 +389,6 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
     // Verify the Id within the session matches the expected test Id.
     val session = startupResponse.session.get(controller.AsyncMVCSessionId)
-
-println(" SESSION RETURNED FROM STARTUP IS " + session)
 
     val jsonSession = Json.parse(session.get).as[AsyncMvcSession]
     jsonSession.id shouldBe testSessionId
