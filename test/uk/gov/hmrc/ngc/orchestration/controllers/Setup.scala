@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,27 +60,23 @@ trait Setup {
     "/income/CS700100A/tax-summary/2016" -> true,
     "/income/tax-credits/submission/state/enabled" -> true,
     "/income/CS700100A/tax-credits/tax-credits-summary" -> true,
-    "/income/CS700100A/tax-credits/tax-credits-decision" -> true,
-    "/income/CS700100A/tax-credits/999999999999999/auth" -> true)
+    "/income/CS700100A/tax-credits/tax-credits-decision" -> true)
 
   val maxAgeForPollSuccess = 14400
 
-  lazy val testGenericConnector  = new TestServiceFailureGenericConnector(servicesAuthFailMap ,false, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
+  lazy val testGenericConnector  = new TestServiceFailureGenericConnector(servicesSuccessMap ,true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
   lazy val authConnector = new TestAuthConnector(Some(nino))
   lazy val testOrchestrationService = new TestOrchestrationService(testGenericConnector, authConnector)
 
-  lazy val testGenericConnectorRETRY  = new TestServiceFailureGenericConnector(servicesSuccessMap ,true, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
-  lazy val testOrchestrationServiceRETRY = new TestOrchestrationService(testGenericConnectorRETRY, authConnector)
-
-
+  lazy val decisionFailureException:Option[Exception] = None
   val decisionFailure = servicesSuccessMap ++ Map("/income/CS700100A/tax-credits/tax-credits-decision" -> false)
   lazy val testGenericConnectorDecisionFailure  = new TestServiceFailureGenericConnector(decisionFailure,
-    false, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
+    true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken, None, decisionFailureException)
 
   lazy val testOrchestrationDecisionFailure = new TestOrchestrationService(testGenericConnectorDecisionFailure, authConnector)
 
   def testGenericConnectorFailure(mapping:Map[String, Boolean], exceptionControl:Boolean, httpResponseCode:Option[Int], exception:Option[Exception], taxSummaryData:JsValue): TestServiceFailureGenericConnector =
-    new TestServiceFailureGenericConnector(mapping ,exceptionControl, false, testAccount, TestData.testPushReg, TestData.testPreferences, taxSummaryData,
+    new TestServiceFailureGenericConnector(mapping ,exceptionControl, testAccount, TestData.testPushReg, TestData.testPreferences, taxSummaryData,
       TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken, httpResponseCode, exception)
 
   def testOrchestrationDecisionFailure(mapping:Map[String, Boolean], exceptionControl:Boolean, httpResponseCode:Option[Int], exception:Option[Exception], taxSummaryData:JsValue): (TestOrchestrationService, TestServiceFailureGenericConnector) = {
@@ -93,17 +89,16 @@ trait Setup {
   lazy val testAccessControlOff = AccountAccessControlCheckAccessOff
 
   lazy val servicesStateFailMap = servicesSuccessMap ++ Map("/income/tax-credits/submission/state/enabled" -> false)
-  lazy val testGenericConnectorStateFAILURE = new TestServiceFailureGenericConnector(servicesStateFailMap ,false, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
+  lazy val testGenericConnectorStateFAILURE = new TestServiceFailureGenericConnector(servicesStateFailMap ,true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
   lazy val testOrchestrationServiceStateFAILURE = new TestOrchestrationService(testGenericConnectorStateFAILURE, authConnector)
 
-  val servicesAuthFailMap: Map[String, Boolean] = servicesSuccessMap ++ Map("/income/CS700100A/tax-credits/999999999999999/auth" -> false)
-  lazy val testGenericConnectorAuthFAILURE = new TestServiceFailureGenericConnector(servicesAuthFailMap ,false, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
+  lazy val testGenericConnectorAuthFAILURE = new TestServiceFailureGenericConnector(servicesSuccessMap ,true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
   lazy val testOrchestrationServiceAuthFAILURE = new TestOrchestrationService(testGenericConnectorAuthFAILURE, authConnector)
 
-  lazy val testGenericConnectorRenewalSubmissionNotActive = new TestServiceFailureGenericConnector(servicesSuccessMap ,false, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testStateNotInSubmission, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
+  lazy val testGenericConnectorRenewalSubmissionNotActive = new TestServiceFailureGenericConnector(servicesSuccessMap ,true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testStateNotInSubmission, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
   lazy val testOrchestrationServiceRenewalSubmissionNotActive = new TestOrchestrationService(testGenericConnectorRenewalSubmissionNotActive, authConnector)
 
-  lazy val testGenericConnectorExclusionTrue = new TestServiceFailureGenericConnector(servicesSuccessMap ,false, true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecisionNotDisplay, TestData.testAuthToken)
+  lazy val testGenericConnectorExclusionTrue = new TestServiceFailureGenericConnector(servicesSuccessMap ,true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecisionNotDisplay, TestData.testAuthToken)
   lazy val testOrchestrationServiceExclusionTrue = new TestOrchestrationService(testGenericConnectorExclusionTrue, authConnector)
 
   val versionBody = Json.parse("""{"os":"android", "version":"1.0.1"}""")
@@ -160,7 +155,7 @@ trait FailurePreFlight extends Setup {
     override def id = "sandbox-async_native-apps-api-id_failure_preflight"
 
     lazy val testGenericConnector  = new TestServiceFailureGenericConnector(
-      servicesSuccessMap ++ Map("/profile/native-app/version-check" -> false) ,false, true, testAccount,
+      servicesSuccessMap ++ Map("/profile/native-app/version-check" -> false) ,true, testAccount,
       TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testState,
       TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
     lazy val authConnector = new TestAuthConnector(Some(nino))
@@ -170,26 +165,6 @@ trait FailurePreFlight extends Setup {
     override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
     override val service: OrchestrationService = testOrchestrationService
     override val app: String = "Success Orchestration Controller"
-    override val repository: AsyncRepository = asyncRepository
-    override def checkSecurity: Boolean = true
-    override val auditConnector: AuditConnector = MicroserviceAuditConnector
-    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
-  }
-}
-
-trait AuthenticateRenewal extends Setup {
-  val controller = new NativeAppsOrchestrationController {
-
-    val testSessionId="AuthenticateRenewal"
-    override def buildUniqueId() = testSessionId
-
-    override val actorName = s"async_native-apps-api-actor_"+testSessionId
-    override def id = "async_native-apps-api-id"
-
-    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
-    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
-    override val service: OrchestrationService = testOrchestrationServiceAuthFAILURE
-    override val app: String = "AuthenticateRenewal"
     override val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = true
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
@@ -298,28 +273,12 @@ trait SecurityAsyncSetup extends Setup {
   }
 }
 
-trait FailWithRetrySuccess extends Setup {
-  val controller = new NativeAppsOrchestrationController {
-    val testSessionId="FailWithRetrySuccess"
-    override def buildUniqueId() = testSessionId
-    override val actorName = s"async_native-apps-api-actor_"+testSessionId
-    override def id = "async_native-apps-api-id"
-    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
-    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
-    override val service: OrchestrationService = testOrchestrationServiceRETRY
-    override val app: String = "Fail with Retry Success Orchestration Controller"
-    override val repository: AsyncRepository = asyncRepository
-    override def checkSecurity: Boolean = true
-    override val auditConnector: AuditConnector = MicroserviceAuditConnector
-    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
-  }
-
-  def invokeCount = testGenericConnectorRETRY.counter
-}
-
 trait ExclusionException extends Setup {
-  val controller = new NativeAppsOrchestrationController {
-    val testSessionId="ExclusionException"
+
+  val testId:String
+
+  lazy val controller = new NativeAppsOrchestrationController {
+    lazy val testSessionId=testId // "ExclusionException"
     override def buildUniqueId() = testSessionId
     override val actorName = s"async_native-apps-api-actor_"+testSessionId
     override def id = "async_native-apps-api-id"
@@ -332,15 +291,12 @@ trait ExclusionException extends Setup {
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
     override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
-
-  def invokeCount = testGenericConnectorRETRY.counter
 }
 
 trait TestGenericController extends Setup {
 
   val time = System.currentTimeMillis()
   val test_id:String
-  val exceptionControl:Boolean
   val exception:Option[Exception]
   val statusCode:Option[Int]
   val mapping:Map[String, Boolean]
@@ -353,7 +309,7 @@ trait TestGenericController extends Setup {
     override def id = "async_native-apps-api-id"
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
     override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
-    lazy val testServiceAndConnector: (TestOrchestrationService, TestServiceFailureGenericConnector) = testOrchestrationDecisionFailure(mapping, exceptionControl, statusCode, exception, taxSummaryData)
+    lazy val testServiceAndConnector: (TestOrchestrationService, TestServiceFailureGenericConnector) = testOrchestrationDecisionFailure(mapping, exceptionControl = false, statusCode, exception, taxSummaryData)
     override lazy val service: OrchestrationService = testServiceAndConnector._1
     override val app: String = "Test Generic Controller"
     override val repository: AsyncRepository = asyncRepository
@@ -361,8 +317,6 @@ trait TestGenericController extends Setup {
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
     override val maxAgeForSuccess: Long = maxAgeForPollSuccess
   }
-
-  def invokeCount = testGenericConnectorRETRY.counter
 
   def pushRegistrationInvokeCount = controller.testServiceAndConnector._2.countPushRegistration
 }
@@ -393,11 +347,10 @@ class TestAuthConnector(nino: Option[Nino]) extends AuthConnector {
   override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = Future.successful(Authority(nino.getOrElse(Nino("CS700100A")), ConfidenceLevel.L200, "Some Auth-Id"))
 }
 
-class TestServiceFailureGenericConnector(pathFailMap: Map[String, Boolean], exceptionControl: Boolean, upgradeRequired: Boolean, accounts: Accounts, pushRegResult: JsValue,
+class TestServiceFailureGenericConnector(pathFailMap: Map[String, Boolean], upgradeRequired: Boolean, accounts: Accounts, pushRegResult: JsValue,
                                   preferences: JsValue, taxSummary: JsValue, state: JsValue, taxCreditSummary: JsValue,
                                   taxCreditDecision: JsValue, auth: JsValue, httpResponseCode:Option[Int]=None, exception:Option[Exception]=None) extends GenericConnector {
 
-  var counter=0
   var countPushRegistration = 0
 
   override def http: HttpPost with HttpGet = WSHttp
@@ -415,7 +368,7 @@ class TestServiceFailureGenericConnector(pathFailMap: Map[String, Boolean], exce
 
   private def passFail(value: JsValue, success: Boolean): Future[JsValue] = {
     if (!success) {
-      val result = exception.fold(new Exception()){ ex => ex}
+      val result = exception.fold(new Exception("Controlled explosion!")){ ex => ex}
       Future.failed(result)
     } else Future.successful(Json.toJson(value))
   }
@@ -424,39 +377,17 @@ class TestServiceFailureGenericConnector(pathFailMap: Map[String, Boolean], exce
 
   override def doGet(host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = {
     val result = path match {
-        case "/income/CS700100A/tax-summary/2016" => passFail(taxSummary, isSuccess(path))
-        case "/income/tax-credits/submission/state/enabled" => passFail(state, isSuccess(path))
-        case "/income/CS700100A/tax-credits/tax-credits-summary" => passFail(taxCreditSummary, isSuccess(path))
-        case "/income/CS700100A/tax-credits/tax-credits-decision" =>
-          val res = if (!exceptionControl) passFail(taxCreditDecision, isSuccess(path))
-          else {
-            if (counter == 0) {
-              Future.failed(new ServiceUnavailableException("FAILED"))
-            } else {
-              Future.successful(taxCreditDecision)
-            }
-          }
-          counter = counter + 1
-          res
+      case "/income/CS700100A/tax-summary/2016" => passFail(taxSummary, isSuccess(path))
+      case "/income/tax-credits/submission/state/enabled" => passFail(state, isSuccess(path))
+      case "/income/CS700100A/tax-credits/tax-credits-summary" => passFail(taxCreditSummary, isSuccess(path))
+      case "/income/CS700100A/tax-credits/tax-credits-decision" =>
+          passFail(taxCreditDecision, isSuccess(path))
 
-        case _ => Future.failed(new Exception("Test Scenario Error"))
+        case _ => Future.failed(new Exception(s"Test Scenario Error! The path $path is not defined!"))
       }
     result
   }
 
-  override def doGetRaw(host:String, path:String, port:Int, hc: HeaderCarrier): Future[HttpResponse] = {
-    def isSuccess(key: String): Boolean = pathFailMap.getOrElse(key, false)
-
-    path match {
-      case "/income/CS700100A/tax-credits/999999999999999/auth" =>
-        val res = {
-          if (!isSuccess(path)) {
-            httpResponseCode.fold(401){ code => code }
-          } else 200
-        }
-        Future.successful(HttpResponse(res, Option(auth), Map.empty, Option("")))
-    }
-  }
 }
 
 trait AuthWithoutTaxSummary extends Setup with AuthorityTest {
@@ -473,7 +404,7 @@ trait AuthWithoutTaxSummary extends Setup with AuthorityTest {
   val controller = new NativeAppsOrchestrationController {
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
     override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
-    lazy val testCustomerProfileGenericConnector = new TestServiceFailureGenericConnector(servicesAuthFailMap ,false, true, testAccount, TestData.testPushReg, TestData.testPreferences, JsNull, TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
+    lazy val testCustomerProfileGenericConnector = new TestServiceFailureGenericConnector(servicesSuccessMap ,true, testAccount, TestData.testPushReg, TestData.testPreferences, JsNull, TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
     override val service: OrchestrationService = new TestOrchestrationService(testCustomerProfileGenericConnector, authConnector)
     override val app: String = "AuthWithoutNino Native Apps Orchestration"
     override val repository: AsyncRepository = asyncRepository

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,6 +99,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
       implicit val req = authenticated.request
 
+      Logger.warn(s"Outer: HC received is ${hc.authorization} for Journey Id $journeyId")
       errorWrapper {
         // Only 1 task to be running per session. If session contains Id then request routed to poll response.
         withAsyncSession {
@@ -113,6 +114,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
                 // Async function wrapper responsible for executing below code onto a background queue.
                 asyncWrapper(callbackWithStatus) {
                   headerCarrier =>
+                    Logger.warn(s"Inner: HC received is ${hc.authorization} for Journey Id $journeyId")
                     service.startup(json, nino, journeyId).map { response =>
                       AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete))
                     }
@@ -149,10 +151,10 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
                   val now = DateTimeUtils.now.getMillis
                   session match {
                     case Some(s) =>
-                      Logger.info(s"Native - Poll Task not not in cache! Client start request time ${s.start-getClientTimeout} - Client timeout ${s.start} - Current time $now.")
+                      Logger.info(s"Native - Poll Task not not in cache! Client start request time ${s.start-getClientTimeout} - Client timeout ${s.start} - Current time $now. Journey Id $journeyId")
 
                     case None =>
-                      Logger.info(s"Native - Poll - no session object found!")
+                      Logger.info(s"Native - Poll - no session object found! Journey Id $journeyId")
                   }
                   NotFound
 
@@ -259,4 +261,3 @@ trait SandboxOrchestrationController extends NativeAppsOrchestrationController w
     }
   }
 }
-

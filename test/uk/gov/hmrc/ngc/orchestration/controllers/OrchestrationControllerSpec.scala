@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -93,13 +93,6 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
   "async live controller to verify different json attribute response values based on service responses" should {
 
-    "not return taxCreditSummary attribute when 999/auth call fails" in new AuthenticateRenewal {
-      val jsonMatch = Seq(TestData.taxSummary(), TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((a, b) => a ++ b)
-
-      invokeStartupAndPollForResult(controller, "async_native-apps-api-id-AuthenticateRenewal", Nino("CS700100A"),
-        jsonMatch)(versionRequest)
-    }
-
     "return bad request when the session auth-token does not match the HC authorization header" in new SessionChecker {
       val body :JsValue= Json.parse("""{"token":"123456"}""")
       val requestWithSessionKeyAndIdBody = FakeRequest().withSession(
@@ -135,87 +128,48 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
           jsonMatch)(versionRequest)
       }
 
-    "first call fail to exclusion decision with 2nd call returning successfully - validate retry mechanism" in new FailWithRetrySuccess {
-      val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummary, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+    "return no taxCreditSummary attribute when exclusion service throws 400 exception" in new ExclusionException {
+      override val testId = "BadRequest"
 
-      invokeStartupAndPollForResult(controller, "async_native-apps-api-id-FailWithRetrySuccess", Nino("CS700100A"),
-        jsonMatch)(versionRequest)
-
-      invokeCount shouldBe 2
-    }
-
-    "return an empty taxCreditSummary block when exclusion service throws exceptions" in new ExclusionException {
-      val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
-
-      invokeStartupAndPollForResult(controller, "async_native-apps-api-id-ExclusionException", Nino("CS700100A"),
-        jsonMatch)(versionRequest)
-    }
-
-    "return no taxCreditSummary block when auth/9999 service returns 404 response" in new TestGenericController {
-      override val statusCode : Option[Int] = Some(404)
-      override val exception: Option[Exception] = None
-      override val exceptionControl: Boolean = false
-      override val mapping:Map[String, Boolean] = servicesAuthFailMap
-      override lazy val test_id: String = s"test_id_testOrchestrationDecisionFailure_$time"
-      override val taxSummaryData: JsValue = TestData.taxSummaryData()
+      override lazy val decisionFailureException = Some(new BadRequestException("Controlled 404"))
 
       val jsonMatch = Seq(TestData.taxSummary(), TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
-      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
+      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-$testId", Nino("CS700100A"),
         jsonMatch)(versionRequest)
     }
 
-    "return no taxCreditSummary block when auth/9999 service returns 500 response" in new TestGenericController {
-      override val statusCode: Option[Int] = Some(500)
-      override val exception: Option[Exception] = None
-      override val exceptionControl: Boolean = false
-      override val mapping:Map[String, Boolean] = servicesAuthFailMap
-      override lazy val test_id: String = s"test_id_testOrchestrationDecisionFailure_$time"
-      override val taxSummaryData: JsValue = TestData.taxSummaryData()
+    "return no taxCreditSummary attribute when exclusion service throws 404 exception" in new ExclusionException {
+      override val testId = "NotFound"
+
+      override lazy val decisionFailureException = Some(new NotFoundException("Controlled 404"))
 
       val jsonMatch = Seq(TestData.taxSummary(), TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
-      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
+      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-$testId", Nino("CS700100A"),
         jsonMatch)(versionRequest)
     }
 
-    "return empty taxCreditSummary block when auth/9999 service returns 200 and tax-credit-decision fails with 404 response" in new TestGenericController {
+    "return no taxCreditSummary attribute when exclusion service throws 401 exception" in new ExclusionException {
+      override val testId = "Unauthorized"
+
+      override lazy val decisionFailureException = Some(new Upstream4xxResponse("Controlled 404", 401, 401))
+
+      val jsonMatch = Seq(TestData.taxSummary(), TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+
+      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-$testId", Nino("CS700100A"),
+        jsonMatch)(versionRequest)
+    }
+
+
+    "return empty taxCreditSummary block tax-credit-decision fails with 404 response" in new TestGenericController {
       override val statusCode: Option[Int] = None
       override val exception:Option[Exception]=Some(new NotFoundException("controlled explosion"))
-      override val exceptionControl: Boolean = false
       override val mapping:Map[String, Boolean] = servicesSuccessMap ++ Map("/income/CS700100A/tax-credits/tax-credits-decision" -> false)
       override lazy val test_id: String = s"test_id_testOrchestrationDecisionFailure_$time"
       override val taxSummaryData: JsValue = TestData.taxSummaryData()
 
-      val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
-
-      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
-        jsonMatch)(versionRequest)
-    }
-
-    "return empty taxCreditSummary block when auth/9999 service returns 200 and tax-credit-decision fails with 403 response" in new TestGenericController {
-      override val statusCode: Option[Int] = None
-      override val exception:Option[Exception]=Some(new BadRequestException("controlled explosion"))
-      override val exceptionControl: Boolean = false
-      override val mapping:Map[String, Boolean] = servicesSuccessMap ++ Map("/income/CS700100A/tax-credits/tax-credits-decision" -> false)
-      override lazy val test_id: String = s"test_id_testOrchestrationDecisionFailure_$time"
-      override val taxSummaryData: JsValue = TestData.taxSummaryData()
-
-      val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
-
-      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
-        jsonMatch)(versionRequest)
-    }
-
-    "return empty taxCreditSummary block when auth/9999 service returns 200 and tax-credit-decision fails with 500 response" in new TestGenericController {
-      override val statusCode: Option[Int] = None
-      override val exception:Option[Exception]=Some(new BadRequestException("controlled explosion"))
-      override val exceptionControl: Boolean = false
-      override val mapping:Map[String, Boolean] = servicesSuccessMap ++ Map("/income/CS700100A/tax-credits/tax-credits-decision" -> false)
-      override lazy val test_id: String = s"test_id_testOrchestrationDecisionFailure_$time"
-      override val taxSummaryData: JsValue = TestData.taxSummaryData()
-
-      val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+      val jsonMatch = Seq(TestData.taxSummary(), TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
       invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
         jsonMatch)(versionRequest)
@@ -224,7 +178,6 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     "return taxCreditSummary block when submission state returns a non 200 response" in new TestGenericController {
       override val statusCode: Option[Int] = None
       override val exception:Option[Exception]=Some(new BadRequestException("controlled explosion"))
-      override val exceptionControl: Boolean = false
       override val mapping:Map[String, Boolean] = servicesSuccessMap ++ Map("/income/tax-credits/submission/state/enabled" -> false)
       override lazy val test_id: String = s"test_id_testOrchestrationDecisionFailure_$time"
       override val taxSummaryData: JsValue = TestData.taxSummaryData()
@@ -238,7 +191,6 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     "return empty tax-credit-summary response when retrieval of tax-summary returns non 200 response and push-registration executed successfully" in new TestGenericController {
       override val statusCode: Option[Int] = None
       override val exception:Option[Exception]=Some(new BadRequestException("controlled explosion"))
-      override val exceptionControl: Boolean = false
       override val mapping:Map[String, Boolean] = servicesSuccessMap ++ Map("/income/CS700100A/tax-summary/2016" -> false)
       override lazy val test_id: String = s"test_id_testOrchestrationDecisionFailure_$time"
       override val taxSummaryData: JsValue = TestData.taxSummaryData()
@@ -251,10 +203,9 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       pushRegistrationInvokeCount shouldBe 1
     }
 
-    "return empty tax-credit-summary response when retrieval of tax-summary returns non 200 and empty taxCreditSummary when retrieval of tax-credit-summary returns non 200 response" in new TestGenericController {
+    "return empty taxSummary attribute when tax-summary returns non 200 response and empty taxCreditSummary when retrieval of tax-credit-summary returns non 200 response" in new TestGenericController {
       override val statusCode: Option[Int] = None
       override val exception:Option[Exception]=Some(new BadRequestException("controlled explosion"))
-      override val exceptionControl: Boolean = false
       override val mapping:Map[String, Boolean] = servicesSuccessMap ++
         Map(
           "/income/CS700100A/tax-summary/2016" -> false,
@@ -278,7 +229,6 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       override val mapping :Map[String, Boolean] = servicesSuccessMap ++ Map("/income/CS700100A/tax-credits/tax-credits-summary" -> false)
       override lazy val test_id: String = s"test_id_testOrchestrationDecisionFailure_$time"
       override val taxSummaryData: JsValue = TestData.taxSummaryData()
-      override val exceptionControl: Boolean = false
 
       val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
@@ -304,7 +254,6 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
             override lazy val test_id = s"test_id_concurrent_$counter"
             override val exception: Option[Exception] = None
             override val statusCode: Option[Int] = None
-            override val exceptionControl: Boolean = false
             override val mapping: Map[String, Boolean] = servicesSuccessMap
             override val taxSummaryData: JsValue = TestData.taxSummaryData(Some(test_id))
           }
@@ -313,7 +262,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
         excuteParallelAsyncTasks(createController, "async_native-apps-api-id-test_id_concurrent")
       }
 
-      "successfully process all concurrent requests with decision retry, once all tasks are complete verify the throttle value is 0" in {
+      "successfully process all concurrent requests, once all tasks are complete verify the throttle value is 0" in {
 
         def createController(counter: Int) = {
 
@@ -322,7 +271,6 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
             override lazy val test_id = s"test_id_concurrent_with_retry_$counter"
             override val exception: Option[Exception] = None
             override val statusCode: Option[Int] = None
-            override val exceptionControl: Boolean = true
             override val mapping: Map[String, Boolean] = servicesSuccessMap
             override val taxSummaryData: JsValue = TestData.taxSummaryData(Some(test_id))
           }
@@ -441,6 +389,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
     // Verify the Id within the session matches the expected test Id.
     val session = startupResponse.session.get(controller.AsyncMVCSessionId)
+
     val jsonSession = Json.parse(session.get).as[AsyncMvcSession]
     jsonSession.id shouldBe testSessionId
 

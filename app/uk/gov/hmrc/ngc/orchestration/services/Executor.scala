@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,11 @@ package uk.gov.hmrc.ngc.orchestration.services
 
 import play.api.{Logger, Configuration, Play}
 import play.api.libs.json._
-import uk.gov.hmrc.ngc.orchestration.connectors.GenericConnector
+import uk.gov.hmrc.ngc.orchestration.connectors.{AuthConnector, GenericConnector}
 import uk.gov.hmrc.ngc.orchestration.controllers.ResponseCode
-import uk.gov.hmrc.play.http.HeaderCarrier
-
+import uk.gov.hmrc.play.http.{Upstream4xxResponse, HeaderCarrier}
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
-
 
 trait Executor {
 
@@ -38,25 +37,6 @@ trait Executor {
   def logJourneyId(journeyId: Option[String]) = s"Native Error - ${journeyId.fold("no Journey id supplied")(id => id)}"
 
   def buildJourneyQueryParam(journeyId: Option[String]) = journeyId.fold("")(id => s"?journeyId=$id")
-
-
-  def retry(default: Option[Result] = None)(func: => Future[Option[Result]])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
-
-    def retry: Future[Option[Result]] = {
-      TimedEvent.delayedSuccess(2000, {
-          Logger.info("Retry is being executed.")
-          func.recover {
-          case _ => default
-        }})
-    }.flatMap(r => r )
-
-    func.map(res => Right(res)).recover {
-      case ex:Exception => Left(Unit)
-    }.flatMap {
-      case Right(value: Option[Result]) => Future.successful(value)
-      case Left(_) => retry
-    }
-  }
 
   private def getServiceConfig: Configuration = {
     Play.current.configuration.getConfig(s"microservice.services.$serviceName").getOrElse(throw new Exception("No micro services configured."))
@@ -112,82 +92,97 @@ case class PushRegistration(connector: GenericConnector, inputRequest:JsValue, j
   }
 }
 
-case class TaxCreditSummary(connector: GenericConnector, journeyId: Option[String]) extends Executor {
+case class TaxCreditSummary(authConnector:AuthConnector, connector: GenericConnector, journeyId: Option[String]) extends Executor {
   override val id: String = "taxCreditSummary"
   override val serviceName: String = "personal-income"
 
-  def authenticateRenewal(nino: String)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Boolean] = {
-    connector.doGetRaw(host, s"/income/$nino/tax-credits/999999999999999/auth${buildJourneyQueryParam(journeyId)}", port, hc).map(r => r.status match {
-      case 200 => true
-      case _ => false
-    }).recover {
-      case ex: uk.gov.hmrc.play.http.NotFoundException => false
-      case ex: Exception =>
-        Logger.error(s"${logJourneyId(journeyId)} - Failed to retrieve authenticateRenewal and exception is ${ex.getMessage}!")
-        false
-    }
-  }
-
-  def decision(nino: String)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Boolean] = {
+  def decision(nino: String)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Boolean]] = {
 
     def taxCreditDecision(nino: String)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
-      val defaultDecision = Option(Result(id, Json.parse( """{"showData":false}""")))
-      retry(defaultDecision) {
-        connector.doGet(host, s"/income/$nino/tax-credits/tax-credits-decision${buildJourneyQueryParam(journeyId)}", port, hc).map(res => {
-          Some(Result("decision", res))
-        }).recover {
-          case ex: uk.gov.hmrc.play.http.NotFoundException => Logger.error(s"${logJourneyId(journeyId)} - 404 returned for tax-credits-decision."); None
-          case ex: Exception =>
-            Logger.error(s"${logJourneyId(journeyId)} - Failed to retrieve tax-credits-decision and exception is ${ex.getMessage}!")
-            // Note: Retry function will re-try exceptions.
-            throw ex
-        }
+      Logger.warn(s"decision: HC received is ${hc.authorization} for Journey Id $journeyId")
+
+      connector.doGet(host, s"/income/$nino/tax-credits/tax-credits-decision${buildJourneyQueryParam(journeyId)}", port, hc).map(res => {
+        Some(Result("decision", res))
+      }).recover {
+        case ex: uk.gov.hmrc.play.http.NotFoundException =>
+          Logger.warn(s"${logJourneyId(journeyId)} - 404 returned for tax-credits-decision.")
+          throw ex
+
+        case ex: Upstream4xxResponse =>
+          handle4xxException(ex)
+          throw ex
+
+        case ex: Exception =>
+          Logger.warn(s"${logJourneyId(journeyId)} - Failed to retrieve tax-credits-decision and exception is ${ex.getMessage}!")
+          throw ex
       }
     }
 
     taxCreditDecision(nino).map {
-      case Some(result) => (result.jsValue \ "showData").as[Boolean]
-      case _ => false
+      case Some(result) => Some((result.jsValue \ "showData").as[Boolean])
+      case _ => None
     }
   }
 
-  def getTaxCreditSummary(nino:String)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
+  def getTaxCreditSummary(nino: String)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
     connector.doGet(host, s"/income/$nino/tax-credits/tax-credits-summary${buildJourneyQueryParam(journeyId)}", port, hc).map(r => {
       Some(Result(id, r))
     }).recover {
-      case ex:Exception =>
-        Logger.error(s"${logJourneyId(journeyId)} - Failed to retrieve tax-credits/tax-credits-summary and exception is ${ex.getMessage}!")
+
+      case ex: Upstream4xxResponse =>
+        handle4xxException(ex)
+        None
+
+      case ex: Exception =>
+        Logger.warn(s"${logJourneyId(journeyId)} - Failed to retrieve tax-credits/tax-credits-summary and exception is ${ex.getMessage}!")
         None
     }
   }
 
+  private def handle4xxException(ex:Upstream4xxResponse): Unit = {
+    if (ex.upstreamResponseCode==401) {
+      Logger.warn(s"${logJourneyId(journeyId)} - 401 returned for tax-credits-decision!")
+      logAuth(journeyId)
+    } else {
+      Logger.warn(s"${logJourneyId(journeyId)} - ${ex.upstreamResponseCode} returned for tax-credits-decision.")
+    }
+  }
+
+  private def logAuth(journeyId: Option[String]) = {
+    authConnector.grantAccess().map(res => {
+      Logger.warn(s"${logJourneyId(journeyId)} Authority record is good! - ")
+    }).recover {
+      case ex: Exception => Logger.error(s"Failed to verify the authority record! Exception is ${ex.getMessage} for journey ID $journeyId")
+    }
+  }
+
   override def execute(nino: String, year: Int)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
-    val authenticateRenewalF = authenticateRenewal(nino)
+    val customerEligibleTaxCreditsDefault = Some(Result(id, Json.obj())) // TODO ... CHANGE NAME!!!
+
+    def getSummaryData(decision:Option[Boolean]) : Future[Option[Result]] = {
+      decision match {
+        case Some(value:Boolean) if value =>
+          // OK to retrieve the tax-credit-summary, default on failure.
+          getTaxCreditSummary(nino).map( res => res.fold(customerEligibleTaxCreditsDefault){ summary => Some(summary) })
+
+        case Some(value:Boolean) if !value =>
+          // Tax-Credit-Summary tab can be displayed but no summary data returned.
+          Future.successful(customerEligibleTaxCreditsDefault)
+
+        case _ =>  Future.successful(None) // No data to return
+      }
+    }
+
     val decisionF = decision(nino)
 
-    val taxCreditSummaryOutcome: Future[(Boolean, Option[Result])] = for {
-      isAuthenticateRenewal <- authenticateRenewalF
-      isDecision <- decisionF
-
-      // IF isAuthenticateRenewal is true and isDecision is true, then can display tax-credits.
-      // IF isAuthenticateRenewal is true and isDecision is false, then can display tax-credits but without summary data.
-      // IF isAuthenticateRenewal is false do not display tax-credit-summary
-
-      b <- if (isAuthenticateRenewal && isDecision) {
-        getTaxCreditSummary(nino)
-      } else {
-        Future.successful(None)
-      }
-    } yield (isAuthenticateRenewal, b)
-
-    taxCreditSummaryOutcome.map {
-      case (true, None) => Some(Result(id, Json.obj())) // Tax-Credit-Summary tab can be displayed but no summary data returned.
-      case (false, _) => None
-      case (_, result) => result
-    }.recover {
-      case ex:Exception =>
-        Logger.error(s"${logJourneyId(journeyId)} - Failed to orchestrate TaxCreditSummary. Exception is ${ex.getMessage}!")
-        throw ex
+    (for {
+          decision <- decisionF
+          taxCreditSummary <- getSummaryData(decision)
+        } yield taxCreditSummary)
+    .recover {
+        case ex: Exception =>
+          Logger.warn(s"${logJourneyId(journeyId)} - Failed to orchestrate TaxCreditSummary. Exception is ${ex.getMessage}!")
+          None
     }
   }
 }

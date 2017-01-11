@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 HM Revenue & Customs
+ * Copyright 2017 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.ngc.orchestration.connectors
 
+import play.api.Logger
 import play.api.libs.json._
 import uk.gov.hmrc.ngc.orchestration.config.WSHttp
 import uk.gov.hmrc.play.http.{HeaderCarrier, HttpGet, HttpPost, HttpResponse}
@@ -33,6 +34,7 @@ trait GenericConnector {
 
   def doGet(host:String, path:String, port:Int, hc: HeaderCarrier): Future[JsValue] = {
     implicit val hcHeaders = addAPIHeaders(hc)
+    Logger.warn(s"transport: HC received is ${hc.authorization} for path $path")
     http.GET[JsValue](buildUrl(host, port, path))
   }
 

@@ -94,7 +94,7 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor {
   private def buildResponse(inputRequest:JsValue, nino: String, year: Int, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext) : Future[Seq[JsObject]] = {
     val futuresSeq: Seq[Future[Option[Result]]] = Seq(
       TaxSummary(genericConnector, journeyId),
-      TaxCreditSummary(genericConnector, journeyId),
+      TaxCreditSummary(authConnector, genericConnector, journeyId),
       TaxCreditsSubmissionState(genericConnector, journeyId),
       PushRegistration(genericConnector, inputRequest, journeyId)
     ).map(item => item.execute(nino, year))
