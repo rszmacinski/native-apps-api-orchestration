@@ -25,8 +25,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 
 trait Executor {
-
-  implicit val hc = HeaderCarrier()
   val id: String
   val serviceName: String
   lazy val host: String = getConfigProperty("host")
@@ -139,7 +137,7 @@ case class TaxCreditSummary(authConnector:AuthConnector, connector: GenericConne
     }
   }
 
-  private def handle4xxException(ex:Upstream4xxResponse): Unit = {
+  private def handle4xxException(ex:Upstream4xxResponse)(implicit hc: HeaderCarrier): Unit = {
     if (ex.upstreamResponseCode==401) {
       Logger.warn(s"${logJourneyId(journeyId)} - 401 returned for tax-credits-decision!")
       logAuth(journeyId)
@@ -148,16 +146,16 @@ case class TaxCreditSummary(authConnector:AuthConnector, connector: GenericConne
     }
   }
 
-  private def logAuth(journeyId: Option[String]) = {
+  protected def logAuth(journeyId: Option[String])(implicit hc: HeaderCarrier) = {
     authConnector.grantAccess().map(res => {
-      Logger.warn(s"${logJourneyId(journeyId)} Authority record is good! - ")
+      Logger.warn(s"${logJourneyId(journeyId)} Authority record is good for ${journeyId} for HC ${hc.authorization}!")
     }).recover {
       case ex: Exception => Logger.error(s"Failed to verify the authority record! Exception is ${ex.getMessage} for journey ID $journeyId")
     }
   }
 
   override def execute(nino: String, year: Int)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
-    val customerEligibleTaxCreditsDefault = Some(Result(id, Json.obj())) // TODO ... CHANGE NAME!!!
+    val customerEligibleTaxCreditsDefault = Some(Result(id, Json.obj()))
 
     def getSummaryData(decision:Option[Boolean]) : Future[Option[Result]] = {
       decision match {
