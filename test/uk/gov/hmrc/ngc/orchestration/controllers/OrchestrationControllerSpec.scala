@@ -159,6 +159,8 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
       invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-$testId", Nino("CS700100A"),
         jsonMatch)(versionRequest)
+
+      authConnector.grantAccountCount should be >= 3
     }
 
 
@@ -260,23 +262,6 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
         }
 
         excuteParallelAsyncTasks(createController, "async_native-apps-api-id-test_id_concurrent")
-      }
-
-      "successfully process all concurrent requests, once all tasks are complete verify the throttle value is 0" in {
-
-        def createController(counter: Int) = {
-
-          new TestGenericController {
-            override val time = counter.toLong
-            override lazy val test_id = s"test_id_concurrent_with_retry_$counter"
-            override val exception: Option[Exception] = None
-            override val statusCode: Option[Int] = None
-            override val mapping: Map[String, Boolean] = servicesSuccessMap
-            override val taxSummaryData: JsValue = TestData.taxSummaryData(Some(test_id))
-          }
-        }
-
-        excuteParallelAsyncTasks(createController, "async_native-apps-api-id-test_id_concurrent_with_retry")
       }
 
       def excuteParallelAsyncTasks(generateController: => Int => TestGenericController, asyncTaskId:String) = {

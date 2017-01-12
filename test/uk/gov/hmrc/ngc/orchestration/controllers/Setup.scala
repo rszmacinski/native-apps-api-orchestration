@@ -336,6 +336,8 @@ class TestAccessCheck(testAuthConnector: TestAuthConnector) extends AccountAcces
 }
 
 class TestAuthConnector(nino: Option[Nino]) extends AuthConnector {
+  var grantAccountCount = 0
+
   override val serviceUrl: String = "someUrl"
 
   override def serviceConfidenceLevel: ConfidenceLevel = throw new Exception("Must not be invoked")
@@ -344,7 +346,10 @@ class TestAuthConnector(nino: Option[Nino]) extends AuthConnector {
 
   override def accounts()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.successful(Accounts(nino, None, routeToIV = false, routeToTwoFactor = false, "102030394AAA"))
 
-  override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = Future.successful(Authority(nino.getOrElse(Nino("CS700100A")), ConfidenceLevel.L200, "Some Auth-Id"))
+  override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = {
+    grantAccountCount = grantAccountCount + 1
+    Future.successful(Authority(nino.getOrElse(Nino("CS700100A")), ConfidenceLevel.L200, "Some Auth-Id"))
+  }
 }
 
 class TestServiceFailureGenericConnector(pathFailMap: Map[String, Boolean], upgradeRequired: Boolean, accounts: Accounts, pushRegResult: JsValue,

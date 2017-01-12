@@ -25,7 +25,6 @@ import uk.gov.hmrc.api.service.Auditor
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{AuthConnector, GenericConnector}
-import uk.gov.hmrc.ngc.orchestration.controllers.LiveOrchestrationController
 import uk.gov.hmrc.ngc.orchestration.domain._
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.HeaderCarrier
@@ -51,8 +50,6 @@ trait OrchestrationService {
 }
 
 trait LiveOrchestrationService extends OrchestrationService with Auditor {
-
-  def controller = LiveOrchestrationController
 
   def authConnector: AuthConnector = AuthConnector
 
