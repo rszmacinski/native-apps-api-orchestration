@@ -14,51 +14,7 @@
     "versions":[
       {
         "version":"1.0",
-        "status":"PUBLISHED",
-        "endpoints":[
-          {
-            "uriPattern":"/native-app/preflight-check",
-            "endpointName":"PreFlight Check",
-            "method":"POST",
-            "authType":"USER",
-            "throttlingTier":"UNLIMITED",
-            "scope":"read:personal-income",
-            "queryParameters": [
-              {
-                "name": "journeyId",
-                "required": false
-              }
-            ]
-          },
-          {
-            "uriPattern":"/native-app/{nino}/startup",
-            "endpointName":"Startup Async",
-            "method":"POST",
-            "authType":"USER",
-            "throttlingTier":"UNLIMITED",
-            "scope":"read:personal-income",
-            "queryParameters": [
-              {
-                "name": "journeyId",
-                "required": false
-              }
-            ]
-          },
-          {
-            "uriPattern":"/native-app/{nino}/poll",
-            "endpointName":"Poll Async Task",
-            "method":"GET",
-            "authType":"USER",
-            "throttlingTier":"UNLIMITED",
-            "scope":"read:personal-income",
-            "queryParameters": [
-              {
-                "name": "journeyId",
-                "required": false
-              }
-            ]
-          }
-        ]
+        "status":"PUBLISHED"
       }
     ]
   }

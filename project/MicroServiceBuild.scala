@@ -29,7 +29,7 @@ private object AppDependencies {
   private val playUrlBindersVersion = "2.0.0"
   private val playConfigVersion = "3.0.0"
   private val domainVersion = "4.0.0"
-  private val playHmrcApiVersion = "1.2.0"
+  private val playHmrcApiVersion = "1.3.0"
   private val hmrcEmailAddressVersion = "1.1.0"
   private val microserviceAsync = "1.1.0"
 

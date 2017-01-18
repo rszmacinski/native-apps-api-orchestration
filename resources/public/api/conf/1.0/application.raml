@@ -1,0 +1,87 @@
+#%RAML 1.0
+---
+
+title: Native Apps API Orchestration
+version: 1.0
+protocols: [ HTTPS ]
+baseUri: https://api.service.hmrc.gov.uk/
+
+documentation:
+ - title: Overview
+   content: !include docs/overview.md
+ - title: Versioning
+   content: !include http://api-documentation-raml-frontend.service/api-documentation/assets/common/docs/versioning.md
+ - title: Errors
+   content: !include http://api-documentation-raml-frontend.service/api-documentation/assets/common/docs/errors.md
+
+mediaType: [ application/json, application/hal+json ]
+
+uses:
+  sec: http://api-documentation-raml-frontend.service/api-documentation/assets/common/modules/securitySchemes.raml
+  headers: http://api-documentation-raml-frontend.service/api-documentation/assets/common/modules/headers.raml
+  annotations: http://api-documentation-raml-frontend.service/api-documentation/assets/common/modules/annotations.raml
+  types: http://api-documentation-raml-frontend.service/api-documentation/assets/common/modules/types.raml
+
+/native-apps-api-orchestration:
+  /native-app:
+    /preflight-check:
+      post:
+        displayName: Preflight check
+        description: This endpoint retrieves the accounts associated with the auth record, and validates the app version
+        is: [headers.acceptHeader]
+        (annotations.scope): "read:personal-income"
+        securedBy: [ sec.oauth_2_0: { scopes: [ "read:personal-income" ] } ]
+        queryParameters:
+          journeyId:
+            type: string
+            required: false
+        responses:
+          200:
+            body:
+              application/json:
+                examples:
+                  example-1:
+                    value: !include examples/preflight-check-example-1.json
+    /{nino}:
+      uriParameters:
+        nino:
+          description: The NINO for the individual.
+          type: string
+          example: NS123456B
+      /startup:
+        post:
+          displayName: Startup async
+          description: This endpoint retrieves the personal tax data asynchronously and registers the device notification token. The /poll service must be invoked to obtain the respnose to this service.
+          is: [headers.acceptHeader]
+          (annotations.scope): "read:personal-income"
+          securedBy: [ sec.oauth_2_0: { scopes: [ "read:personal-income" ] } ]
+          queryParameters:
+            journeyId:
+              type: string
+              required: false
+          responses:
+            200:
+              body:
+                application/json:
+                  examples:
+                    example-1:
+                      value: !include examples/startup-async-example-1.json
+      /poll:
+        get:
+          displayName: Poll async task
+          description: Poll for a response to the startup service call.
+          is: [headers.acceptHeader]
+          (annotations.scope): "read:personal-income"
+          securedBy: [ sec.oauth_2_0: { scopes: [ "read:personal-income" ] } ]
+          queryParameters:
+            journeyId:
+              type: string
+              required: false
+          responses:
+            200:
+              body:
+                application/json:
+                  examples:
+                    example-1:
+                      value: !include examples/poll-async-task-example-1.json
+
