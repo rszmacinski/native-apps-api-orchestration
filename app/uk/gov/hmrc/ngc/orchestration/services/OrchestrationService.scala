@@ -30,6 +30,7 @@ import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.time.TaxYear
 
+import scala.concurrent.Future._
 import scala.concurrent.{ExecutionContext, Future}
 
 trait OrchestrationService {
@@ -96,10 +97,9 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor {
       PushRegistration(genericConnector, inputRequest, journeyId)
     ).map(item => item.execute(nino, year))
 
-    // Drop off Result's which returned None.
-    val res: Future[Seq[Result]] = Future.sequence(futuresSeq).map(item => item.flatMap(a => a))
-    // Combine the JSON results from each of the functions to generate the final JSON result.
-    res.map(r => r.map(b => Json.obj(b.id -> b.jsValue)))
+    for (results <- sequence(futuresSeq).map(_.flatten)) yield {
+      results.map(b => Json.obj(b.id -> b.jsValue))
+    }
   }
 }
 
@@ -108,11 +108,11 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
   private val preFlightResponse = PreFlightCheckResponse(upgradeRequired = false, Accounts(Some(nino), None, routeToIV = false, routeToTwoFactor = false, UUID.randomUUID().toString))
 
   def preFlightCheck(jsValue:JsValue)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse] = {
-    Future.successful(preFlightResponse)
+    successful(preFlightResponse)
   }
 
   def startup(jsValue:JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
-    Future.successful(Json.obj("status" -> Json.obj("code" -> "poll")))
+    successful(Json.obj("status" -> Json.obj("code" -> "poll")))
   }
 
 }
