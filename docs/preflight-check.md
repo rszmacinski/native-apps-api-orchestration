@@ -9,7 +9,9 @@ preflight-check
   
 * **URL**
 
-  `/native-app/preflight-check`
+  `/native-app/preflight-check?journeyId=1234`
+
+    The journeyId is optional. Supplying the journeyId will default the response journeyId.
 
 * **Method:**
   
