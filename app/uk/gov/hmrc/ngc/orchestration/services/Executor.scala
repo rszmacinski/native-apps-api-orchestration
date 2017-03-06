@@ -140,17 +140,8 @@ case class TaxCreditSummary(authConnector:AuthConnector, connector: GenericConne
   private def handle4xxException(ex:Upstream4xxResponse)(implicit hc: HeaderCarrier): Unit = {
     if (ex.upstreamResponseCode==401) {
       Logger.warn(s"${logJourneyId(journeyId)} - 401 returned for tax-credits-decision!")
-      logAuth(journeyId)
     } else {
       Logger.warn(s"${logJourneyId(journeyId)} - ${ex.upstreamResponseCode} returned for tax-credits-decision.")
-    }
-  }
-
-  protected def logAuth(journeyId: Option[String])(implicit hc: HeaderCarrier) = {
-    authConnector.grantAccess().map(res => {
-      Logger.warn(s"${logJourneyId(journeyId)} Authority record is good for ${journeyId} for HC ${hc.authorization}!")
-    }).recover {
-      case ex: Exception => Logger.error(s"Failed to verify the authority record! Exception is ${ex.getMessage} for journey ID $journeyId")
     }
   }
 

@@ -1,6 +1,6 @@
 # microservice specific routes
 
-POST        /native-app/preflight-check        uk.gov.hmrc.ngc.orchestration.controllers.LiveOrchestrationController.preFlightCheck()
+POST        /native-app/preflight-check        uk.gov.hmrc.ngc.orchestration.controllers.LiveOrchestrationController.preFlightCheck(journeyId: Option[String])
 
 POST        /native-app/:nino/startup          uk.gov.hmrc.ngc.orchestration.controllers.LiveOrchestrationController.startup(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String])
 

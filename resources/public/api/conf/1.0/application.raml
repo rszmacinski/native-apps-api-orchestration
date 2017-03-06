@@ -51,7 +51,7 @@ uses:
       /startup:
         post:
           displayName: Startup async
-          description: This endpoint retrieves the personal tax data asynchronously and registers the device notification token. The /poll service must be invoked to obtain the respnose to this service.
+          description: This endpoint retrieves the personal tax data asynchronously and registers the device notification token. The /poll service must be invoked to obtain the response to this service.
           is: [headers.acceptHeader]
           (annotations.scope): "read:personal-income"
           securedBy: [ sec.oauth_2_0: { scopes: [ "read:personal-income" ] } ]

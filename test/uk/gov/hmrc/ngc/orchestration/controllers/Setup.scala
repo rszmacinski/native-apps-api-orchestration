@@ -27,7 +27,7 @@ import uk.gov.hmrc.mongo.{Updated, DatabaseUpdate}
 import uk.gov.hmrc.msasync.repository.{TaskCachePersist, AsyncRepository}
 import uk.gov.hmrc.ngc.orchestration.config.{MicroserviceAuditConnector, WSHttp}
 import uk.gov.hmrc.ngc.orchestration.connectors._
-import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckAccessOff, AccountAccessControl, AccountAccessControlWithHeaderCheck}
+import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControl, AccountAccessControlWithHeaderCheck}
 import uk.gov.hmrc.ngc.orchestration.domain.Accounts
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.TaskCache
@@ -86,7 +86,7 @@ trait Setup {
 
   lazy val testAccess = new TestAccessCheck(authConnector)
   lazy val testCompositeAction = new TestAccountAccessControlWithAccept(testAccess)
-  lazy val testAccessControlOff = AccountAccessControlCheckAccessOff
+  lazy val testAccessControlOff = AccountAccessControlCheckOff
 
   lazy val servicesStateFailMap = servicesSuccessMap ++ Map("/income/tax-credits/submission/state/enabled" -> false)
   lazy val testGenericConnectorStateFAILURE = new TestServiceFailureGenericConnector(servicesStateFailMap ,true, testAccount, TestData.testPushReg, TestData.testPreferences, TestData.taxSummaryData(), TestData.testState, TestData.taxCreditSummaryData, TestData.testTaxCreditDecision, TestData.testAuthToken)
@@ -344,9 +344,10 @@ class TestAuthConnector(nino: Option[Nino]) extends AuthConnector {
 
   override def http: HttpGet = throw new Exception("Must not be invoked")
 
-  override def accounts()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.successful(Accounts(nino, None, routeToIV = false, routeToTwoFactor = false, "102030394AAA"))
+  override def accounts(journeyId:Option[String])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.successful(Accounts(nino, None, routeToIV = false, routeToTwoFactor = false,
+    journeyId.fold("102030394AAA"){id => id}))
 
-  override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = {
+  override def grantAccess(taxId:Option[Nino])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = {
     grantAccountCount = grantAccountCount + 1
     Future.successful(Authority(nino.getOrElse(Nino("CS700100A")), ConfidenceLevel.L200, "Some Auth-Id"))
   }
@@ -361,9 +362,15 @@ class TestServiceFailureGenericConnector(pathFailMap: Map[String, Boolean], upgr
   override def http: HttpPost with HttpGet = WSHttp
 
   override def doPost(json:JsValue, host:String, path:String, port:Int, hc: HeaderCarrier): Future[JsValue] = {
+    val versionCheck = "/profile/native-app/version-check"
+
     path match {
-      case "/profile/native-app/version-check" =>
-        passFail(Json.parse(s"""{"upgrade":$upgradeRequired}"""), isSuccess(path))
+      case x if (x.indexOf(versionCheck) != -1) =>
+        val pathWithoutJourney = {
+          val index = x.indexOf(versionCheck)
+          if (index != -1) path.take(index+versionCheck.length) else path
+        }
+        passFail(Json.parse(s"""{"upgrade":$upgradeRequired}"""), isSuccess(pathWithoutJourney))
 
       case "/push/registration" =>
         countPushRegistration = countPushRegistration + 1
@@ -399,8 +406,8 @@ trait AuthWithoutTaxSummary extends Setup with AuthorityTest {
 
   override lazy val authConnector = new TestAuthConnector(None) {
     lazy val exception = new NinoNotFoundOnAccount("The user must have a National Insurance Number")
-    override def accounts()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.failed(exception)
-    override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = Future.failed(exception)
+    override def accounts(journeyId:Option[String])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.failed(exception)
+    override def grantAccess(taxId:Option[Nino])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = Future.failed(exception)
   }
 
   override lazy val testAccess = new TestAccessCheck(authConnector)
@@ -423,8 +430,8 @@ trait AuthWithoutNino extends Setup with AuthorityTest {
 
   override lazy val authConnector = new TestAuthConnector(None) {
     lazy val exception = new NinoNotFoundOnAccount("The user must have a National Insurance Number")
-    override def accounts()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.failed(exception)
-    override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = Future.failed(exception)
+    override def accounts(journeyId:Option[String])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.failed(exception)
+    override def grantAccess(taxId:Option[Nino])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = Future.failed(exception)
   }
 
   override lazy val testAccess = new TestAccessCheck(authConnector)
@@ -448,8 +455,8 @@ trait AuthWithLowCL extends Setup with AuthorityTest {
 
   override lazy val authConnector = new TestAuthConnector(None) {
     lazy val exception = new AccountWithLowCL("Forbidden to access since low CL")
-    override def accounts()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.successful(Accounts(Some(nino), None, routeToIv, routeToTwoFactor, "102030394AAA"))
-    override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = Future.failed(exception)
+    override def accounts(journeyId:Option[String])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.successful(Accounts(Some(nino), None, routeToIv, routeToTwoFactor, journeyId.fold("102030394AAA"){id => id}))
+    override def grantAccess(taxId:Option[Nino])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = Future.failed(exception)
   }
 
   override lazy val testAccess = new TestAccessCheck(authConnector)
@@ -473,8 +480,8 @@ trait AuthWithWeakCreds extends Setup with AuthorityTest {
 
   override lazy val authConnector = new TestAuthConnector(None) {
     lazy val exception = new AccountWithWeakCredStrength("Forbidden to access since weak cred strength")
-    override def accounts()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.successful(Accounts(Some(nino), None, routeToIv, routeToTwoFactor, "102030394AAA"))
-    override def grantAccess()(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = Future.failed(exception)
+    override def accounts(journeyId:Option[String])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = Future.successful(Accounts(Some(nino), None, routeToIv, routeToTwoFactor, "102030394AAA"))
+    override def grantAccess(taxId:Option[Nino])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = Future.failed(exception)
   }
 
   override lazy val testAccess = new TestAccessCheck(authConnector)
@@ -499,7 +506,7 @@ trait SandboxSuccess extends Setup {
     override def id = "async_native-apps-api-id"
     override val app = "Sandbox Native Apps Orchestration"
     override val service: OrchestrationService = SandboxOrchestrationService
-    override val accessControl = AccountAccessControlCheckAccessOff
+    override val accessControl = AccountAccessControlCheckOff
     override lazy val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = false
     override val auditConnector: AuditConnector = MicroserviceAuditConnector

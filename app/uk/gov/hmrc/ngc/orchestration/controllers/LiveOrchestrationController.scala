@@ -26,7 +26,7 @@ import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.msasync.repository.AsyncRepository
 import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{Authority, NinoNotFoundOnAccount}
-import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckAccessOff, AccountAccessControlWithHeaderCheck}
+import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.AsyncMvcSession
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
@@ -79,14 +79,14 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
   val accessControlOff: AccountAccessControlWithHeaderCheck
   val maxAgeForSuccess: Long
 
-  final def preFlightCheck(): Action[JsValue] = accessControlOff.validateAccept(acceptHeaderValidationRules).async(BodyParsers.parse.json) {
+  final def preFlightCheck(journeyId:Option[String]): Action[JsValue] = accessControlOff.validateAcceptWithAuth(acceptHeaderValidationRules, None).async(BodyParsers.parse.json) {
     implicit request =>
       errorWrapper {
         implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
 
         hc.authorization match {
-          case Some(auth) => service.preFlightCheck(request.body).flatMap(
-            response => Future.successful(Ok(Json.toJson(response)).withSession(authToken -> auth.value))
+          case Some(auth) => service.preFlightCheck(request.body, journeyId).map(
+            response => Ok(Json.toJson(response)).withSession(authToken -> auth.value)
           )
 
           case _ => Future.failed(new Exception("Failed to resolve authentication from HC!"))
@@ -94,14 +94,14 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       }
   }
 
-  def startup(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControl.validateAccept(acceptHeaderValidationRules).async {
+  def startup(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControl.validateAcceptWithAuth(acceptHeaderValidationRules, Some(nino)).async {
     implicit authenticated =>
       implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
       implicit val req = authenticated.request
 
       Logger.warn(s"Outer: HC received is ${hc.authorization} for Journey Id $journeyId")
       errorWrapper {
-        // Only 1 task to be running per session. If session contains Id then request routed to poll response.
+        // Only 1 task running per session. If session contains asynctask then request routed to poll response.
         withAsyncSession {
 
           // This function will return an AsyncResponse. The actual Result is controlled through the callbacks. Please see poll().
@@ -128,7 +128,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
   /**
    * Invoke the library poll function to determine the response to the client.
    */
-  def poll(nino: Nino, journeyId: Option[String] = None) = accessControl.validateAccept(acceptHeaderValidationRules).async {
+  def poll(nino: Nino, journeyId: Option[String] = None) = accessControl.validateAcceptWithAuth(acceptHeaderValidationRules, Some(nino)).async {
     implicit authenticated =>
       withAudit("poll", Map("nino" -> nino.value)) {
         errorWrapper {
@@ -214,7 +214,7 @@ trait ConfigLoad {
 object LiveOrchestrationController extends NativeAppsOrchestrationController with ConfigLoad {
   override val service = LiveOrchestrationService
   override val accessControl = AccountAccessControlWithHeaderCheck
-  override val accessControlOff = AccountAccessControlCheckAccessOff
+  override val accessControlOff = AccountAccessControlCheckOff
   override val app: String = "Live-Orchestration-Controller"
   override lazy val repository:AsyncRepository = AsyncRepository()
   override def checkSecurity: Boolean = true
@@ -233,13 +233,13 @@ trait SandboxOrchestrationController extends NativeAppsOrchestrationController w
 
   override val service: OrchestrationService = SandboxOrchestrationService
   override val accessControl = AccountAccessControlWithHeaderCheck
-  override val accessControlOff = AccountAccessControlCheckAccessOff
+  override val accessControlOff = AccountAccessControlCheckOff
   override val app: String = "Sandbox-Orchestration-Controller"
   override lazy val repository:AsyncRepository = sandboxRepository
   override def checkSecurity: Boolean = false
 
   // Must override the startup call since live controller talks to a queue.
-  override def startup(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControlOff.validateAccept(acceptHeaderValidationRules).async {
+  override def startup(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControlOff.validateAcceptWithAuth(acceptHeaderValidationRules, Some(nino)).async {
     implicit authenticated =>
       implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
       implicit val req = authenticated.request

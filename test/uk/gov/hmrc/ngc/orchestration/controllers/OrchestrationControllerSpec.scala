@@ -68,24 +68,30 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
   "preFlightCheck live controller " should {
 
     "return the Pre-Flight Check Response successfully" in new Success {
-      val result = await(controller.preFlightCheck()(versionRequest.withHeaders("Authorization" -> "Bearer 123456789")))
+      val result = await(controller.preFlightCheck(None)(versionRequest.withHeaders("Authorization" -> "Bearer 123456789")))
       status(result) shouldBe 200
       contentAsJson(result) shouldBe Json.parse("""{"upgradeRequired":true,"accounts":{"nino":"CS700100A","routeToIV":false,"routeToTwoFactor":false,"journeyId":"102030394AAA"}}""")
     }
 
+    "return the Pre-Flight Check Response successfully with the supplied journeyId" in new Success {
+      val result = await(controller.preFlightCheck(Some(journeyId))(versionRequest.withHeaders("Authorization" -> "Bearer 123456789")))
+      status(result) shouldBe 200
+      contentAsJson(result) shouldBe Json.parse(s"""{"upgradeRequired":true,"accounts":{"nino":"CS700100A","routeToIV":false,"routeToTwoFactor":false,"journeyId":"$journeyId"}}""")
+    }
+
     "return the Pre-Flight Check Response with default version when version-check fails" in new FailurePreFlight {
-      val result = await(controller.preFlightCheck()(versionRequest.withHeaders("Authorization" -> "Bearer 123456789")))
+      val result = await(controller.preFlightCheck(None)(versionRequest.withHeaders("Authorization" -> "Bearer 123456789")))
       status(result) shouldBe 200
       contentAsJson(result) shouldBe Json.parse("""{"upgradeRequired":false,"accounts":{"nino":"CS700100A","routeToIV":false,"routeToTwoFactor":false,"journeyId":"102030394AAA"}}""")
     }
 
     "return 401 HTTP status code when calls to retrieve the auth account fail" in new AuthWithoutTaxSummary {
-      val result = await(controller.preFlightCheck()(versionRequest.withHeaders("Authorization" -> "Bearer 123456789")))
+      val result = await(controller.preFlightCheck(None)(versionRequest.withHeaders("Authorization" -> "Bearer 123456789")))
       status(result) shouldBe 401
     }
 
     "return 500 HTTP status code when the HC Authentication object is missing in the request" in new Success {
-      val result = await(controller.preFlightCheck()(versionRequest))
+      val result = await(controller.preFlightCheck(None)(versionRequest))
       status(result) shouldBe 500
     }
 
@@ -160,7 +166,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-$testId", Nino("CS700100A"),
         jsonMatch)(versionRequest)
 
-      authConnector.grantAccountCount should be >= 3
+      authConnector.grantAccountCount should be >= 2
     }
 
 
@@ -318,7 +324,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
   "sandbox controller " should {
 
     "return the PreFlightCheckResponse response from a static resource" in new SandboxSuccess {
-      val result = await(controller.preFlightCheck()(requestWithAuthSession.withBody(versionBody)))
+      val result = await(controller.preFlightCheck(Some(journeyId))(requestWithAuthSession.withBody(versionBody)))
       status(result) shouldBe 200
       val journeyIdRetrieve: String = (contentAsJson(result) \ "accounts" \ "journeyId").as[String]
       contentAsJson(result) shouldBe Json.toJson(PreFlightCheckResponse(upgradeRequired = false, Accounts(Some(nino), None, routeToIV = false, routeToTwoFactor = false, journeyIdRetrieve)))
