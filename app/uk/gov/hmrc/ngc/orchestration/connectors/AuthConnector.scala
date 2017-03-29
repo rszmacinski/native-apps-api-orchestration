@@ -17,44 +17,76 @@
 package uk.gov.hmrc.ngc.orchestration.connectors
 
 import java.util.UUID
+import org.joda.time.DateTime
 import uk.gov.hmrc.ngc.orchestration.config.WSHttp
 import uk.gov.hmrc.ngc.orchestration.domain.{CredentialStrength, Accounts}
 import play.api.Play
-import play.api.libs.json.JsValue
+import play.api.libs.json.{Json, JsValue}
 import uk.gov.hmrc.play.config.ServicesConfig
-import uk.gov.hmrc.play.http.{HeaderCarrier, HttpGet}
+import uk.gov.hmrc.play.http.{HttpPost, HeaderCarrier, HttpGet}
 import scala.concurrent.{ExecutionContext, Future}
 import uk.gov.hmrc.domain.{Nino, SaUtr}
 import uk.gov.hmrc.play.auth.microservice.connectors.ConfidenceLevel
 
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class FailToMatchTaxIdOnAuth(message:String) extends uk.gov.hmrc.play.http.HttpException(message, 401)
 class NinoNotFoundOnAccount(message:String) extends uk.gov.hmrc.play.http.HttpException(message, 401)
 class AccountWithLowCL(message:String) extends uk.gov.hmrc.play.http.HttpException(message, 401)
 class AccountWithWeakCredStrength(message:String) extends uk.gov.hmrc.play.http.HttpException(message, 401)
 
+
+case class BearerToken(authToken: String, expiry: DateTime) {
+  override val toString = authToken
+}
+
+object BearerToken {
+  implicit val formats = Json.format[BearerToken]
+}
+
+object AuthExchangeResponse {
+  implicit val formats = Json.format[AuthExchangeResponse]
+}
+
+case class AuthExchangeResponse(access_token: BearerToken,
+                                expires_in: Long,
+                                refresh_token: Option[String] = None,
+                                token_type: String = "Bearer",
+                                authority_uri: Option[String] = None)
+
 trait AuthConnector {
 
   val serviceUrl: String
 
-  def http: HttpGet
+  def http: HttpPost with HttpGet
 
   def serviceConfidenceLevel: ConfidenceLevel
 
   def uuid = UUID.randomUUID().toString
 
-    def accounts(journeyIdIn:Option[String])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = {
-      http.GET(s"$serviceUrl/auth/authority") map {
-        resp =>
-          val json = resp.json
-          val accounts = json \ "accounts"
-          val utr = (accounts \ "sa" \ "utr").asOpt[String]
-          val nino = (accounts \ "paye" \ "nino").asOpt[String]
 
-          val journeyId = journeyIdIn.fold(uuid) { id => if (id.length==0) uuid else id }
-          Accounts(nino.map(Nino(_)), utr.map(SaUtr(_)), upliftRequired(json), twoFactorRequired(json), journeyId)
-      }
+  def accounts(journeyIdIn:Option[String])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Accounts] = {
+    http.GET(s"$serviceUrl/auth/authority") map {
+      resp =>
+        val json = resp.json
+        val accounts = json \ "accounts"
+        val utr = (accounts \ "sa" \ "utr").asOpt[String]
+        val nino = (accounts \ "paye" \ "nino").asOpt[String]
+        val credId = (json \ "credId").asOpt[String].getOrElse(throw new IllegalArgumentException("Failed to resolve credId for authority record!"))
+        val affinityGroup = (json \ "affinityGroup").asOpt[String].getOrElse(throw new IllegalArgumentException("Failed to resolve affinityGroup for authority record!"))
+
+        val journeyId = journeyIdIn.fold(uuid) { id => if (id.length==0) uuid else id }
+        Accounts(nino.map(Nino(_)), utr.map(SaUtr(_)), upliftRequired(json), twoFactorRequired(json), journeyId, credId, affinityGroup)
     }
+  }
+
+  def updateCredStrength()(implicit hc: HeaderCarrier): Future[Unit] = {
+    http.POST(s"$serviceUrl/auth/credential-strength/strong", Json.toJson("""{}""")).map(_ => ())
+  }
+
+  def exchangeForBearer(credId:String)(implicit hc: HeaderCarrier): Future[AuthExchangeResponse] = {
+    http.POST[JsValue, AuthExchangeResponse](s"$serviceUrl/auth/gg/$credId/exchange", Json.toJson("""{}"""))
+  }
 
 
   def grantAccess(taxId:Option[Nino])(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[Authority] = {
