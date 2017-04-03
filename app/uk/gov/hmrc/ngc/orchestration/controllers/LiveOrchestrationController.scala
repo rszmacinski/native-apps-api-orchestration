@@ -107,7 +107,6 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       implicit val req = authenticated.request
       implicit val context: ExecutionContext = MdcLoggingExecutionContext.fromLoggingDetails
 
-      Logger.info(s"Outer: HC received is ${hc.authorization} for Journey Id $journeyId")
       errorWrapper {
         // Only 1 task running per session. If session contains asynctask then request routed to poll response.
         withAsyncSession {
@@ -122,7 +121,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
                 // Async function wrapper responsible for executing below code onto a background queue.
                 asyncWrapper(callbackWithStatus) {
                   headerCarrier =>
-                    Logger.info(s"Inner: HC received is ${hc.authorization} for Journey Id $journeyId")
+                    Logger.info(s"Background HC: ${hc.authorization.fold("not found"){_.value}} for Journey Id $journeyId")
                     service.startup(json, nino, journeyId).map { response =>
                       AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete))
                     }

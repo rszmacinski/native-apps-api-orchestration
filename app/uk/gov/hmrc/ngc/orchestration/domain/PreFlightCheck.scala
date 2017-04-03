@@ -29,8 +29,8 @@ case class MfaURI(webURI:String, apiURI:String)
 object MfaURI {
   implicit val reads = (
     (JsPath \ "_links" \ "browser" \ "href").read[String] and
-        (JsPath \ "_links" \ "self" \ "href").read[String]
-    ) (MfaURI.apply _)
+    (JsPath \ "_links" \ "self" \ "href").read[String]
+  ) (MfaURI.apply _)
 
   implicit val writes = new Writes[MfaURI] {
     def writes(uri: MfaURI) = Json.obj(

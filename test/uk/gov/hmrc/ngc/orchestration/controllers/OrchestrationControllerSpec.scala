@@ -208,11 +208,9 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       status(result) shouldBe 500
     }
 
-
-
   }
 
-  "async live controller to verify different json attribute response values based on service responses" should {
+  "async live controller (verify different json attribute response values based on service responses)" should {
 
     "return bad request when the session auth-token does not match the HC authorization header" in new SessionChecker {
       val body :JsValue= Json.parse("""{"token":"123456"}""")

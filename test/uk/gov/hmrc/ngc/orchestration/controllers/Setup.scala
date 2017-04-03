@@ -112,7 +112,7 @@ trait Setup {
   def versionRequestWithMFA(op:String="start") = FakeRequest().withBody(versionBodyWithMfaStartRequest(op))
     .withHeaders("Content-Type" -> "application/json", "Accept" -> "application/vnd.hmrc.1.0+json")
 
-  val versionBodyWithMfaOutcomeRequest = Json.parse("""{"os":"android", "version":"1.0.1", "mfa":{"operation":"outcome","apiURL": "/multi-factor-authentication/journey/58d96846280000f7005d388e?origin=ngc"}}""")
+  val versionBodyWithMfaOutcomeRequest = Json.parse("""{"os":"android", "version":"1.0.1", "mfa":{"operation":"outcome","apiURI": "/multi-factor-authentication/journey/58d96846280000f7005d388e?origin=ngc"}}""")
   val versionRequestWithMFAOutcome = FakeRequest().withBody(versionBodyWithMfaOutcomeRequest)
     .withHeaders("Content-Type" -> "application/json", "Accept" -> "application/vnd.hmrc.1.0+json")
 
@@ -424,8 +424,6 @@ trait TestGenericController extends Setup {
 
 class TestOrchestrationService(testGenericConnector: GenericConnector, testAuthConnector: AuthConnector, uuidValue:String) extends LiveOrchestrationService {
 
-  override def uuid = uuidValue
-
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
   override val genericConnector: GenericConnector = testGenericConnector
   override val authConnector: AuthConnector = testAuthConnector
@@ -497,7 +495,7 @@ class TestServiceFailureGenericConnector(pathFailMap: Map[String, Boolean], upgr
         countPushRegistration = countPushRegistration + 1
         Future.successful(JsNull)
 
-      case "/multi-factor-authentication/journey" =>
+      case "/multi-factor-authentication/journey" | "/multi-factor-authentication/authenticatedJourney" =>
         passFail(Json.toJson(mfaStart.get), isSuccess("/multi-factor-authentication/journey"))
 
     }

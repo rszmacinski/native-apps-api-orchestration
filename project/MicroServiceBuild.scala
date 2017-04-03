@@ -22,22 +22,22 @@ private object AppDependencies {
   import play.sbt.PlayImport._
   import play.core.PlayVersion
 
-  private val microserviceBootstrapVersion = "5.7.0"
-  private val playAuthVersion = "4.2.0"
-  private val playHealthVersion = "2.0.0"
+  private val microserviceBootstrapVersion = "5.14.0"
+  private val playAuthVersion = "4.3.0"
+  private val playHealthVersion = "2.1.0"
   private val playJsonLoggerVersion = "3.0.0"
-  private val playUrlBindersVersion = "2.0.0"
-  private val playConfigVersion = "3.0.0"
-  private val domainVersion = "4.0.0"
-  private val playHmrcApiVersion = "1.3.0"
+  private val playUrlBindersVersion = "2.1.0"
+  private val playConfigVersion = "4.3.0"
+  private val domainVersion = "4.1.0"
+  private val playHmrcApiVersion = "1.4.0"
   private val hmrcEmailAddressVersion = "1.1.0"
-  private val microserviceAsync = "1.1.0"
+  private val microserviceAsync = "1.2.0"
 
   private val scalaTestVersion = "2.2.6"
   private val pegdownVersion = "1.6.0"
   private val wireMockVersion = "2.2.2"
-  private val hmrcTestVersion = "2.0.0"
-  private val cucumberVersion = "1.2.4"
+  private val hmrcTestVersion = "2.3.0"
+  private val cucumberVersion = "1.2.5"
 
   val compile = Seq(
     ws,
