@@ -32,14 +32,18 @@ trait GenericConnector {
 
   private def buildUrl(host:String, port:Int, path:String) =  s"""http://$host:$port$path"""
 
+  def logHC(hc: HeaderCarrier, path:String) =   Logger.info(s"transport: HC received is ${hc.authorization} for path $path")
+
+
   def doGet(host:String, path:String, port:Int, hc: HeaderCarrier): Future[JsValue] = {
     implicit val hcHeaders = addAPIHeaders(hc)
-    Logger.warn(s"transport: HC received is ${hc.authorization} for path $path")
+    logHC(hc, s"transport: HC received is ${hc.authorization} for path $path")
     http.GET[JsValue](buildUrl(host, port, path))
   }
 
   def doPost(json:JsValue, host:String, path:String, port:Int, hc: HeaderCarrier): Future[JsValue] = {
     implicit val hcHeaders = addAPIHeaders(hc)
+    logHC(hc, s"transport: HC received is ${hc.authorization} for path $path")
     http.POST[JsValue, JsValue](buildUrl(host, port, path), json)
   }
 

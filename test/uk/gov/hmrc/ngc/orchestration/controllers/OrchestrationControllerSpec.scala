@@ -97,7 +97,120 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
   }
 
-  "async live controller to verify different json attribute response values based on service responses" should {
+  "preFlightCheck live controller with MFA start request" should {
+
+    "return response with MFA URIs and routeToTwoFactor equal to true when cred-strength is not strong" in new SuccessMfa {
+      val result = await(controller.preFlightCheck(Some(journeyId))(versionRequestWithMFA().withHeaders("Authorization" -> "Bearer 123456789")))
+
+      status(result) shouldBe 200
+
+      contentAsJson(result) shouldBe Json.parse(journeyStartResponse(journeyId))
+    }
+
+    "return 500 response when the MFA service fails" in new SuccessMfa {
+      override lazy val mfaOutcomeStatus = "UNVERIFIED"
+      override lazy val startMfaJourney = Map("/multi-factor-authentication/journey" -> false)
+
+      val result = await(controller.preFlightCheck(Some(journeyId))(versionRequestWithMFA("invalid").withHeaders("Authorization" -> "Bearer 123456789")))
+
+      status(result) shouldBe 400
+    }
+
+    "return bad request when the MFA operation supplied is invalid" in new SuccessMfa {
+        override lazy val mfaOutcomeStatus = "UNVERIFIED"
+
+        val result = await(controller.preFlightCheck(Some(journeyId))(versionRequestWithMFA("invalid").withHeaders("Authorization" -> "Bearer 123456789")))
+
+        status(result) shouldBe 400
+      }
+    }
+
+  "preFlightCheck live controller with MFA outcome request " should {
+
+    "return the response mfa URIs and routeToTwoFactor equal to true when MFA API returns UNVERIFIED state" in new SuccessMfa {
+      override lazy val mfaOutcomeStatus = "UNVERIFIED"
+
+      val result = await(
+        controller.preFlightCheck(Some(
+          journeyId))(versionRequestWithMFAOutcome.withHeaders("Authorization" -> "Bearer 123456789")))
+
+      status(result) shouldBe 200
+
+      contentAsJson(result) shouldBe Json.parse(journeyStartResponse(journeyId))
+    }
+
+    "return response with routeToTwoFactor set to false when MFA returns NOT_REQUIRED state" in new SuccessMfa {
+      override lazy val mfaOutcomeStatus = "NOT_REQUIRED"
+      val result = await(
+        controller.preFlightCheck(Some(
+          journeyId))(versionRequestWithMFAOutcome.withHeaders("Authorization" -> "Bearer 123456789")))
+
+      status(result) shouldBe 200
+
+      contentAsJson(result) shouldBe Json.parse(preflightResponse(journeyId))
+    }
+
+    "return response with routeToTwoFactor set to false when MFA returns SKIPPED state" in new SuccessMfa {
+      override lazy val mfaOutcomeStatus = "SKIPPED"
+      val result = await(
+        controller.preFlightCheck(Some(
+          journeyId))(versionRequestWithMFAOutcome.withHeaders("Authorization" -> "Bearer 123456789")))
+
+      status(result) shouldBe 200
+
+      contentAsJson(result) shouldBe Json.parse(preflightResponse(journeyId))
+    }
+
+    "return response with routeToTwoFactor set to false and authority updated with credStrength Strong when MFA returns VERIFIED state" in new SuccessMfa {
+      override lazy val mfaOutcomeStatus = "VERIFIED"
+      override lazy val generateAuthError = false
+
+      val result = await(
+        controller.preFlightCheck(Some(
+          journeyId))(versionRequestWithMFAOutcome.withHeaders("Authorization" -> "Bearer 123456789")))
+
+      status(result) shouldBe 200
+
+      contentAsJson(result) shouldBe Json.parse(preflightResponse(journeyId))
+    }
+
+    "return 500 response when fail to update the authority record with strong cred-strength" in new SuccessMfa {
+      override lazy val mfaOutcomeStatus = "VERIFIED"
+
+      val result = await(
+        controller.preFlightCheck(Some(
+          journeyId))(versionRequestWithMFAOutcome.withHeaders("Authorization" -> "Bearer 123456789")))
+
+
+      status(result) shouldBe 500
+    }
+
+    "return 500 response when MFA returns unknown state" in new SuccessMfa {
+      override lazy val mfaOutcomeStatus = "UNKNOWN STATE!!!"
+
+      val result = await(
+        controller.preFlightCheck(Some(
+          journeyId))(versionRequestWithMFAOutcome.withHeaders("Authorization" -> "Bearer 123456789")))
+
+
+      status(result) shouldBe 500
+    }
+
+    "return 500 response when MFA fails to return outcome state" in new SuccessMfa {
+      override lazy val mfaOutcomeStatus = "VERIFIED"
+      override lazy val outcomeMfaJourney = Map("/multi-factor-authentication/journey/58d96846280000f7005d388e?origin=ngc" -> false)
+
+      val result = await(
+        controller.preFlightCheck(Some(
+          journeyId))(versionRequestWithMFAOutcome.withHeaders("Authorization" -> "Bearer 123456789")))
+
+
+      status(result) shouldBe 500
+    }
+
+  }
+
+  "async live controller (verify different json attribute response values based on service responses)" should {
 
     "return bad request when the session auth-token does not match the HC authorization header" in new SessionChecker {
       val body :JsValue= Json.parse("""{"token":"123456"}""")
@@ -327,7 +440,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       val result = await(controller.preFlightCheck(Some(journeyId))(requestWithAuthSession.withBody(versionBody)))
       status(result) shouldBe 200
       val journeyIdRetrieve: String = (contentAsJson(result) \ "accounts" \ "journeyId").as[String]
-      contentAsJson(result) shouldBe Json.toJson(PreFlightCheckResponse(upgradeRequired = false, Accounts(Some(nino), None, routeToIV = false, routeToTwoFactor = false, journeyIdRetrieve)))
+      contentAsJson(result) shouldBe Json.toJson(PreFlightCheckResponse(upgradeRequired = false, Accounts(Some(nino), None, routeToIV = false, routeToTwoFactor = false, journeyIdRetrieve, "someCredId", "Individual")))
     }
 
     "return startup response from a static resource" in new SandboxSuccess {

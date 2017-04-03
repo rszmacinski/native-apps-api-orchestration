@@ -27,15 +27,17 @@ import uk.gov.hmrc.msasync.repository.AsyncRepository
 import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{Authority, NinoNotFoundOnAccount}
 import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
-import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
+import uk.gov.hmrc.ngc.orchestration.services.{PreFlightRequest, LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.AsyncMvcSession
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.{HeaderCarrier, NotFoundException}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 import uk.gov.hmrc.time.DateTimeUtils
 
+import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext
+
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 
 class BadRequestException(message:String) extends uk.gov.hmrc.play.http.HttpException(message, 400)
@@ -83,13 +85,18 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
     implicit request =>
       errorWrapper {
         implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
+        implicit val context: ExecutionContext = MdcLoggingExecutionContext.fromLoggingDetails
 
-        hc.authorization match {
-          case Some(auth) => service.preFlightCheck(request.body, journeyId).map(
-            response => Ok(Json.toJson(response)).withSession(authToken -> auth.value)
-          )
+        Json.toJson(request.body).asOpt[PreFlightRequest].
+          fold(Future.successful(BadRequest("Failed to parse request!"))) { preFlightRequest =>
 
-          case _ => Future.failed(new Exception("Failed to resolve authentication from HC!"))
+            hc.authorization match {
+              case Some(auth) => service.preFlightCheck(preFlightRequest, journeyId).map(
+                response => Ok(Json.toJson(response)).withSession(authToken -> auth.value)
+              )
+
+              case _ => Future.failed(new Exception("Failed to resolve authentication from HC!"))
+            }
         }
       }
   }
@@ -98,8 +105,8 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
     implicit authenticated =>
       implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
       implicit val req = authenticated.request
+      implicit val context: ExecutionContext = MdcLoggingExecutionContext.fromLoggingDetails
 
-      Logger.warn(s"Outer: HC received is ${hc.authorization} for Journey Id $journeyId")
       errorWrapper {
         // Only 1 task running per session. If session contains asynctask then request routed to poll response.
         withAsyncSession {
@@ -114,7 +121,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
                 // Async function wrapper responsible for executing below code onto a background queue.
                 asyncWrapper(callbackWithStatus) {
                   headerCarrier =>
-                    Logger.warn(s"Inner: HC received is ${hc.authorization} for Journey Id $journeyId")
+                    Logger.info(s"Background HC: ${hc.authorization.fold("not found"){_.value}} for Journey Id $journeyId")
                     service.startup(json, nino, journeyId).map { response =>
                       AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete))
                     }
@@ -136,6 +143,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
             implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
             implicit val req = authenticated.request
             implicit val authority = authenticated.authority
+            implicit val context: ExecutionContext = MdcLoggingExecutionContext.fromLoggingDetails
 
             val session: Option[AsyncMvcSession] = getSessionObject
             def withASyncSession(data:Map[String,String]): Map[String, String] = {
@@ -151,7 +159,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
                   val now = DateTimeUtils.now.getMillis
                   session match {
                     case Some(s) =>
-                      Logger.info(s"Native - Poll Task not not in cache! Client start request time ${s.start-getClientTimeout} - Client timeout ${s.start} - Current time $now. Journey Id $journeyId")
+                      Logger.info(s"Native - Poll Task not in cache! Client start request time ${s.start-getClientTimeout} - Client timeout ${s.start} - Current time $now. Journey Id $journeyId")
 
                     case None =>
                       Logger.info(s"Native - Poll - no session object found! Journey Id $journeyId")

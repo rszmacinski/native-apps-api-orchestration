@@ -22,6 +22,7 @@ import uk.gov.hmrc.domain.{Nino, SaUtr}
 import uk.gov.hmrc.ngc.orchestration.domain.CredentialStrength
 import uk.gov.hmrc.play.auth.microservice.connectors.ConfidenceLevel
 import uk.gov.hmrc.play.http.hooks.HttpHook
+import uk.gov.hmrc.play.http.ws.WSPost
 import uk.gov.hmrc.play.http.{HeaderCarrier, HttpGet, HttpResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 
@@ -37,7 +38,7 @@ class AuthConnectorSpec extends UnitSpec with ScalaFutures {
 
     override def uuid = "some_value"
 
-    override def http: HttpGet = new HttpGet {
+    override def http: HttpGet with WSPost = new HttpGet with WSPost {
       override protected def doGet(url: String)(implicit hc: HeaderCarrier): Future[HttpResponse] = Future.successful(response)
 
       override val hooks: Seq[HttpHook] = Seq.empty
@@ -86,6 +87,8 @@ class AuthConnectorSpec extends UnitSpec with ScalaFutures {
       accounts.routeToIV shouldBe true
       accounts.routeToTwoFactor shouldBe false
       accounts.journeyId shouldBe "id"
+      accounts.credId shouldBe "someCredId"
+      accounts.affinityGroup shouldBe "Individual"
     }
 
     "ignore the supplied journeyId when blank" in {
@@ -105,6 +108,8 @@ class AuthConnectorSpec extends UnitSpec with ScalaFutures {
       accounts.routeToIV shouldBe true
       accounts.routeToTwoFactor shouldBe false
       accounts.journeyId shouldBe "some_value"
+      accounts.credId shouldBe "someCredId"
+      accounts.affinityGroup shouldBe "Individual"
     }
 
     "find the user and routeToIV and routeToTwoFactor should be false" in {
@@ -124,6 +129,8 @@ class AuthConnectorSpec extends UnitSpec with ScalaFutures {
       accounts.routeToIV shouldBe false
       accounts.routeToTwoFactor shouldBe false
       accounts.journeyId shouldBe "id"
+      accounts.credId shouldBe "someCredId"
+      accounts.affinityGroup shouldBe "Individual"
     }
 
     "find the user when the users account does not have a NINO" in {
@@ -143,6 +150,8 @@ class AuthConnectorSpec extends UnitSpec with ScalaFutures {
       accounts.routeToIV shouldBe false
       accounts.routeToTwoFactor shouldBe false
       accounts.journeyId shouldBe "id"
+      accounts.credId shouldBe "someCredId"
+      accounts.affinityGroup shouldBe "Individual"
     }
 
   }
@@ -285,6 +294,8 @@ class AuthConnectorSpec extends UnitSpec with ScalaFutures {
     val json =
       s"""
          |{
+         |    "affinityGroup" : "Individual",
+         |    "credId" : "someCredId",
          |    "uri" : "someuri",
          |    "accounts": {
          |       $sa

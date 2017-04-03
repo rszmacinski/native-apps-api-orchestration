@@ -17,7 +17,7 @@
 package uk.gov.hmrc.ngc.orchestration.controllers.action
 
 import play.api.Logger
-import play.api.libs.json.Json
+import play.api.libs.json.{Writes, Json}
 import play.api.mvc._
 import uk.gov.hmrc.api.controllers._
 import uk.gov.hmrc.domain.Nino
@@ -109,9 +109,19 @@ object AccountAccessControlOff extends AccountAccessControl {
 
     override def serviceConfidenceLevel: ConfidenceLevel = ConfidenceLevel.L0
 
-    override def http: HttpGet = new HttpGet {
+    override def http: HttpGet with HttpPost = new HttpGet with HttpPost {
+      def sandboxMode = Future.failed(new IllegalArgumentException("Sandbox mode!"))
+
       override protected def doGet(url: String)(implicit hc: HeaderCarrier): Future[HttpResponse] = Future.failed(new IllegalArgumentException("Sandbox mode!"))
       override val hooks: Seq[HttpHook] = NoneRequired
+
+      override protected def doPost[A](url: String, body: A, headers: Seq[(String, String)])(implicit wts: Writes[A], hc: HeaderCarrier): Future[HttpResponse] = sandboxMode
+
+      override protected def doPostString(url: String, body: String, headers: Seq[(String, String)])(implicit hc: HeaderCarrier): Future[HttpResponse] = sandboxMode
+
+      override protected def doFormPost(url: String, body: Map[String, Seq[String]])(implicit hc: HeaderCarrier): Future[HttpResponse] = sandboxMode
+
+      override protected def doEmptyPost[A](url: String)(implicit hc: HeaderCarrier): Future[HttpResponse] = sandboxMode
     }
   }
 }
