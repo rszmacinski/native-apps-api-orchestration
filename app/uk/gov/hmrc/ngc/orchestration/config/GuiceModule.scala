@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.ngc.orchestration.domain
+package uk.gov.hmrc.ngc.orchestration.config
 
-import play.api.libs.json.{JsValue, Json}
+import com.google.inject.AbstractModule
+import com.google.inject.name.Names
+import play.api.{Configuration, Environment}
+import uk.gov.hmrc.ngc.orchestration.executors.{Executor, VersionCheckExecutor}
 
-case class OrchestrationResult(preference: Option[JsValue], state: JsValue, taxSummary: JsValue, taxCreditSummary: Option[JsValue])
+class GuiceModule(environment: Environment, configuration: Configuration) extends AbstractModule {
 
-object OrchestrationResult {
-  implicit val format = Json.format[OrchestrationResult]
+  override def configure(): Unit = {
+    bind(classOf[Map[String,Executor]]).annotatedWith(Names.named("executors")).toInstance(Map("version-check" -> VersionCheckExecutor()))
+  }
 }

@@ -16,12 +16,12 @@
 
 package uk.gov.hmrc.ngc.orchestration.controllers
 
-import play.api.libs.json.{JsString, JsBoolean, JsObject, Json}
+import play.api.libs.json.{JsBoolean, JsObject, JsString, Json}
+import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.mongo.DatabaseUpdate
-import uk.gov.hmrc.msasync.repository.{TaskCachePersist, AsyncRepository}
+import uk.gov.hmrc.msasync.repository.{AsyncRepository, TaskCachePersist}
 import uk.gov.hmrc.ngc.orchestration.services.Result
-import uk.gov.hmrc.ngc.orchestration.services.SandboxOrchestrationService._
 import uk.gov.hmrc.play.asyncmvc.model.TaskCache
 
 import scala.concurrent.Future
@@ -29,7 +29,7 @@ import scala.concurrent.Future
 /**
  * Stubbed Sandbox poll
  */
-trait SandboxPoll {
+trait SandboxPoll extends FileResource {
 
   val sandboxRepository = new AsyncRepository {
     val exception = new Exception("Repo should not be called in sandbox mode!")

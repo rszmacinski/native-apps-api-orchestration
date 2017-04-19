@@ -24,12 +24,13 @@ import play.api.test.FakeRequest
 import play.api.test.Helpers._
 import reactivemongo.bson.BSONObjectID
 import uk.gov.hmrc.domain.Nino
-import uk.gov.hmrc.mongo.{Updated, DatabaseUpdate}
-import uk.gov.hmrc.msasync.repository.{TaskCachePersist, AsyncRepository}
+import uk.gov.hmrc.mongo.{DatabaseUpdate, Updated}
+import uk.gov.hmrc.msasync.repository.{AsyncRepository, TaskCachePersist}
 import uk.gov.hmrc.ngc.orchestration.config.{MicroserviceAuditConnector, WSHttp}
 import uk.gov.hmrc.ngc.orchestration.connectors._
-import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControl, AccountAccessControlWithHeaderCheck}
+import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControl, AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
 import uk.gov.hmrc.ngc.orchestration.domain.Accounts
+import uk.gov.hmrc.ngc.orchestration.executors.ExecutorFactory
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.TaskCache
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
@@ -422,7 +423,7 @@ trait TestGenericController extends Setup {
   def pushRegistrationInvokeCount = controller.testServiceAndConnector._2.countPushRegistration
 }
 
-class TestOrchestrationService(testGenericConnector: GenericConnector, testAuthConnector: AuthConnector, uuidValue:String) extends LiveOrchestrationService {
+class TestOrchestrationService(testGenericConnector: GenericConnector, testAuthConnector: AuthConnector, uuidValue:String) extends LiveOrchestrationService(new ExecutorFactory(Map())) {
 
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
   override val genericConnector: GenericConnector = testGenericConnector
@@ -631,12 +632,11 @@ trait AuthWithWeakCreds extends Setup with AuthorityTest {
 }
 
 trait SandboxSuccess extends Setup {
-  val controller = new SandboxOrchestrationController {
+  val controller = new SandboxOrchestrationController(new SandboxOrchestrationService) {
     val testSessionId="SandboxSuccess"
     override val actorName = s"async_native-apps-api-actor_"+testSessionId
     override def id = "async_native-apps-api-id"
     override val app = "Sandbox Native Apps Orchestration"
-    override val service: OrchestrationService = SandboxOrchestrationService
     override val accessControl = AccountAccessControlCheckOff
     override lazy val repository: AsyncRepository = asyncRepository
     override def checkSecurity: Boolean = false

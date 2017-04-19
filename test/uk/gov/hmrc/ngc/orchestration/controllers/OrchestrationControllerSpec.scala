@@ -221,7 +221,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
           "Authorization" -> "Some Header"
         ).withJsonBody(body)
 
-      val result2: Result = await(controller.startup(nino, None).apply(requestWithSessionKeyAndIdBody))
+      val result2: Result = await(controller.orchestrate(nino, None).apply(requestWithSessionKeyAndIdBody))
       status(result2) shouldBe 400
     }
 
@@ -421,15 +421,15 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
   "startup live controller authentication " should {
 
     "return unauthorized when authority record does not contain a NINO" in new AuthWithoutNino {
-      testNoNINO(await(controller.startup(nino)(emptyRequestWithHeader)))
+      testNoNINO(await(controller.orchestrate(nino)(emptyRequestWithHeader)))
     }
 
     "return 401 result with json status detailing low CL on authority" in new AuthWithLowCL {
-      testLowCL(await(controller.startup(nino)(emptyRequestWithHeader)))
+      testLowCL(await(controller.orchestrate(nino)(emptyRequestWithHeader)))
     }
 
     "return status code 406 when the headers are invalid" in new Success {
-      val result = await(controller.startup(nino)(emptyRequest))
+      val result = await(controller.orchestrate(nino)(emptyRequest))
       status(result) shouldBe 406
     }
   }
@@ -444,7 +444,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     }
 
     "return startup response from a static resource" in new SandboxSuccess {
-      val result = await(controller.startup(nino)(requestWithAuthSession))
+      val result = await(controller.orchestrate(nino)(requestWithAuthSession))
       status(result) shouldBe 200
       contentAsJson(result) shouldBe TestData.sandboxStartupResponse
     }
@@ -471,7 +471,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
         authHeader
       ).withJsonBody(body)
 
-    await(controller.startup(nino).apply(requestWithSessionKeyAndId))
+    await(controller.orchestrate(nino).apply(requestWithSessionKeyAndId))
   }
 
   def invokeStartupAndPollForResult(controller: NativeAppsOrchestrationController, testSessionId: String, nino: Nino, response: JsValue, resultCode: Int = 200,

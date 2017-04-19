@@ -17,19 +17,22 @@
 package uk.gov.hmrc.ngc.orchestration.services
 
 import java.util.UUID
+import javax.inject.Inject
 
+import com.google.inject.Singleton
 import org.joda.time.DateTime
+import play.api.libs.json._
 import play.api.{Configuration, Logger, Play}
-import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.api.service.Auditor
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{AuthConnector, GenericConnector}
 import uk.gov.hmrc.ngc.orchestration.domain._
+import uk.gov.hmrc.ngc.orchestration.executors.ExecutorFactory
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.time.TaxYear
-import play.api.libs.json._
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future._
 import scala.concurrent.{ExecutionContext, Future}
@@ -41,6 +44,8 @@ trait OrchestrationService {
   def preFlightCheck(preflightRequest:PreFlightRequest, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse]
 
   def startup(inputRequest:JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]
+
+  def orchestrate(request: JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]
 
   private def getServiceConfig(serviceName: String): Configuration = {
     Play.current.configuration.getConfig(s"microservice.services.$serviceName").getOrElse(throw new Exception)
@@ -81,10 +86,11 @@ object JourneyResponse {
 
 case class ServiceState(state:String, func: Accounts => MFARequest => Option[String] => Future[MFAAPIResponse])
 
+@Singleton
+class LiveOrchestrationService @Inject()(executorFactory: ExecutorFactory) extends OrchestrationService with Auditor with MFAIntegration {
 
-trait LiveOrchestrationService extends OrchestrationService with Auditor with MFAIntegration {
-
-  val authConnector: AuthConnector
+  override val auditConnector: AuditConnector = MicroserviceAuditConnector
+  val authConnector: AuthConnector = AuthConnector
 
   def preFlightCheck(preflightRequest:PreFlightRequest, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse] = {
     withAudit("preFlightCheck", Map.empty) {
@@ -115,15 +121,15 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor with MF
       val versionUpdateF: Future[Boolean] = getVersion
 
       for {
-        accounts <- accountsF
-        mfaOutcome <- mfaDecision(accounts)
-        versionUpdate <- versionUpdateF
+                                                      accounts <- accountsF
+                                                      mfaOutcome <- mfaDecision(accounts)
+                                                      versionUpdate <- versionUpdateF
       } yield {
         val mfaURI: Option[MfaURI] = mfaOutcome.fold(Option.empty[MfaURI]){ _.mfa}
         // If authority has been updated then override the original accounts response from auth.
         val returnAccounts = mfaOutcome.fold(accounts) { found =>
           if (found.authUpdated)
-            accounts.copy(routeToTwoFactor = false)
+          accounts.copy(routeToTwoFactor = false)
           else {
             accounts.copy(routeToTwoFactor = found.routeToTwoFactor)
           }
@@ -133,6 +139,20 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor with MF
       }
     }
   }
+
+  def orchestrate(request: JsValue, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
+    val requestResult = request.\("request").validate[OrchestrationRequest]
+
+    requestResult match {
+      case success: JsSuccess[OrchestrationRequest] => {
+        executorFactory.buildAndExecute(success.get).map(serviceResponse => Json.obj("response" -> serviceResponse))
+      }
+      case e: JsError => {
+        startup(request, nino, journeyId)
+      }
+    }
+  }
+
 
   def startup(inputRequest:JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]= {
     withAudit("startup", Map("nino" -> nino.value)) {
@@ -148,19 +168,21 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor with MF
 
   private def buildResponse(inputRequest:JsValue, nino: String, year: Int, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext) : Future[Seq[JsObject]] = {
     val futuresSeq: Seq[Future[Option[Result]]] = Seq(
-      TaxSummary(genericConnector, journeyId),
-      TaxCreditSummary(authConnector, genericConnector, journeyId),
-      TaxCreditsSubmissionState(genericConnector, journeyId),
-      PushRegistration(genericConnector, inputRequest, journeyId)
+    TaxSummary(genericConnector, journeyId),
+    TaxCreditSummary(authConnector, genericConnector, journeyId),
+    TaxCreditsSubmissionState(genericConnector, journeyId),
+    PushRegistration(genericConnector, inputRequest, journeyId)
     ).map(item => item.execute(nino, year))
 
     for (results <- sequence(futuresSeq).map(_.flatten)) yield {
       results.map(b => Json.obj(b.id -> b.jsValue))
     }
   }
+
 }
 
-object SandboxOrchestrationService extends OrchestrationService with FileResource {
+@Singleton
+class SandboxOrchestrationService extends OrchestrationService {
   private val nino = Nino("CS700100A")
   private val preFlightResponse = PreFlightCheckResponse(upgradeRequired = false, Accounts(Some(nino), None, routeToIV = false, routeToTwoFactor = false, UUID.randomUUID().toString, "credId-1234", "Individual"))
 
@@ -172,9 +194,5 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
     successful(Json.obj("status" -> Json.obj("code" -> "poll")))
   }
 
-}
-
-object LiveOrchestrationService extends LiveOrchestrationService {
-  override val auditConnector: AuditConnector = MicroserviceAuditConnector
-  override val authConnector:AuthConnector = AuthConnector
+  override def orchestrate(request: JsValue, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = ???
 }

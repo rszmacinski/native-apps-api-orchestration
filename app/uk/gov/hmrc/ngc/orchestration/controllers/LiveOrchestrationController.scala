@@ -16,10 +16,12 @@
 
 package uk.gov.hmrc.ngc.orchestration.controllers
 
+import javax.inject.Inject
+import javax.inject.Singleton
 import play.api.http.HeaderNames
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
-import play.api.{Play, Logger, mvc}
+import play.api.{Logger, Play, mvc}
 import uk.gov.hmrc.api.controllers.{ErrorInternalServerError, ErrorNotFound}
 import uk.gov.hmrc.api.service.Auditor
 import uk.gov.hmrc.domain.Nino
@@ -27,13 +29,12 @@ import uk.gov.hmrc.msasync.repository.AsyncRepository
 import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{Authority, NinoNotFoundOnAccount}
 import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
-import uk.gov.hmrc.ngc.orchestration.services.{PreFlightRequest, LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
+import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, PreFlightRequest, SandboxOrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.AsyncMvcSession
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.{HeaderCarrier, NotFoundException}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 import uk.gov.hmrc.time.DateTimeUtils
-
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -101,7 +102,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       }
   }
 
-  def startup(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControl.validateAcceptWithAuth(acceptHeaderValidationRules, Some(nino)).async {
+  def orchestrate(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControl.validateAcceptWithAuth(acceptHeaderValidationRules, Some(nino)).async {
     implicit authenticated =>
       implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
       implicit val req = authenticated.request
@@ -219,8 +220,8 @@ trait ConfigLoad {
     .getOrElse(throw new Exception(s"Failed to resolve config key $pollMaxAge"))
 }
 
-object LiveOrchestrationController extends NativeAppsOrchestrationController with ConfigLoad {
-  override val service = LiveOrchestrationService
+@Singleton
+class LiveOrchestrationController @Inject()(val service: LiveOrchestrationService) extends NativeAppsOrchestrationController with ConfigLoad {
   override val accessControl = AccountAccessControlWithHeaderCheck
   override val accessControlOff = AccountAccessControlCheckOff
   override val app: String = "Live-Orchestration-Controller"
@@ -230,16 +231,12 @@ object LiveOrchestrationController extends NativeAppsOrchestrationController wit
   override def getConfigForPollMaxAge = Play.current.configuration.getLong(pollMaxAge)
 }
 
-object SandboxOrchestrationController extends SandboxOrchestrationController {
+@Singleton
+class SandboxOrchestrationController @Inject()(val service: SandboxOrchestrationService) extends NativeAppsOrchestrationController with SandboxPoll {
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
   override val maxAgeForSuccess: Long = 3600
-}
-
-trait SandboxOrchestrationController extends NativeAppsOrchestrationController with SandboxPoll {
   override val actorName = "sandbox-async_native-apps-api-actor"
   override def id = "sandbox-async_native-apps-api-id"
-
-  override val service: OrchestrationService = SandboxOrchestrationService
   override val accessControl = AccountAccessControlWithHeaderCheck
   override val accessControlOff = AccountAccessControlCheckOff
   override val app: String = "Sandbox-Orchestration-Controller"
@@ -247,7 +244,7 @@ trait SandboxOrchestrationController extends NativeAppsOrchestrationController w
   override def checkSecurity: Boolean = false
 
   // Must override the startup call since live controller talks to a queue.
-  override def startup(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControlOff.validateAcceptWithAuth(acceptHeaderValidationRules, Some(nino)).async {
+  override def orchestrate(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControlOff.validateAcceptWithAuth(acceptHeaderValidationRules, Some(nino)).async {
     implicit authenticated =>
       implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
       implicit val req = authenticated.request
@@ -261,11 +258,11 @@ trait SandboxOrchestrationController extends NativeAppsOrchestrationController w
 
   // Override the poll and return static resource.
   override def poll(nino: Nino, journeyId: Option[String] = None) = accessControlOff.validateAccept(acceptHeaderValidationRules).async {
-  implicit authenticated =>
-    errorWrapper {
-      withAsyncSession {
-        Future.successful(addCacheHeader(maxAgeForSuccess, Ok(pollSandboxResult(nino).value)))
+    implicit authenticated =>
+      errorWrapper {
+        withAsyncSession {
+          Future.successful(addCacheHeader(maxAgeForSuccess, Ok(pollSandboxResult(nino).value)))
+        }
       }
-    }
   }
 }
