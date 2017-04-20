@@ -61,7 +61,7 @@ trait Setup {
 
   val servicesSuccessMap = Map(
     "/profile/native-app/version-check" -> true,
-    "/income/CS700100A/tax-summary/2016" -> true,
+    "/income/CS700100A/tax-summary/2017" -> true,
     "/income/tax-credits/submission/state/enabled" -> true,
     "/income/CS700100A/tax-credits/tax-credits-summary" -> true,
     "/income/CS700100A/tax-credits/tax-credits-decision" -> true)
@@ -515,7 +515,7 @@ class TestServiceFailureGenericConnector(pathFailMap: Map[String, Boolean], upgr
 
   override def doGet(host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = {
     val result = path match {
-      case "/income/CS700100A/tax-summary/2016" => passFail(taxSummary, isSuccess(path))
+      case "/income/CS700100A/tax-summary/2017" => passFail(taxSummary, isSuccess(path))
       case "/income/tax-credits/submission/state/enabled" => passFail(state, isSuccess(path))
       case "/income/CS700100A/tax-credits/tax-credits-summary" => passFail(taxCreditSummary, isSuccess(path))
       case "/income/CS700100A/tax-credits/tax-credits-decision" =>

@@ -312,7 +312,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     "return empty tax-credit-summary response when retrieval of tax-summary returns non 200 response and push-registration executed successfully" in new TestGenericController {
       override val statusCode: Option[Int] = None
       override val exception:Option[Exception]=Some(new BadRequestException("controlled explosion"))
-      override val mapping:Map[String, Boolean] = servicesSuccessMap ++ Map("/income/CS700100A/tax-summary/2016" -> false)
+      override val mapping:Map[String, Boolean] = servicesSuccessMap ++ Map("/income/CS700100A/tax-summary/2017" -> false)
       override lazy val test_id: String = s"test_id_testOrchestrationDecisionFailure_$time"
       override val taxSummaryData: JsValue = TestData.taxSummaryData()
 
@@ -329,7 +329,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       override val exception:Option[Exception]=Some(new BadRequestException("controlled explosion"))
       override val mapping:Map[String, Boolean] = servicesSuccessMap ++
         Map(
-          "/income/CS700100A/tax-summary/2016" -> false,
+          "/income/CS700100A/tax-summary/2017" -> false,
           "/income/CS700100A/tax-credits/tax-credits-summary" -> false
         )
 
