@@ -29,8 +29,8 @@ import uk.gov.hmrc.msasync.repository.{AsyncRepository, TaskCachePersist}
 import uk.gov.hmrc.ngc.orchestration.config.{MicroserviceAuditConnector, WSHttp}
 import uk.gov.hmrc.ngc.orchestration.connectors._
 import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControl, AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
-import uk.gov.hmrc.ngc.orchestration.domain.Accounts
-import uk.gov.hmrc.ngc.orchestration.executors.ExecutorFactory
+import uk.gov.hmrc.ngc.orchestration.domain.{Accounts, OrchestrationRequest, ServiceResponse}
+import uk.gov.hmrc.ngc.orchestration.executors.{Executor, ExecutorFactory, VersionCheckExecutor}
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.TaskCache
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
@@ -173,6 +173,25 @@ trait Success extends Setup {
     val testSessionId = "Success"
     override val actorName = s"async_native-apps-api-actor_" + testSessionId
     override def id = "sandbox-async_native-apps-api-id"
+
+    override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
+    override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
+    override val service: OrchestrationService = testOrchestrationService
+    override val app: String = "Success Orchestration Controller"
+    override val repository: AsyncRepository = asyncRepository
+
+    override def checkSecurity: Boolean = true
+    override val auditConnector: AuditConnector = MicroserviceAuditConnector
+    override val maxAgeForSuccess: Long = maxAgeForPollSuccess
+  }
+}
+
+trait SuccessGeneric extends Setup {
+  val controller = new NativeAppsOrchestrationController {
+    val testSessionId = "Success"
+    override def buildUniqueId() = testSessionId
+    override val actorName = s"async_native-apps-api-actor_" + testSessionId
+    override def id = "async_native-apps-api-generic-supported-service-id"
 
     override val accessControl: AccountAccessControlWithHeaderCheck = testCompositeAction
     override val accessControlOff: AccountAccessControlWithHeaderCheck = testAccessControlOff
@@ -423,7 +442,7 @@ trait TestGenericController extends Setup {
   def pushRegistrationInvokeCount = controller.testServiceAndConnector._2.countPushRegistration
 }
 
-class TestOrchestrationService(testGenericConnector: GenericConnector, testAuthConnector: AuthConnector, uuidValue:String) extends LiveOrchestrationService(new ExecutorFactory(Map())) {
+class TestOrchestrationService(testGenericConnector: GenericConnector, testAuthConnector: AuthConnector, uuidValue:String) extends LiveOrchestrationService {
 
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
   override val genericConnector: GenericConnector = testGenericConnector
@@ -632,7 +651,7 @@ trait AuthWithWeakCreds extends Setup with AuthorityTest {
 }
 
 trait SandboxSuccess extends Setup {
-  val controller = new SandboxOrchestrationController(new SandboxOrchestrationService) {
+  val controller = new SandboxOrchestrationController() {
     val testSessionId="SandboxSuccess"
     override val actorName = s"async_native-apps-api-actor_"+testSessionId
     override def id = "async_native-apps-api-id"

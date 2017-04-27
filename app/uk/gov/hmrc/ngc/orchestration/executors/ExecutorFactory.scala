@@ -16,10 +16,6 @@
 
 package uk.gov.hmrc.ngc.orchestration.executors
 
-import javax.inject.Inject
-import javax.inject.Singleton
-
-import com.google.inject.name.Named
 import play.api.libs.json.{JsNull, JsValue}
 import play.api.{Configuration, Logger, Play}
 import uk.gov.hmrc.ngc.orchestration.connectors.GenericConnector
@@ -33,6 +29,7 @@ sealed trait Executor {
   val id: String
   val serviceName: String
   val executionType: String
+  val executorName:String
   val path: String
   val POST = "POST"
   val GET = "GET"
@@ -45,11 +42,11 @@ sealed trait Executor {
       case POST => {
         val postData = data.getOrElse(throw new Exception("No Post Data Provided!"))
         connector.doPost(postData, host, path, port, hc).map { response =>
-          Some(ServiceResponse(id, serviceName, Option(response), Option(1000)))
+          Some(ServiceResponse(id, executorName, Option(response), Option(1000)))
         }.recover {
           case ex: Exception =>
             Logger.error(s"Failed to execute service $serviceName with exception ${ex.getMessage}!")
-            Some(ServiceResponse(id, serviceName, Option(JsNull), Option(0)))
+            Some(ServiceResponse(id, executorName, Option(JsNull), Option(0)))
         }
       }
       case GET => {
@@ -74,9 +71,9 @@ sealed trait Executor {
 
 }
 
-@Singleton
-class ExecutorFactory @Inject()(@Named("executors") executors: Map[String, Executor])  {
+trait ExecutorFactory {
 
+  val executors: Map[String, Executor] = Map("version-check" -> VersionCheckExecutor())
   def buildAndExecute(orchestrationRequest: OrchestrationRequest)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Seq[ServiceResponse]] = {
 
     val futuresSeq: Seq[Future[Option[ServiceResponse]]] = orchestrationRequest.request.map {
@@ -91,7 +88,7 @@ class ExecutorFactory @Inject()(@Named("executors") executors: Map[String, Execu
   }
 
   protected def verifyServiceName(serviceName: String): Boolean = {
-    !Play.current.configuration.getConfig(s"microservice.services.$serviceName").isEmpty
+    !Play.current.configuration.getConfig(s"supported.generic.service.$serviceName").isEmpty
   }
 }
 
@@ -99,8 +96,11 @@ case class VersionCheckExecutor() extends Executor {
 
   override val id: String = "Version Check"
   override val serviceName: String = "customer-profile"
+
   override val executionType: String = POST
   override val path: String = "/profile/native-app/version-check"
 
   override def connector: GenericConnector = GenericConnector
+
+  override val executorName: String = "version-check"
 }

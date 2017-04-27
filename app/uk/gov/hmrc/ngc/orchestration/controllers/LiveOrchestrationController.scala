@@ -16,8 +16,6 @@
 
 package uk.gov.hmrc.ngc.orchestration.controllers
 
-import javax.inject.Inject
-import javax.inject.Singleton
 import play.api.http.HeaderNames
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
@@ -32,10 +30,10 @@ import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlChe
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, PreFlightRequest, SandboxOrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.AsyncMvcSession
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
+import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext
 import uk.gov.hmrc.play.http.{HeaderCarrier, NotFoundException}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 import uk.gov.hmrc.time.DateTimeUtils
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
@@ -123,7 +121,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
                 asyncWrapper(callbackWithStatus) {
                   headerCarrier =>
                     Logger.info(s"Background HC: ${hc.authorization.fold("not found"){_.value}} for Journey Id $journeyId")
-                    service.startup(json, nino, journeyId).map { response =>
+                    service.orchestrate(json, nino, journeyId).map { response =>
                       AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete))
                     }
                 }
@@ -220,8 +218,9 @@ trait ConfigLoad {
     .getOrElse(throw new Exception(s"Failed to resolve config key $pollMaxAge"))
 }
 
-@Singleton
-class LiveOrchestrationController @Inject()(val service: LiveOrchestrationService) extends NativeAppsOrchestrationController with ConfigLoad {
+
+object LiveOrchestrationController extends NativeAppsOrchestrationController with ConfigLoad {
+  override val service = LiveOrchestrationService
   override val accessControl = AccountAccessControlWithHeaderCheck
   override val accessControlOff = AccountAccessControlCheckOff
   override val app: String = "Live-Orchestration-Controller"
@@ -231,12 +230,16 @@ class LiveOrchestrationController @Inject()(val service: LiveOrchestrationServic
   override def getConfigForPollMaxAge = Play.current.configuration.getLong(pollMaxAge)
 }
 
-@Singleton
-class SandboxOrchestrationController @Inject()(val service: SandboxOrchestrationService) extends NativeAppsOrchestrationController with SandboxPoll {
+object SandboxOrchestrationController extends SandboxOrchestrationController {
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
   override val maxAgeForSuccess: Long = 3600
+}
+
+trait SandboxOrchestrationController extends NativeAppsOrchestrationController with SandboxPoll {
   override val actorName = "sandbox-async_native-apps-api-actor"
   override def id = "sandbox-async_native-apps-api-id"
+
+  override val service: OrchestrationService = SandboxOrchestrationService
   override val accessControl = AccountAccessControlWithHeaderCheck
   override val accessControlOff = AccountAccessControlCheckOff
   override val app: String = "Sandbox-Orchestration-Controller"
@@ -257,10 +260,11 @@ class SandboxOrchestrationController @Inject()(val service: SandboxOrchestration
   }
 
   // Override the poll and return static resource.
-  override def poll(nino: Nino, journeyId: Option[String] = None) = accessControlOff.validateAccept(acceptHeaderValidationRules).async {
+   override def poll(nino: Nino, journeyId: Option[String] = None) = accessControlOff.validateAccept(acceptHeaderValidationRules).async {
     implicit authenticated =>
       errorWrapper {
         withAsyncSession {
+
           Future.successful(addCacheHeader(maxAgeForSuccess, Ok(pollSandboxResult(nino).value)))
         }
       }

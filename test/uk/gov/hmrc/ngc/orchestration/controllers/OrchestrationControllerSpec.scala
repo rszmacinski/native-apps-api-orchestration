@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.ngc.orchestration.controllers
 
+import java.util.UUID
+
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
@@ -25,6 +27,7 @@ import play.api.libs.json._
 import play.api.mvc.{Request, Result}
 import play.api.test.{FakeApplication, FakeRequest}
 import play.api.test.Helpers._
+import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.ngc.orchestration.domain.{Accounts, PreFlightCheckResponse}
 import uk.gov.hmrc.play.asyncmvc.model.AsyncMvcSession
@@ -228,7 +231,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     "return 401 when the Tax Summary response NINO does match the authority NINO" in new SecurityAsyncSetup {
       val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
-      invokeStartupAndPollForResult(controller, "async_native-apps-api-id-SecurityAsyncSetup", Nino("CS700100A"),
+      invokeOrchestrateAndPollForResult(controller, "async_native-apps-api-id-SecurityAsyncSetup", Nino("CS700100A"),
         jsonMatch, 401)(versionRequest)
     }
 
@@ -236,14 +239,14 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.statusComplete).
         foldLeft(Json.obj())((b, a) => b ++ a)
 
-      invokeStartupAndPollForResult(controller, "async_native-apps-api-id-ExclusionTrue", Nino("CS700100A"),
+      invokeOrchestrateAndPollForResult(controller, "async_native-apps-api-id-ExclusionTrue", Nino("CS700100A"),
         jsonMatch)(versionRequest)
     }
 
     "return taxCreditSummary attribute when submission state is not active" in new RenewalSubmissionNotActive {
         val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummary, TestData.submissionStateOff, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
-        invokeStartupAndPollForResult(controller, "async_native-apps-api-id-RenewalSubmissionNotActive", Nino("CS700100A"),
+        invokeOrchestrateAndPollForResult(controller, "async_native-apps-api-id-RenewalSubmissionNotActive", Nino("CS700100A"),
           jsonMatch)(versionRequest)
       }
 
@@ -254,7 +257,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
       val jsonMatch = Seq(TestData.taxSummary(), TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
-      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-$testId", Nino("CS700100A"),
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$testId", Nino("CS700100A"),
         jsonMatch)(versionRequest)
     }
 
@@ -265,7 +268,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
       val jsonMatch = Seq(TestData.taxSummary(), TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
-      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-$testId", Nino("CS700100A"),
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$testId", Nino("CS700100A"),
         jsonMatch)(versionRequest)
     }
 
@@ -276,7 +279,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
       val jsonMatch = Seq(TestData.taxSummary(), TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
-      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-$testId", Nino("CS700100A"),
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$testId", Nino("CS700100A"),
         jsonMatch)(versionRequest)
 
       authConnector.grantAccountCount should be >= 2
@@ -292,7 +295,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
       val jsonMatch = Seq(TestData.taxSummary(), TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
-      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
         jsonMatch)(versionRequest)
     }
 
@@ -305,7 +308,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
       val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummary, TestData.submissionStateOff, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
-      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
         jsonMatch)(versionRequest)
     }
 
@@ -318,7 +321,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
       val jsonMatch = Seq(TestData.taxSummaryEmpty, TestData.taxCreditSummary, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
-      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
         jsonMatch, 200, """{"token":"123456"}""")(versionRequest)
 
       pushRegistrationInvokeCount shouldBe 1
@@ -338,7 +341,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
       val jsonMatch = Seq(TestData.taxSummaryEmpty, TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
-      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
         jsonMatch, 200, """{"token":"123456"}""")(versionRequest)
 
       pushRegistrationInvokeCount shouldBe 1
@@ -353,16 +356,33 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
       val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
-      invokeStartupAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
         jsonMatch, 200, "{}")(versionRequest)
 
       pushRegistrationInvokeCount shouldBe 0
     }
 
     "return throttle status response when throttle limit has been hit" in new ThrottleLimit {
-      val result = performStartup("{}", controller, controller.testSessionId, nino)
+      val result = performOrchestrate("{}", controller, controller.testSessionId, nino)
       status(result) shouldBe 429
       jsonBodyOf(result) shouldBe TestData.statusThrottle
+    }
+
+    "returns a response from a supported generic service" in new TestGenericOrchestrationController with FileResource {
+      override val test_id: String = "GenericSuccess"
+      override val statusCode: Option[Int] = Option(200)
+      override val mapping: Map[String, Boolean] = Map("/profile/native-app/version-check" -> true)
+      override val exception: Option[Exception] = None
+      override val response: JsValue = Json.parse(findResource(s"/resources/generic/version-check.json").get)
+      val request: JsValue = Json.parse(findResource(s"/resources/generic/version-check-request.json").get)
+      val fakeRequest = FakeRequest().withSession(
+        "AuthToken" -> "Some Header"
+      ).withHeaders(
+        "Accept" -> "application/vnd.hmrc.1.0+json",
+        "Authorization" -> "Some Header"
+      ).withJsonBody(request)
+
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$test_id", Nino("CS700100A"), response , 200, Json.stringify(request))(fakeRequest)
     }
 
     "Simulating concurrent http requests through the async framework " should {
@@ -403,7 +423,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
             // Execute the controller async request and poll for response.
             val task_id = s"${asyncTaskId}_${asyncTestRequest.time}"
-            invokeStartupAndPollForResult(asyncTestRequest.controller, task_id, Nino("CS700100A"),
+            invokeOrchestrateAndPollForResult(asyncTestRequest.controller, task_id, Nino("CS700100A"),
               jsonMatch, 200, "{}")(asyncTestRequest.versionRequest)
           })
         }
@@ -418,7 +438,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     }
   }
 
-  "startup live controller authentication " should {
+  "orchestrate live controller authentication " should {
 
     "return unauthorized when authority record does not contain a NINO" in new AuthWithoutNino {
       testNoNINO(await(controller.orchestrate(nino)(emptyRequestWithHeader)))
@@ -458,7 +478,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
   }
 
   val token = "Bearer 123456789"
-  def performStartup(inputBody: String, controller: NativeAppsOrchestrationController, testSessionId: String, nino: Nino) = {
+  def performOrchestrate(inputBody: String, controller: NativeAppsOrchestrationController, testSessionId: String, nino: Nino) = {
     val authToken = "AuthToken" -> token
     val authHeader = "Authorization" -> token
     val body: JsValue = Json.parse(inputBody)
@@ -474,8 +494,8 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     await(controller.orchestrate(nino).apply(requestWithSessionKeyAndId))
   }
 
-  def invokeStartupAndPollForResult(controller: NativeAppsOrchestrationController, testSessionId: String, nino: Nino, response: JsValue, resultCode: Int = 200,
-                                    inputBody: String = """{"token":"123456"}""", cacheHeader : Option[String] = Some("max-age=14400"))(implicit request: Request[_]) = {
+  def invokeOrchestrateAndPollForResult(controller: NativeAppsOrchestrationController, testSessionId: String, nino: Nino, response: JsValue, resultCode: Int = 200,
+                                        inputBody: String = """{"token":"123456"}""", cacheHeader : Option[String] = Some("max-age=14400"))(implicit request: Request[_]) = {
     val authToken = "AuthToken" -> token
     val authHeader = "Authorization" -> token
 
@@ -488,7 +508,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       )
 
     // Perform startup request.
-    val startupResponse = performStartup(inputBody, controller, testSessionId, nino)
+    val startupResponse = performOrchestrate(inputBody, controller, testSessionId, nino)
     status(startupResponse) shouldBe 200
 
     // Verify the Id within the session matches the expected test Id.

@@ -17,12 +17,11 @@
 package uk.gov.hmrc.ngc.orchestration.services
 
 import java.util.UUID
-import javax.inject.Inject
 
-import com.google.inject.Singleton
 import org.joda.time.DateTime
 import play.api.libs.json._
 import play.api.{Configuration, Logger, Play}
+import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.api.service.Auditor
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
@@ -37,7 +36,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future._
 import scala.concurrent.{ExecutionContext, Future}
 
-trait OrchestrationService {
+trait OrchestrationService extends ExecutorFactory {
 
   def genericConnector: GenericConnector = GenericConnector
 
@@ -86,11 +85,9 @@ object JourneyResponse {
 
 case class ServiceState(state:String, func: Accounts => MFARequest => Option[String] => Future[MFAAPIResponse])
 
-@Singleton
-class LiveOrchestrationService @Inject()(executorFactory: ExecutorFactory) extends OrchestrationService with Auditor with MFAIntegration {
+trait LiveOrchestrationService extends OrchestrationService with Auditor with MFAIntegration {
 
-  override val auditConnector: AuditConnector = MicroserviceAuditConnector
-  val authConnector: AuthConnector = AuthConnector
+  val authConnector: AuthConnector
 
   def preFlightCheck(preflightRequest:PreFlightRequest, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse] = {
     withAudit("preFlightCheck", Map.empty) {
@@ -121,15 +118,15 @@ class LiveOrchestrationService @Inject()(executorFactory: ExecutorFactory) exten
       val versionUpdateF: Future[Boolean] = getVersion
 
       for {
-                                                      accounts <- accountsF
-                                                      mfaOutcome <- mfaDecision(accounts)
-                                                      versionUpdate <- versionUpdateF
+        accounts <- accountsF
+        mfaOutcome <- mfaDecision(accounts)
+        versionUpdate <- versionUpdateF
       } yield {
         val mfaURI: Option[MfaURI] = mfaOutcome.fold(Option.empty[MfaURI]){ _.mfa}
         // If authority has been updated then override the original accounts response from auth.
         val returnAccounts = mfaOutcome.fold(accounts) { found =>
           if (found.authUpdated)
-          accounts.copy(routeToTwoFactor = false)
+            accounts.copy(routeToTwoFactor = false)
           else {
             accounts.copy(routeToTwoFactor = found.routeToTwoFactor)
           }
@@ -141,11 +138,11 @@ class LiveOrchestrationService @Inject()(executorFactory: ExecutorFactory) exten
   }
 
   def orchestrate(request: JsValue, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
-    val requestResult = request.\("request").validate[OrchestrationRequest]
+    val requestResult = request.validate[OrchestrationRequest]
 
     requestResult match {
       case success: JsSuccess[OrchestrationRequest] => {
-        executorFactory.buildAndExecute(success.get).map(serviceResponse => Json.obj("response" -> serviceResponse))
+        buildAndExecute(success.get).map(serviceResponse => new OrchestrationResponse(serviceResponse)).map(obj => Json.obj("OrchestrationResponse" -> obj))
       }
       case e: JsError => {
         startup(request, nino, journeyId)
@@ -168,10 +165,10 @@ class LiveOrchestrationService @Inject()(executorFactory: ExecutorFactory) exten
 
   private def buildResponse(inputRequest:JsValue, nino: String, year: Int, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext) : Future[Seq[JsObject]] = {
     val futuresSeq: Seq[Future[Option[Result]]] = Seq(
-    TaxSummary(genericConnector, journeyId),
-    TaxCreditSummary(authConnector, genericConnector, journeyId),
-    TaxCreditsSubmissionState(genericConnector, journeyId),
-    PushRegistration(genericConnector, inputRequest, journeyId)
+      TaxSummary(genericConnector, journeyId),
+      TaxCreditSummary(authConnector, genericConnector, journeyId),
+      TaxCreditsSubmissionState(genericConnector, journeyId),
+      PushRegistration(genericConnector, inputRequest, journeyId)
     ).map(item => item.execute(nino, year))
 
     for (results <- sequence(futuresSeq).map(_.flatten)) yield {
@@ -181,8 +178,7 @@ class LiveOrchestrationService @Inject()(executorFactory: ExecutorFactory) exten
 
 }
 
-@Singleton
-class SandboxOrchestrationService extends OrchestrationService {
+object SandboxOrchestrationService extends OrchestrationService with FileResource {
   private val nino = Nino("CS700100A")
   private val preFlightResponse = PreFlightCheckResponse(upgradeRequired = false, Accounts(Some(nino), None, routeToIV = false, routeToTwoFactor = false, UUID.randomUUID().toString, "credId-1234", "Individual"))
 
@@ -194,5 +190,12 @@ class SandboxOrchestrationService extends OrchestrationService {
     successful(Json.obj("status" -> Json.obj("code" -> "poll")))
   }
 
-  override def orchestrate(request: JsValue, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = ???
+  override def orchestrate(request: JsValue, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
+    startup(request, nino, journeyId)
+  }
+}
+
+object LiveOrchestrationService extends LiveOrchestrationService {
+  override val auditConnector: AuditConnector = MicroserviceAuditConnector
+  override val authConnector:AuthConnector = AuthConnector
 }

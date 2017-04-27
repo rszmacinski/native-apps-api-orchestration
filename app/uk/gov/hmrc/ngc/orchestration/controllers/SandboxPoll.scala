@@ -21,6 +21,7 @@ import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.mongo.DatabaseUpdate
 import uk.gov.hmrc.msasync.repository.{AsyncRepository, TaskCachePersist}
+import uk.gov.hmrc.ngc.orchestration.domain.OrchestrationResponse
 import uk.gov.hmrc.ngc.orchestration.services.Result
 import uk.gov.hmrc.play.asyncmvc.model.TaskCache
 
@@ -42,19 +43,24 @@ trait SandboxPoll extends FileResource {
   }
 
   def pollSandboxResult(nino:Nino): AsyncResponse =  {
-    val resource: Option[String] = findResource(s"/resources/getsummary/${nino.value}_2016.json")
-
-    val stateJson = JsObject(Seq("enableRenewals" -> JsBoolean(true)))
     val asyncStatusJson = JsObject(Seq("code" -> JsString("complete")))
+    if (nino.equals(Nino("AB123456C"))) {
+      val json = findResource(s"/resources/generic/version-check.json").get
+      AsyncResponse(Json.obj("OrchestrationResponse" -> Json.parse(json)) ++ asyncStatusJson)
+    }
+    else {
+      val resource: Option[String] = findResource(s"/resources/getsummary/${nino.value}_2016.json")
+      val stateJson = JsObject(Seq("enableRenewals" -> JsBoolean(true)))
 
-    // Build the results based on the above stubbed data.
-    val taxSummary = Result("taxSummary",Json.parse(resource.get))
-    val taxCreditSummary = Result("taxCreditSummary", Json.parse(findResource(s"/resources/taxcreditsummary/${nino.value}.json").get))
-    val state = Result("state", stateJson)
-    val asyncStatus = Result("status", asyncStatusJson)
+      // Build the results based on the above stubbed data.
+      val taxSummary = Result("taxSummary",Json.parse(resource.get))
+      val taxCreditSummary = Result("taxCreditSummary", Json.parse(findResource(s"/resources/taxcreditsummary/${nino.value}.json").get))
+      val state = Result("state", stateJson)
+      val asyncStatus = Result("status", asyncStatusJson)
 
-    val jsonResponseAttributes = Seq(taxSummary, taxCreditSummary, state, asyncStatus).map(b => Json.obj(b.id -> b.jsValue))
-    AsyncResponse(jsonResponseAttributes.foldLeft(Json.obj())((b, a) => b ++ a))
+      val jsonResponseAttributes = Seq(taxSummary, taxCreditSummary, state, asyncStatus).map(b => Json.obj(b.id -> b.jsValue))
+      AsyncResponse(jsonResponseAttributes.foldLeft(Json.obj())((b, a) => b ++ a))
+    }
   }
 
 }
