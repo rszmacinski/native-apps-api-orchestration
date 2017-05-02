@@ -73,12 +73,12 @@ sealed trait Executor {
 
 trait ExecutorFactory {
 
+  val maxServiceCalls: Int
   val executors: Map[String, Executor] = Map("version-check" -> VersionCheckExecutor())
   def buildAndExecute(orchestrationRequest: OrchestrationRequest)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Seq[ServiceResponse]] = {
-
     val futuresSeq: Seq[Future[Option[ServiceResponse]]] = orchestrationRequest.request.map {
       request => {
-        if(!verifyServiceName(request.serviceName)) throw new Exception("Service is not supported!")
+        if (!verifyServiceName(request.serviceName)) throw new Exception("Service is not supported!")
         (executors.get(request.serviceName), request.postRequest)
       }
     }.map(item => item._1.get.execute(item._2))
@@ -86,6 +86,7 @@ trait ExecutorFactory {
     // Drop off Result's which returned None.
     Future.sequence(futuresSeq).map(item => item.flatten)
   }
+
 
   protected def verifyServiceName(serviceName: String): Boolean = {
     !Play.current.configuration.getConfig(s"supported.generic.service.$serviceName").isEmpty

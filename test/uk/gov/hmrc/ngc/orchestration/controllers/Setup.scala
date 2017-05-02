@@ -447,6 +447,7 @@ class TestOrchestrationService(testGenericConnector: GenericConnector, testAuthC
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
   override val genericConnector: GenericConnector = testGenericConnector
   override val authConnector: AuthConnector = testAuthConnector
+  override val maxServiceCalls: Int = 10
 }
 
 class TestAccountAccessControlWithAccept(testAccessCheck: AccountAccessControl) extends AccountAccessControlWithHeaderCheck {

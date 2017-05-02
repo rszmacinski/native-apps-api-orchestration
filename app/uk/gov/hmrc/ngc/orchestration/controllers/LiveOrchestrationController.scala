@@ -17,7 +17,7 @@
 package uk.gov.hmrc.ngc.orchestration.controllers
 
 import play.api.http.HeaderNames
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.{JsSuccess, JsValue, Json}
 import play.api.mvc._
 import play.api.{Logger, Play, mvc}
 import uk.gov.hmrc.api.controllers.{ErrorInternalServerError, ErrorNotFound}
@@ -27,6 +27,7 @@ import uk.gov.hmrc.msasync.repository.AsyncRepository
 import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{Authority, NinoNotFoundOnAccount}
 import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
+import uk.gov.hmrc.ngc.orchestration.domain.OrchestrationRequest
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, PreFlightRequest, SandboxOrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.AsyncMvcSession
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
@@ -70,11 +71,29 @@ trait ErrorHandling {
   }
 }
 
+trait GenericServiceCheck {
+  self: NativeAppsOrchestrationController =>
+
+  def validate(func: => Future[mvc.Result])(implicit request: Request[AnyContent], hc: HeaderCarrier) = {
+    request.body.asJson.fold(throw new BadRequestException(s"Failed to build JSON payload! ${request.body}")){ json =>
+      json.validate[OrchestrationRequest] match {
+        case success: JsSuccess[OrchestrationRequest] => {
+          if(service.maxServiceCalls >= success.get.request.size){
+            func
+          }
+          else Future.failed(new BadRequestException("Max Service Calls Exceeded"))
+        }
+        case _ => func
+      }
+    }
+  }
+}
+
 trait SecurityCheck {
   def checkSecurity:Boolean
 }
 
-trait NativeAppsOrchestrationController extends AsyncController with SecurityCheck with Auditor {
+trait NativeAppsOrchestrationController extends AsyncController with SecurityCheck with Auditor with GenericServiceCheck {
   val service: OrchestrationService
   val accessControl: AccountAccessControlWithHeaderCheck
   val accessControlOff: AccountAccessControlWithHeaderCheck
@@ -110,21 +129,27 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
         // Only 1 task running per session. If session contains asynctask then request routed to poll response.
         withAsyncSession {
 
-          // This function will return an AsyncResponse. The actual Result is controlled through the callbacks. Please see poll().
-          req.body.asJson.fold(throw new BadRequestException(s"Failed to build JSON payload! ${req.body}")) { json =>
+          validate {
+            // This function will return an AsyncResponse. The actual Result is controlled through the callbacks. Please see poll().
+            req.body.asJson.fold(throw new BadRequestException(s"Failed to build JSON payload! ${req.body}")) { json =>
 
-            // Do not allow more than one task to be executing - if task is running then poll status will be returned.
-            asyncActionWrapper.async(callbackWithStatus) {
-              flag =>
+              // Do not allow more than one task to be executing - if task is running then poll status will be returned.
+              asyncActionWrapper.async(callbackWithStatus) {
+                flag =>
 
-                // Async function wrapper responsible for executing below code onto a background queue.
-                asyncWrapper(callbackWithStatus) {
-                  headerCarrier =>
-                    Logger.info(s"Background HC: ${hc.authorization.fold("not found"){_.value}} for Journey Id $journeyId")
-                    service.orchestrate(json, nino, journeyId).map { response =>
-                      AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete))
-                    }
-                }
+                  // Async function wrapper responsible for executing below code onto a background queue.
+                  asyncWrapper(callbackWithStatus) {
+                    headerCarrier =>
+                      Logger.info(s"Background HC: ${
+                        hc.authorization.fold("not found") {
+                          _.value
+                        }
+                      } for Journey Id $journeyId")
+                      service.orchestrate(json, nino, journeyId).map { response =>
+                        AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete))
+                      }
+                  }
+              }
             }
           }
         }
@@ -254,7 +279,9 @@ trait SandboxOrchestrationController extends NativeAppsOrchestrationController w
 
       errorWrapper {
         withAsyncSession {
-          service.startup(Json.parse("""{}"""), nino, journeyId).map(resp => Ok(resp))
+          validate {
+            service.startup(Json.parse("""{}"""), nino, journeyId).map(resp => Ok(resp))
+          }
         }
       }
   }

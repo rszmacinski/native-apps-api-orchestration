@@ -53,10 +53,10 @@ trait AsyncRepositorySetup {
 
 trait GenericOrchestrationSetup {
 
+  lazy val maxServiceCalls: Int = ???
   lazy val testSuccessGenericConnector = new TestGenericOrchestrationConnector(true, TestData.upgradeRequired(false))
   lazy val testVersionCheckExecutor = new TestVersionCheckExecutor(testSuccessGenericConnector)
-  lazy val testExecutorFactory = new TestExecutorFactory(Map("version-check" -> testVersionCheckExecutor))
-  lazy val testGenericOrchestrationService = new TestGenericOrchestrationService(testExecutorFactory)
+  lazy val testExecutorFactory = new TestExecutorFactory(Map("version-check" -> testVersionCheckExecutor), maxServiceCalls)
 
   val maxAgeForPollSuccess = 14400
 
@@ -72,22 +72,23 @@ trait GenericOrchestrationSetup {
 
   def testOrchestrationDecisionFailure(mapping:Map[String, Boolean], httpResponseCode:Option[Int], exception:Option[Exception], response:JsValue): (TestGenericOrchestrationService, TestServiceGenericConnector) = {
     val testConnector: TestServiceGenericConnector = testGenericConnectorFailure(mapping, httpResponseCode, exception, response)
-    (new TestGenericOrchestrationService(testExecutorFactory), testConnector)
+    (new TestGenericOrchestrationService(testExecutorFactory, maxServiceCalls), testConnector)
   }
 }
 
 trait TestGenericOrchestrationController extends GenericOrchestrationSetup with AsyncRepositorySetup {
 
   val time = System.currentTimeMillis()
-  val test_id:String
+  lazy val test_id:String = ???
   val exception:Option[Exception]
   val statusCode:Option[Int]
   val mapping:Map[String, Boolean]
   val response:JsValue
+  override lazy val maxServiceCalls: Int = 10
 
   val controller = new NativeAppsOrchestrationController {
 
-    lazy val testSessionId = "GenericSuccess"
+    lazy val testSessionId = test_id
     override def buildUniqueId() = testSessionId
 
     lazy val testServiceAndConnector: (TestGenericOrchestrationService, TestServiceGenericConnector) = testOrchestrationDecisionFailure(mapping, statusCode, exception, response)
@@ -108,7 +109,7 @@ trait TestGenericOrchestrationController extends GenericOrchestrationSetup with 
   def invokeCount = controller.testServiceAndConnector._2.count
 }
 
-class TestGenericOrchestrationService(testExecutorFactory: ExecutorFactory) extends LiveOrchestrationService {
+class TestGenericOrchestrationService(testExecutorFactory: ExecutorFactory, override val maxServiceCalls: Int) extends LiveOrchestrationService {
   override def buildAndExecute(orchestrationRequest: OrchestrationRequest)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Seq[ServiceResponse]] = testExecutorFactory.buildAndExecute(orchestrationRequest)
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
   override val authConnector: AuthConnector = AuthConnector
@@ -118,8 +119,8 @@ class TestVersionCheckExecutor(testGenericConnector: GenericConnector) extends V
   override def connector: GenericConnector = testGenericConnector
 }
 
-class TestExecutorFactory(override val executors: Map[String, Executor]) extends ExecutorFactory {
-
+class TestExecutorFactory(override val executors: Map[String, Executor], maxServiceCallsParam: Int) extends ExecutorFactory {
+  override val maxServiceCalls: Int = maxServiceCallsParam
 }
 
 class TestGenericOrchestrationConnector(success: Boolean, data: JsValue) extends GenericConnector {

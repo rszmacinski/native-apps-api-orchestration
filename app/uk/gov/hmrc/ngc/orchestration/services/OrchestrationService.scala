@@ -57,8 +57,6 @@ trait OrchestrationService extends ExecutorFactory {
   }
 }
 
-
-
 case class DeviceVersion(os : String, version : String)
 
 object DeviceVersion {
@@ -142,7 +140,8 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor with MF
 
     requestResult match {
       case success: JsSuccess[OrchestrationRequest] => {
-        buildAndExecute(success.get).map(serviceResponse => new OrchestrationResponse(serviceResponse)).map(obj => Json.obj("OrchestrationResponse" -> obj))
+        val resp = buildAndExecute(success.get).map(serviceResponse => new OrchestrationResponse(serviceResponse)).map(obj => Json.obj("OrchestrationResponse" -> obj))
+        resp
       }
       case e: JsError => {
         startup(request, nino, journeyId)
@@ -193,9 +192,12 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
   override def orchestrate(request: JsValue, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
     startup(request, nino, journeyId)
   }
+
+  override val maxServiceCalls: Int = 10
 }
 
 object LiveOrchestrationService extends LiveOrchestrationService {
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
   override val authConnector:AuthConnector = AuthConnector
+  override val maxServiceCalls: Int = Play.current.configuration.getInt("supported.generic.service").getOrElse(5)
 }
