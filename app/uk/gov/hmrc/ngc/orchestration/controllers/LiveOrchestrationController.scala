@@ -280,7 +280,7 @@ trait SandboxOrchestrationController extends NativeAppsOrchestrationController w
       errorWrapper {
         withAsyncSession {
           validate {
-            service.startup(Json.parse("""{}"""), nino, journeyId).map(resp => Ok(resp))
+            service.orchestrate(Json.parse("""{}"""), nino, journeyId).map(resp => Ok(resp))
           }
         }
       }

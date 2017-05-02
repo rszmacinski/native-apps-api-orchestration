@@ -369,7 +369,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     }
 
     "returns a response from a supported generic service" in new TestGenericOrchestrationController with FileResource {
-      override val test_id: String = "GenericSuccess"
+      override lazy val test_id: String = "GenericSuccess"
       override val statusCode: Option[Int] = Option(200)
       override val mapping: Map[String, Boolean] = Map("/profile/native-app/version-check" -> true)
       override val exception: Option[Exception] = None
@@ -464,7 +464,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     }
 
     "return startup response from a static resource" in new SandboxSuccess {
-      val result = await(controller.orchestrate(nino)(requestWithAuthSession))
+      val result = await(controller.orchestrate(nino)(requestWithAuthSession.withJsonBody(Json.parse("""{}"""))))
       status(result) shouldBe 200
       contentAsJson(result) shouldBe TestData.sandboxStartupResponse
     }
