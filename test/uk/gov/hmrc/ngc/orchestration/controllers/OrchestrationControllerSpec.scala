@@ -139,6 +139,16 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       contentAsJson(result) shouldBe Json.parse(journeyStartResponse(journeyId))
     }
 
+    "return bad request when the mfaURI is not included in the request" in new SuccessMfa {
+
+      val result = await(
+        controller.preFlightCheck(Some(
+          journeyId))(versionRequestWithInvalidMFAOutcome.withHeaders("Authorization" -> "Bearer 123456789")))
+
+      status(result) shouldBe 400
+      contentAsJson(result) shouldBe Json.parse("""{"code":"BAD_REQUEST","message":"Invalid POST request"}""")
+    }
+
     "return response with routeToTwoFactor set to false when MFA returns NOT_REQUIRED state" in new SuccessMfa {
       override lazy val mfaOutcomeStatus = "NOT_REQUIRED"
       val result = await(
