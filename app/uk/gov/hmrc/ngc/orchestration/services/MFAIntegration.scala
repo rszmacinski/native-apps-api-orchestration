@@ -27,6 +27,7 @@ import uk.gov.hmrc.play.http.logging.Authorization
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Try,Success,Failure}
 
 case class MFAAPIResponse(routeToTwoFactor:Boolean, mfa:Option[MfaURI], authUpdated:Boolean)
 
@@ -68,8 +69,14 @@ trait MFAIntegration extends OrchestrationService {
       case found@ServiceState(state, _ ) if state == searchState => found
     }
 
-    states.collectFirst(search(mfa.operation)).map(_.func(accounts)(mfa)(journeyId))
-      .getOrElse(Future.failed(new BadRequestException(s"Failed to resolve state!")))
+    def unknownState = Future.failed(new BadRequestException(s"Failed to resolve state!"))
+
+    Try(states.collectFirst(search(mfa.operation)).map(_.func(accounts)(mfa)(journeyId))
+      .getOrElse(unknownState)) match {
+      case Success(x) => x
+      case Failure(f) =>
+        Future.failed(new BadRequestException(f.getMessage))
+    }
   }
 
   def mfaStart(accounts:Accounts, journeyId:Option[String])(implicit hc:HeaderCarrier) = {
