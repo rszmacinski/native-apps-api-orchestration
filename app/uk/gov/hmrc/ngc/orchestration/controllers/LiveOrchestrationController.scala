@@ -108,23 +108,19 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       implicit val context: ExecutionContext = MdcLoggingExecutionContext.fromLoggingDetails
 
       errorWrapper {
-        // Only 1 task running per session. If session contains asynctask then request routed to poll response.
-        withAsyncSession {
 
-          // This function will return an AsyncResponse. The actual Result is controlled through the callbacks. Please see poll().
-          req.body.asJson.fold(throw new BadRequestException(s"Failed to build JSON payload! ${req.body}")) { json =>
+        req.body.asJson.fold(throw new BadRequestException(s"Failed to build JSON payload! ${req.body}")) { json =>
 
-            // Do not allow more than one task to be executing - if task is running then poll status will be returned.
-            asyncActionWrapper.async(callbackWithStatus) {
-              flag =>
+        // Do not allow more than one task to be executing - if task is running then poll status will be returned.
+        asyncActionWrapper.async(callbackWithStatus) {
+          flag =>
 
-                // Async function wrapper responsible for executing below code onto a background queue.
-                asyncWrapper(callbackWithStatus) {
-                  headerCarrier =>
-                    Logger.info(s"Background HC: ${hc.authorization.fold("not found"){_.value}} for Journey Id $journeyId")
-                    service.startup(json, nino, journeyId).map { response =>
-                      AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete))
-                    }
+            // Async function wrapper responsible for executing below code onto a background queue.
+            asyncWrapper(callbackWithStatus) {
+              headerCarrier =>
+                Logger.info(s"Background HC: ${hc.authorization.fold("not found"){_.value}} for Journey Id $journeyId")
+                service.startup(json, nino, journeyId).map { response =>
+                  AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete))
                 }
             }
           }
