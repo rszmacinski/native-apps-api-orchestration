@@ -17,9 +17,9 @@
 package uk.gov.hmrc.ngc.orchestration.controllers
 
 import play.api.http.HeaderNames
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.{JsSuccess, JsValue, Json}
 import play.api.mvc._
-import play.api.{Play, Logger, mvc}
+import play.api.{Logger, Play, mvc}
 import uk.gov.hmrc.api.controllers.{ErrorInternalServerError, ErrorNotFound}
 import uk.gov.hmrc.api.service.Auditor
 import uk.gov.hmrc.domain.Nino
@@ -27,14 +27,14 @@ import uk.gov.hmrc.msasync.repository.AsyncRepository
 import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{Authority, NinoNotFoundOnAccount}
 import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
-import uk.gov.hmrc.ngc.orchestration.services.{PreFlightRequest, LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
+import uk.gov.hmrc.ngc.orchestration.domain.OrchestrationRequest
+import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, PreFlightRequest, SandboxOrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.AsyncMvcSession
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
+import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext
 import uk.gov.hmrc.play.http.{HeaderCarrier, NotFoundException}
 import uk.gov.hmrc.play.microservice.controller.BaseController
 import uk.gov.hmrc.time.DateTimeUtils
-
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
@@ -71,11 +71,31 @@ trait ErrorHandling {
   }
 }
 
+trait GenericServiceCheck {
+  self: NativeAppsOrchestrationController =>
+
+  def validate(func: => Future[mvc.Result])(implicit request: Request[AnyContent], hc: HeaderCarrier) = {
+    request.body.asJson.fold(throw new BadRequestException(s"Failed to build JSON payload! ${request.body}")){ json =>
+      json.validate[OrchestrationRequest] match {
+        case success: JsSuccess[OrchestrationRequest] => {
+          if(service.maxServiceCalls >= success.get.request.size) {
+            func
+          }
+          else {
+            Future.failed(new BadRequestException("Max Service Calls Exceeded"))
+          }
+        }
+        case _ => func
+      }
+    }
+  }
+}
+
 trait SecurityCheck {
   def checkSecurity:Boolean
 }
 
-trait NativeAppsOrchestrationController extends AsyncController with SecurityCheck with Auditor {
+trait NativeAppsOrchestrationController extends AsyncController with SecurityCheck with Auditor with GenericServiceCheck {
   val service: OrchestrationService
   val accessControl: AccountAccessControlWithHeaderCheck
   val accessControlOff: AccountAccessControlWithHeaderCheck
@@ -101,26 +121,31 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       }
   }
 
-  def startup(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControl.validateAcceptWithAuth(acceptHeaderValidationRules, Some(nino)).async {
+  def orchestrate(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControl.validateAcceptWithAuth(acceptHeaderValidationRules, Some(nino)).async {
     implicit authenticated =>
       implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
       implicit val req = authenticated.request
       implicit val context: ExecutionContext = MdcLoggingExecutionContext.fromLoggingDetails
 
       errorWrapper {
+        validate {
+          // This function will return an AsyncResponse. The actual Result is controlled through the callbacks. Please see poll().
+          req.body.asJson.fold(throw new BadRequestException(s"Failed to build JSON payload! ${req.body}")) { json =>
+            // Do not allow more than one task to be executing - if task is running then poll status will be returned.
+            asyncActionWrapper.async(callbackWithStatus) {
+              flag =>
 
-        req.body.asJson.fold(throw new BadRequestException(s"Failed to build JSON payload! ${req.body}")) { json =>
-
-        // Do not allow more than one task to be executing - if task is running then poll status will be returned.
-        asyncActionWrapper.async(callbackWithStatus) {
-          flag =>
-
-            // Async function wrapper responsible for executing below code onto a background queue.
-            asyncWrapper(callbackWithStatus) {
-              headerCarrier =>
-                Logger.info(s"Background HC: ${hc.authorization.fold("not found"){_.value}} for Journey Id $journeyId")
-                service.startup(json, nino, journeyId).map { response =>
-                  AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete))
+                // Async function wrapper responsible for executing below code onto a background queue.
+                asyncWrapper(callbackWithStatus) {
+                  headerCarrier =>
+                    Logger.info(s"Background HC: ${
+                      hc.authorization.fold("not found") {
+                        _.value
+                      }
+                    } for Journey Id $journeyId")
+                    service.orchestrate(json, nino, journeyId).map { response =>
+                      AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete), nino)
+                    }
                 }
             }
           }
@@ -135,39 +160,39 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
     implicit authenticated =>
       withAudit("poll", Map("nino" -> nino.value)) {
         errorWrapper {
-          withAsyncSession {
-            implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
-            implicit val req = authenticated.request
-            implicit val authority = authenticated.authority
-            implicit val context: ExecutionContext = MdcLoggingExecutionContext.fromLoggingDetails
 
-            val session: Option[AsyncMvcSession] = getSessionObject
-            def withASyncSession(data:Map[String,String]): Map[String, String] = {
-              data - AsyncMVCSessionId + (AsyncMVCSessionId -> Json.stringify(Json.toJson(session)))
-            }
+          implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
+          implicit val req = authenticated.request
+          implicit val authority = authenticated.authority
+          implicit val context: ExecutionContext = MdcLoggingExecutionContext.fromLoggingDetails
 
-            // Make a request to understand the status of the async task. Please note the async library will update the session and remove the task id from session once the task completes.
-            val response = pollTask(Call("GET", "/notaskrunning"), callbackWithSuccessResponse, callbackWithStatus)
-            // Convert 303 response to 404. The 303 is generated (with URL "notaskrunning") when no task Id exists in the users session!
-            response.map(resp => {
-              resp.header.status match {
-                case 303 =>
-                  val now = DateTimeUtils.now.getMillis
-                  session match {
-                    case Some(s) =>
-                      Logger.info(s"Native - Poll Task not in cache! Client start request time ${s.start-getClientTimeout} - Client timeout ${s.start} - Current time $now. Journey Id $journeyId")
-
-                    case None =>
-                      Logger.info(s"Native - Poll - no session object found! Journey Id $journeyId")
-                  }
-                  NotFound
-
-                case _ =>
-                  // Add the task Id back into session. This allows the user to re-call the poll service once complete.
-                  resp.withSession(resp.session.copy(data = withASyncSession(resp.session.data)))
-              }
-            })
+          val session: Option[AsyncMvcSession] = getSessionObject
+          def withASyncSession(data:Map[String,String]): Map[String, String] = {
+            data - AsyncMVCSessionId + (AsyncMVCSessionId -> Json.stringify(Json.toJson(session)))
           }
+
+          // Make a request to understand the status of the async task. Please note the async library will update the session and remove the task id from session once the task completes.
+          implicit val ninoInRequest = nino
+          val response = pollTask(Call("GET", "/notaskrunning"), callbackWithSuccessResponse, callbackWithStatus)
+          // Convert 303 response to 404. The 303 is generated (with URL "notaskrunning") when no task Id exists in the users session!
+          response.map(resp => {
+            resp.header.status match {
+              case 303 =>
+                val now = DateTimeUtils.now.getMillis
+                session match {
+                  case Some(s) =>
+                    Logger.info(s"Native - Poll Task not in cache! Client start request time ${s.start-getClientTimeout} - Client timeout ${s.start} - Current time $now. Journey Id $journeyId")
+
+                  case None =>
+                    Logger.info(s"Native - Poll - no session object found! Journey Id $journeyId")
+                }
+                NotFound
+
+              case _ =>
+                // Add the task Id back into session. This allows the user to re-call the poll service once complete.
+                resp.withSession(resp.session.copy(data = withASyncSession(resp.session.data)))
+            }
+          })
         }
       }
   }
@@ -179,7 +204,9 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
   /**
    *  Callback from async framework to generate the successful Result. The off-line has task completed successfully.
    */
-  def callbackWithSuccessResponse(response:AsyncResponse)(id:String)(implicit request:Request[AnyContent], authority:Option[Authority]) : Future[Result] = {
+  val nino_compare_length = 8
+  def callbackWithSuccessResponse(response:AsyncResponse)(id:String)(implicit request:Request[AnyContent], authority:Option[Authority], requestNino:Nino) : Future[Result] = {
+
     def noAuthority = throw new Exception("Failed to resolve authority")
     def success = addCacheHeader(maxAgeForSuccess, Ok(response.value))
 
@@ -187,17 +214,21 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
     val responseNinoCreditSummary = (response.value \ "taxCreditSummary" \ "personalDetails" \ "nino").asOpt[String]
 
     val ninoCheck = (responseNinoTaxSummary, responseNinoCreditSummary) match {
-      case (None, None) => None
+      case (None, None) => Some(response.nino.value)
       case (taxSummaryNino, None) => taxSummaryNino
       case (None, taxCreditSummaryNino) => taxCreditSummaryNino
       case (taxSummaryNino, taxCreditSummaryNino) => taxSummaryNino
     }
 
     val result = if (checkSecurity && ninoCheck.isDefined) {
-      val nino = ninoCheck.getOrElse("No NINO found in response!").take(8)
-      val authNino = authority.getOrElse(noAuthority).nino.value.take(8)
+      val nino = ninoCheck.getOrElse("No NINO found in response!").take(nino_compare_length)
+      val authNino = authority.getOrElse(noAuthority).nino.value.take(nino_compare_length)
 
-      if (!nino.equals(authNino)) {
+      // Check request nino matches the authority record.
+      if (!requestNino.value.take(nino_compare_length).equals(authNino)) {
+        Logger.error(s"Native Error - Request NINO $requestNino does not match authority NINO $authNino! Response is ${response.value}")
+        Unauthorized
+      } else if (!nino.equals(authNino) || !requestNino.value.take(nino_compare_length).equals(nino)) {
         Logger.error(s"Native Error - Failed to match tax summary response NINO $ninoCheck with authority NINO $authNino! Response is ${response.value}")
         Unauthorized
       } else success
@@ -214,6 +245,7 @@ trait ConfigLoad {
   lazy val maxAgeForSuccess: Long = getConfigForPollMaxAge
     .getOrElse(throw new Exception(s"Failed to resolve config key $pollMaxAge"))
 }
+
 
 object LiveOrchestrationController extends NativeAppsOrchestrationController with ConfigLoad {
   override val service = LiveOrchestrationService
@@ -243,25 +275,28 @@ trait SandboxOrchestrationController extends NativeAppsOrchestrationController w
   override def checkSecurity: Boolean = false
 
   // Must override the startup call since live controller talks to a queue.
-  override def startup(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControlOff.validateAcceptWithAuth(acceptHeaderValidationRules, Some(nino)).async {
+  override def orchestrate(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControlOff.validateAcceptWithAuth(acceptHeaderValidationRules, Some(nino)).async {
     implicit authenticated =>
       implicit val hc = HeaderCarrier.fromHeadersAndSession(authenticated.request.headers, None)
       implicit val req = authenticated.request
 
       errorWrapper {
         withAsyncSession {
-          service.startup(Json.parse("""{}"""), nino, journeyId).map(resp => Ok(resp))
+          validate {
+            service.orchestrate(Json.parse("""{}"""), nino, journeyId).map(resp => Ok(resp))
+          }
         }
       }
   }
 
   // Override the poll and return static resource.
-  override def poll(nino: Nino, journeyId: Option[String] = None) = accessControlOff.validateAccept(acceptHeaderValidationRules).async {
-  implicit authenticated =>
-    errorWrapper {
-      withAsyncSession {
-        Future.successful(addCacheHeader(maxAgeForSuccess, Ok(pollSandboxResult(nino).value)))
+   override def poll(nino: Nino, journeyId: Option[String] = None) = accessControlOff.validateAccept(acceptHeaderValidationRules).async {
+    implicit authenticated =>
+      errorWrapper {
+        withAsyncSession {
+
+          Future.successful(addCacheHeader(maxAgeForSuccess, Ok(pollSandboxResult(nino).value)))
+        }
       }
-    }
   }
 }

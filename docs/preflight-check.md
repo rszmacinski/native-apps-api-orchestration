@@ -5,8 +5,6 @@ preflight-check
   The pre-flight service can be used to verify the MFA status of the user. An optional MFA operation can be supplied in the POST request for MFA status. Two operation options exist which are "start" and "outcome". The
   "start" operation is used to understand if MFA is in the correct state. The "outcome" operation is used to understand the outcome of a MFA web journey.
 
-  The service will return an encrypted cookie called mdtpapi which is used to drive the identity of the off-line task and must be supplied to the startup service request.
-
   
 * **URL**
 

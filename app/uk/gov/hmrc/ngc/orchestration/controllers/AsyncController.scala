@@ -20,6 +20,7 @@ import play.api.Logger
 import play.api.libs.json.{JsObject, Json}
 import play.api.mvc._
 import uk.gov.hmrc.api.controllers._
+import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.msasync.repository.AsyncRepository
 import uk.gov.hmrc.ngc.orchestration.controllers.action.AccountAccessControlWithHeaderCheck
 import uk.gov.hmrc.play.asyncmvc.async.Cache
@@ -30,7 +31,7 @@ import uk.gov.hmrc.play.microservice.controller.BaseController
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-case class AsyncResponse(value:JsObject)
+case class AsyncResponse(value:JsObject, nino:Nino)
 object AsyncResponse {
   implicit val format = Json.format[AsyncResponse]
 }

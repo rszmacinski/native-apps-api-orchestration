@@ -19,6 +19,7 @@ package uk.gov.hmrc.ngc.orchestration.services
 import java.util.UUID
 
 import org.joda.time.DateTime
+import play.api.libs.json._
 import play.api.{Configuration, Logger, Play}
 import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.api.service.Auditor
@@ -26,21 +27,24 @@ import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{AuthConnector, GenericConnector}
 import uk.gov.hmrc.ngc.orchestration.domain._
+import uk.gov.hmrc.ngc.orchestration.executors.ExecutorFactory
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.time.TaxYear
-import play.api.libs.json._
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future._
 import scala.concurrent.{ExecutionContext, Future}
 
-trait OrchestrationService {
+trait OrchestrationService extends ExecutorFactory {
 
   def genericConnector: GenericConnector = GenericConnector
 
   def preFlightCheck(preflightRequest:PreFlightRequest, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse]
 
   def startup(inputRequest:JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]
+
+  def orchestrate(request: JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]
 
   private def getServiceConfig(serviceName: String): Configuration = {
     Play.current.configuration.getConfig(s"microservice.services.$serviceName").getOrElse(throw new Exception)
@@ -52,8 +56,6 @@ trait OrchestrationService {
     getServiceConfig(serviceName).getString(property).getOrElse(throw new Exception(s"No service configuration found for $serviceName"))
   }
 }
-
-
 
 case class DeviceVersion(os : String, version : String)
 
@@ -80,7 +82,6 @@ object JourneyResponse {
 }
 
 case class ServiceState(state:String, func: Accounts => MFARequest => Option[String] => Future[MFAAPIResponse])
-
 
 trait LiveOrchestrationService extends OrchestrationService with Auditor with MFAIntegration {
 
@@ -134,6 +135,19 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor with MF
     }
   }
 
+  def orchestrate(request: JsValue, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
+    val requestResult = request.validate[OrchestrationRequest]
+
+    requestResult match {
+      case success: JsSuccess[OrchestrationRequest] =>
+        val resp = buildAndExecute(success.get).map(serviceResponse => new OrchestrationResponse(serviceResponse)).map(obj => Json.obj("OrchestrationResponse" -> obj))
+        resp
+
+      case e: JsError => startup(request, nino, journeyId)
+    }
+  }
+
+
   def startup(inputRequest:JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]= {
     withAudit("startup", Map("nino" -> nino.value)) {
       val year = TaxYear.current.currentYear
@@ -158,6 +172,7 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor with MF
       results.map(b => Json.obj(b.id -> b.jsValue))
     }
   }
+
 }
 
 object SandboxOrchestrationService extends OrchestrationService with FileResource {
@@ -172,9 +187,15 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
     successful(Json.obj("status" -> Json.obj("code" -> "poll")))
   }
 
+  override def orchestrate(request: JsValue, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
+    startup(request, nino, journeyId)
+  }
+
+  override val maxServiceCalls: Int = 10
 }
 
 object LiveOrchestrationService extends LiveOrchestrationService {
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
   override val authConnector:AuthConnector = AuthConnector
+  override val maxServiceCalls: Int = Play.current.configuration.getInt("supported.generic.service.maxNumberServices.count").getOrElse(5)
 }

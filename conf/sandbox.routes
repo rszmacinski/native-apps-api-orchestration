@@ -2,6 +2,6 @@
 
 POST       /native-app/preflight-check    uk.gov.hmrc.ngc.orchestration.controllers.SandboxOrchestrationController.preFlightCheck(journeyId: Option[String])
 
-POST       /native-app/:nino/startup      uk.gov.hmrc.ngc.orchestration.controllers.SandboxOrchestrationController.startup(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String])
+POST       /native-app/:nino/startup      uk.gov.hmrc.ngc.orchestration.controllers.SandboxOrchestrationController.orchestrate(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String])
 
 GET        /native-app/:nino/poll         uk.gov.hmrc.ngc.orchestration.controllers.SandboxOrchestrationController.poll(nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String])

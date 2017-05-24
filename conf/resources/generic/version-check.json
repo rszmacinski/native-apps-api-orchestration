@@ -1,0 +1,15 @@
+{
+  "OrchestrationResponse": {
+    "response": [
+      {
+        "serviceName": "version-check",
+        "responseData": {
+          "upgrade": false
+        }
+      }
+    ]
+  },
+  "status": {
+    "code": "complete"
+  }
+}

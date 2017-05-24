@@ -21,6 +21,9 @@ import play.api.libs.json._
 
 object TestData {
 
+  def upgradeRequired(upgradeRequired: Boolean) : JsValue = Json.parse(s"""{"upgrade": $upgradeRequired}""")
+
+  def responseTicket : JsValue = Json.parse(s"""{"responseData": {"ticket_id": 1980683879}}""")
 
   val testPreferences = Json.parse("""{"digital":true,"email":{"email":"name@email.co.uk","status":"verified"}}""")
 
@@ -38,6 +41,8 @@ object TestData {
   val lowCL = Json.parse("""{"code":"LOW_CONFIDENCE_LEVEL","message":"Confidence Level on account does not allow access"}""")
   val weakCredStrength = Json.parse("""{"code":"WEAK_CRED_STRENGTH","message":"Credential Strength on account does not allow access"}""")
 
+
+  val pollResponse = Json.obj("status" -> Json.parse("""{"code":"poll"}"""))
 
   def taxSummaryData(additional:Option[String]=None) : JsValue = Json.parse(
     s"""{
