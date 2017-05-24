@@ -1,6 +1,6 @@
-poll
+poll feedback
 ----
-  Request for result to the Startup service where a feedback request was submitted. A call to Startup must have been performed first before the poll service is invoked. The orchestrate service will return a cookie called mdtpopenapi and this cookie must be supplied to the poll service. This service should be invoked every 2-3 seconds to verify the outcome of the Startup service call which executed the async task.
+  Request for result to the feedback service request. A call to Startup must have been performed first before the poll service is invoked. The orchestrate service will return a cookie called mdtpopenapi and this cookie must be supplied to the poll service. This service should be invoked every 2-3 seconds to verify the outcome of the Startup service call which executed the async task.
   
 * **URL**
 
@@ -22,7 +22,7 @@ If the task has not completed, the below will be returned.
 }
 ```
 
-On success the below JSON will be returned. Please see notes below detailing the optional attributes that can be returned. 
+On success the below JSON will be returned.
 
 ```
 {
@@ -33,6 +33,24 @@ On success the below JSON will be returned. Please see notes below detailing the
         "responseData": {
           "ticket_id": 1234567890
         }
+      }
+    ]
+  },
+  "status": {
+    "code": "complete"
+  }
+}
+```
+
+When a failure occurs submitting the feedback, the below response will be returned. Please note the JSON attribute called "failure".
+
+```
+{
+  "OrchestrationResponse": {
+    "response": [
+      {
+        "serviceName": "deskpro-feedback",
+        "failure": true
       }
     ]
   },
