@@ -24,7 +24,7 @@ case class ServiceRequest(serviceName: String, postRequest: Option[JsValue])
 
 case class OrchestrationResponse(response: Seq[ServiceResponse])
 
-case class ServiceResponse(id: String, serviceName: String, responseData: Option[JsValue], cacheTime: Option[Long])
+case class ServiceResponse(serviceName: String, responseData: Option[JsValue], cacheTime: Option[Long], failure: Option[Boolean]=None)
 
 case class OrchestrationResult(preference: Option[JsValue], state: JsValue, taxSummary: JsValue, taxCreditSummary: Option[JsValue])
 

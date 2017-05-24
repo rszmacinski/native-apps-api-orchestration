@@ -1,0 +1,13 @@
+{
+  "request": [
+    {
+      "serviceName": "deskpro-feedback",
+      "postRequest": {"some-id":"some feedback data A"}
+    },
+    {
+      "serviceName": "deskpro-feedback",
+      "postRequest": {"some-id":"some feedback data B"}
+    }
+
+  ]
+}

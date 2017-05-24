@@ -2,10 +2,8 @@
   "OrchestrationResponse": {
     "response": [
       {
-        "serviceName": "version-check",
-        "responseData": {
-          "upgrade": false
-        }
+        "serviceName": "deskpro-feedback",
+        "failure": true
       }
     ]
   },

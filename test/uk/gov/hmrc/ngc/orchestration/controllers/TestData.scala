@@ -23,6 +23,7 @@ object TestData {
 
   def upgradeRequired(upgradeRequired: Boolean) : JsValue = Json.parse(s"""{"upgrade": $upgradeRequired}""")
 
+  def responseTicket : JsValue = Json.parse(s"""{"responseData": {"ticket_id": 1980683879}}""")
 
   val testPreferences = Json.parse("""{"digital":true,"email":{"email":"name@email.co.uk","status":"verified"}}""")
 

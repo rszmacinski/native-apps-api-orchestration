@@ -139,13 +139,11 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor with MF
     val requestResult = request.validate[OrchestrationRequest]
 
     requestResult match {
-      case success: JsSuccess[OrchestrationRequest] => {
+      case success: JsSuccess[OrchestrationRequest] =>
         val resp = buildAndExecute(success.get).map(serviceResponse => new OrchestrationResponse(serviceResponse)).map(obj => Json.obj("OrchestrationResponse" -> obj))
         resp
-      }
-      case e: JsError => {
-        startup(request, nino, journeyId)
-      }
+
+      case e: JsError => startup(request, nino, journeyId)
     }
   }
 
@@ -199,5 +197,5 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
 object LiveOrchestrationService extends LiveOrchestrationService {
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
   override val authConnector:AuthConnector = AuthConnector
-  override val maxServiceCalls: Int = Play.current.configuration.getInt("supported.generic.service").getOrElse(5)
+  override val maxServiceCalls: Int = Play.current.configuration.getInt("supported.generic.service.maxNumberServices.count").getOrElse(5)
 }

@@ -1,6 +1,6 @@
 poll
 ----
-  Request for result to the Startup service. A call to startup must have been performed first before the poll service is invoked. The startup service will return a cookie called mdtpapi and this cookie must be supplied to the poll service. This service should be invoked every 2-3 seconds to verify the outcome of the Startup service call which executed the async task.
+  Request for result to the Startup service. A call to Startup service must have been performed first before the poll service is invoked. The startup service will return a cookie called mdtpapi and this cookie must be supplied to the poll service. This service should be invoked every 2-3 seconds to verify the outcome of the Startup service call which executed the async task.
   
 * **URL**
 

@@ -50,23 +50,6 @@ class GenericOrchestrationControllerSpec extends UnitSpec with WithFakeApplicati
 
   "LiveOrchestrationController call triggering generic orchestration implementation" should {
 
-    "fail with a 400 for a request without an auth token" in new TestGenericOrchestrationController {
-
-      override lazy val test_id: String = "400Fail"
-      override val exception: Option[Exception] = None
-      override val statusCode: Option[Int] = Option(400)
-      override val mapping: Map[String, Boolean] = servicesSuccessMap
-      override val response: JsValue = JsNull
-
-      val request: JsValue = Json.parse(findResource(s"/resources/generic/version-check-request.json").get)
-
-      val fakeRequest = FakeRequest().withSession().withHeaders("Accept" -> "application/vnd.hmrc.1.0+json",
-      "Authorization" -> "Some Header").withJsonBody(request)
-
-      val result = await(controller.orchestrate(Nino("AB123456C"), Option("unique-journey-id")).apply(fakeRequest))
-      status(result) shouldBe statusCode.get
-    }
-
     "fail with a 406 for a request without an Accept header" in new TestGenericOrchestrationController {
 
       override lazy val test_id: String = "406Fail"
@@ -97,7 +80,6 @@ class GenericOrchestrationControllerSpec extends UnitSpec with WithFakeApplicati
 
       val request: JsValue = Json.parse(findResource(s"/resources/generic/version-check-request.json").get)
 
-
       val fakeRequest = FakeRequest().withSession(
         "AuthToken" -> "Some Header"
       ).withHeaders(
@@ -120,7 +102,6 @@ class GenericOrchestrationControllerSpec extends UnitSpec with WithFakeApplicati
       override lazy val maxServiceCalls: Int = 2
 
       val request: JsValue = Json.parse(findResource(s"/resources/generic/max-service-calls-exceeded-request.json").get)
-
 
       val fakeRequest = FakeRequest().withSession(
         "AuthToken" -> "Some Header"

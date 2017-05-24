@@ -21,7 +21,6 @@ import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.mongo.DatabaseUpdate
 import uk.gov.hmrc.msasync.repository.{AsyncRepository, TaskCachePersist}
-import uk.gov.hmrc.ngc.orchestration.domain.OrchestrationResponse
 import uk.gov.hmrc.ngc.orchestration.services.Result
 import uk.gov.hmrc.play.asyncmvc.model.TaskCache
 
@@ -46,11 +45,11 @@ trait SandboxPoll extends FileResource {
     val asyncStatusJson = JsObject(Seq("code" -> JsString("complete")))
     if (nino.equals(Nino("AB123456C"))) {
       val json = findResource(s"/resources/generic/version-check.json").get
-      AsyncResponse(Json.obj("OrchestrationResponse" -> Json.parse(json)) ++ asyncStatusJson)
+      AsyncResponse(Json.obj("OrchestrationResponse" -> Json.parse(json)) ++ asyncStatusJson, nino)
     }
     else {
       val resource: Option[String] = findResource(s"/resources/getsummary/${nino.value}_2016.json")
-      val stateJson = JsObject(Seq("enableRenewals" -> JsBoolean(true)))
+      val stateJson = JsObject(Seq("enableRenewals" -> JsBoolean(value = true)))
 
       // Build the results based on the above stubbed data.
       val taxSummary = Result("taxSummary",Json.parse(resource.get))
@@ -59,7 +58,7 @@ trait SandboxPoll extends FileResource {
       val asyncStatus = Result("status", asyncStatusJson)
 
       val jsonResponseAttributes = Seq(taxSummary, taxCreditSummary, state, asyncStatus).map(b => Json.obj(b.id -> b.jsValue))
-      AsyncResponse(jsonResponseAttributes.foldLeft(Json.obj())((b, a) => b ++ a))
+      AsyncResponse(jsonResponseAttributes.foldLeft(Json.obj())((b, a) => b ++ a), nino)
     }
   }
 

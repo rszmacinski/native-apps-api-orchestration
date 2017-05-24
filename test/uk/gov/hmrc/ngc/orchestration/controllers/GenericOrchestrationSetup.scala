@@ -25,7 +25,7 @@ import uk.gov.hmrc.ngc.orchestration.config.{MicroserviceAuditConnector, WSHttp}
 import uk.gov.hmrc.ngc.orchestration.connectors.{AuthConnector, GenericConnector}
 import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
 import uk.gov.hmrc.ngc.orchestration.domain.{OrchestrationRequest, ServiceResponse}
-import uk.gov.hmrc.ngc.orchestration.executors.{Executor, ExecutorFactory, VersionCheckExecutor}
+import uk.gov.hmrc.ngc.orchestration.executors.{DeskProFeedbackExecutor, Executor, ExecutorFactory, VersionCheckExecutor}
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.TaskCache
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
@@ -54,9 +54,15 @@ trait AsyncRepositorySetup {
 trait GenericOrchestrationSetup {
 
   lazy val maxServiceCalls: Int = ???
-  lazy val testSuccessGenericConnector = new TestGenericOrchestrationConnector(true, TestData.upgradeRequired(false))
+
+  lazy val testSuccessGenericConnector = new TestGenericOrchestrationConnector(Seq(GenericServiceResponse(false, TestData.upgradeRequired(false))))
   lazy val testVersionCheckExecutor = new TestVersionCheckExecutor(testSuccessGenericConnector)
-  lazy val testExecutorFactory = new TestExecutorFactory(Map("version-check" -> testVersionCheckExecutor), maxServiceCalls)
+  lazy val testFeedbackExecutor = new TestFeedbackExecutor(testSuccessGenericConnector)
+
+  lazy val testExecutorFactory = new TestExecutorFactory(Map(
+  testVersionCheckExecutor.executorName -> testVersionCheckExecutor,
+  testFeedbackExecutor.executorName -> testFeedbackExecutor
+), maxServiceCalls)
 
   val maxAgeForPollSuccess = 14400
 
@@ -82,9 +88,11 @@ trait TestGenericOrchestrationController extends GenericOrchestrationSetup with 
   lazy val test_id:String = ???
   val exception:Option[Exception]
   val statusCode:Option[Int]
-  val mapping:Map[String, Boolean]
+  val mapping:Map[String, Boolean] = Map("/profile/native-app/version-check" -> true)
   val response:JsValue
   override lazy val maxServiceCalls: Int = 10
+
+  override val servicesSuccessMap = mapping
 
   val controller = new NativeAppsOrchestrationController {
 
@@ -118,21 +126,32 @@ class TestGenericOrchestrationService(testExecutorFactory: ExecutorFactory, over
 class TestVersionCheckExecutor(testGenericConnector: GenericConnector) extends VersionCheckExecutor {
   override def connector: GenericConnector = testGenericConnector
 }
+class TestFeedbackExecutor(testGenericConnector: GenericConnector) extends DeskProFeedbackExecutor {
+  override def connector: GenericConnector = testGenericConnector
+}
 
 class TestExecutorFactory(override val executors: Map[String, Executor], maxServiceCallsParam: Int) extends ExecutorFactory {
   override val maxServiceCalls: Int = maxServiceCallsParam
 }
 
-class TestGenericOrchestrationConnector(success: Boolean, data: JsValue) extends GenericConnector {
+case class GenericServiceResponse(failure:Boolean, data: JsValue)
+
+class TestGenericOrchestrationConnector(response:Seq[GenericServiceResponse]) extends GenericConnector {
   override def http: HttpPost with HttpGet = WSHttp
+  var pos=0
 
   override def doPost(json: JsValue, host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = {
-    Future.successful(data)
+    val testResponse: GenericServiceResponse = response(pos)
+    pos = pos + 1
+
+    if (!testResponse.failure)
+      Future.successful(testResponse.data)
+    else
+      Future.failed(new Exception("Controlled explosion!"))
   }
 }
 
 class TestServiceGenericConnector(pathFailMap: Map[String, Boolean], response: JsValue, httpResponseCode:Option[Int]=None, exception:Option[Exception]=None) extends GenericConnector {
-
   var count = 0
 
   override def http: HttpPost with HttpGet = WSHttp
