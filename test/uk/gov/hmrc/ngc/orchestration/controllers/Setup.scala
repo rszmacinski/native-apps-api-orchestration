@@ -117,6 +117,10 @@ trait Setup {
   val versionRequestWithMFAOutcome = FakeRequest().withBody(versionBodyWithMfaOutcomeRequest)
     .withHeaders("Content-Type" -> "application/json", "Accept" -> "application/vnd.hmrc.1.0+json")
 
+  val versionBodyWithInvalidMfaOutcomeRequest = Json.parse("""{"os":"android", "version":"1.0.1", "mfa":{"operation":"outcome"}}""")
+  val versionRequestWithInvalidMFAOutcome = FakeRequest().withBody(versionBodyWithInvalidMfaOutcomeRequest)
+    .withHeaders("Content-Type" -> "application/json", "Accept" -> "application/vnd.hmrc.1.0+json")
+
 
   val token = Json.parse("""{"token":"123456"}""")
 

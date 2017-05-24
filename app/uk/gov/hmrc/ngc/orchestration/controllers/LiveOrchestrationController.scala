@@ -127,7 +127,6 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       implicit val req = authenticated.request
       implicit val context: ExecutionContext = MdcLoggingExecutionContext.fromLoggingDetails
 
-
       errorWrapper {
         validate {
           // This function will return an AsyncResponse. The actual Result is controlled through the callbacks. Please see poll().

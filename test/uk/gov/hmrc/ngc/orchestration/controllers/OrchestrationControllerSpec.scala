@@ -72,28 +72,26 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       val result = await(controller.preFlightCheck(None)(versionRequest.withHeaders("Authorization" -> "Bearer 123456789")))
       status(result) shouldBe 200
       contentAsJson(result) shouldBe Json.parse("""{"upgradeRequired":true,"accounts":{"nino":"CS700100A","routeToIV":false,"routeToTwoFactor":false,"journeyId":"102030394AAA"}}""")
+      result.header.headers.get("Set-Cookie").get contains ("mdtpapi=")
     }
 
     "return the Pre-Flight Check Response successfully with the supplied journeyId" in new Success {
       val result = await(controller.preFlightCheck(Some(journeyId))(versionRequest.withHeaders("Authorization" -> "Bearer 123456789")))
       status(result) shouldBe 200
       contentAsJson(result) shouldBe Json.parse(s"""{"upgradeRequired":true,"accounts":{"nino":"CS700100A","routeToIV":false,"routeToTwoFactor":false,"journeyId":"$journeyId"}}""")
+      result.header.headers.get("Set-Cookie").get contains ("mdtpapi=")
     }
 
     "return the Pre-Flight Check Response with default version when version-check fails" in new FailurePreFlight {
       val result = await(controller.preFlightCheck(None)(versionRequest.withHeaders("Authorization" -> "Bearer 123456789")))
       status(result) shouldBe 200
       contentAsJson(result) shouldBe Json.parse("""{"upgradeRequired":false,"accounts":{"nino":"CS700100A","routeToIV":false,"routeToTwoFactor":false,"journeyId":"102030394AAA"}}""")
+      result.header.headers.get("Set-Cookie").get contains ("mdtpapi=")
     }
 
     "return 401 HTTP status code when calls to retrieve the auth account fail" in new AuthWithoutTaxSummary {
       val result = await(controller.preFlightCheck(None)(versionRequest.withHeaders("Authorization" -> "Bearer 123456789")))
       status(result) shouldBe 401
-    }
-
-    "return 500 HTTP status code when the HC Authentication object is missing in the request" in new Success {
-      val result = await(controller.preFlightCheck(None)(versionRequest))
-      status(result) shouldBe 500
     }
 
   }
@@ -106,6 +104,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       status(result) shouldBe 200
 
       contentAsJson(result) shouldBe Json.parse(journeyStartResponse(journeyId))
+      result.header.headers.get("Set-Cookie").get contains ("mdtpapi")
     }
 
     "return 500 response when the MFA service fails" in new SuccessMfa {
@@ -138,6 +137,17 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       status(result) shouldBe 200
 
       contentAsJson(result) shouldBe Json.parse(journeyStartResponse(journeyId))
+      result.header.headers.get("Set-Cookie").get contains ("mdtpapi=")
+    }
+
+    "return bad request when the mfaURI is not included in the request" in new SuccessMfa {
+
+      val result = await(
+        controller.preFlightCheck(Some(
+          journeyId))(versionRequestWithInvalidMFAOutcome.withHeaders("Authorization" -> "Bearer 123456789")))
+
+      status(result) shouldBe 400
+      contentAsJson(result) shouldBe Json.parse("""{"code":"BAD_REQUEST","message":"Invalid POST request"}""")
     }
 
     "return response with routeToTwoFactor set to false when MFA returns NOT_REQUIRED state" in new SuccessMfa {
@@ -149,6 +159,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       status(result) shouldBe 200
 
       contentAsJson(result) shouldBe Json.parse(preflightResponse(journeyId))
+      result.header.headers.get("Set-Cookie").get contains ("mdtpapi=")
     }
 
     "return response with routeToTwoFactor set to false when MFA returns SKIPPED state" in new SuccessMfa {
@@ -173,6 +184,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       status(result) shouldBe 200
 
       contentAsJson(result) shouldBe Json.parse(preflightResponse(journeyId))
+      result.header.headers.get("Set-Cookie").get contains ("mdtpapi=")
     }
 
     "return 500 response when fail to update the authority record with strong cred-strength" in new SuccessMfa {
@@ -181,7 +193,6 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       val result = await(
         controller.preFlightCheck(Some(
           journeyId))(versionRequestWithMFAOutcome.withHeaders("Authorization" -> "Bearer 123456789")))
-
 
       status(result) shouldBe 500
     }
