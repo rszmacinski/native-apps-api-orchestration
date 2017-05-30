@@ -92,6 +92,27 @@ class GenericOrchestrationControllerSpec extends UnitSpec with WithFakeApplicati
       contentAsJson(result) shouldBe response
     }
 
+    "return bad request when the service name supplied is unknown" in new TestGenericOrchestrationController {
+
+      override lazy val test_id: String = "400BadRequestServiceName"
+      override val exception: Option[Exception] = None
+      override val statusCode: Option[Int] = Option(400)
+      override val mapping: Map[String, Boolean] = servicesSuccessMap
+      override val response: JsValue = JsNull
+
+      val request: JsValue = Json.parse(findResource(s"/resources/generic/invalid-service-request.json").get)
+
+      val fakeRequest = FakeRequest().withSession(
+        "AuthToken" -> "Some Header"
+      ).withHeaders(
+          "Accept" -> "application/vnd.hmrc.1.0+json",
+          "Authorization" -> "Some Header"
+        ).withJsonBody(request)
+
+      val result = await(controller.orchestrate(Nino("CS700100A"), Option("unique-journey-id")).apply(fakeRequest))
+      status(result) shouldBe statusCode.get
+    }
+
     "should fail to execute if the number of services exceeds the max service config" in new TestGenericOrchestrationController {
 
       override lazy val test_id: String = "400BadRequestMaxServiceCallsExceeded"
