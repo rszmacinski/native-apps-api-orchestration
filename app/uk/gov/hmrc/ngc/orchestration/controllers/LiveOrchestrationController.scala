@@ -28,7 +28,8 @@ import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{Authority, NinoNotFoundOnAccount}
 import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
 import uk.gov.hmrc.ngc.orchestration.domain.OrchestrationRequest
-import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, PreFlightRequest, SandboxOrchestrationService}
+import uk.gov.hmrc.ngc.orchestration.services.{OrchestrationServiceRequest, OrchestrationService}
+import uk.gov.hmrc.ngc.orchestration.services.{PreFlightRequest, LiveOrchestrationService, SandboxOrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.AsyncMvcSession
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext
@@ -74,21 +75,34 @@ trait ErrorHandling {
 trait GenericServiceCheck {
   self: NativeAppsOrchestrationController =>
 
-  def validate(func: => Future[mvc.Result])(implicit request: Request[AnyContent], hc: HeaderCarrier) = {
+  def validate(func: OrchestrationServiceRequest => Future[mvc.Result])(implicit request: Request[AnyContent], hc: HeaderCarrier) = {
+
     request.body.asJson.fold(throw new BadRequestException(s"Failed to build JSON payload! ${request.body}")){ json =>
+
       json.validate[OrchestrationRequest] match {
-        case success: JsSuccess[OrchestrationRequest] => {
-          if(service.maxServiceCalls >= success.get.request.size) {
-            func
-          }
-          else {
+        case success: JsSuccess[OrchestrationRequest] =>
+
+          val invalidService = success.get.request.map {
+            request => if (!verifyServiceName(request.serviceName)) Some(true) else None
+          }.flatten
+
+          if (invalidService.size > 0) {
+            Future.failed(new BadRequestException("Unknown service name supplied"))
+          } else if (service.maxServiceCalls >= success.get.request.size) {
+            func(OrchestrationServiceRequest(None, Some(success.get)))
+          } else {
             Future.failed(new BadRequestException("Max Service Calls Exceeded"))
           }
-        }
-        case _ => func
+
+        case _ => func(OrchestrationServiceRequest(Some(json), None))
       }
     }
   }
+
+    protected def verifyServiceName(serviceName: String): Boolean = {
+      Play.current.configuration.getBoolean(s"supported.generic.service.$serviceName.on").getOrElse(false)
+    }
+
 }
 
 trait SecurityCheck {
@@ -128,26 +142,25 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       implicit val context: ExecutionContext = MdcLoggingExecutionContext.fromLoggingDetails
 
       errorWrapper {
-        validate {
-          // This function will return an AsyncResponse. The actual Result is controlled through the callbacks. Please see poll().
-          req.body.asJson.fold(throw new BadRequestException(s"Failed to build JSON payload! ${req.body}")) { json =>
-            // Do not allow more than one task to be executing - if task is running then poll status will be returned.
-            asyncActionWrapper.async(callbackWithStatus) {
-              flag =>
+        validate { validatedRequest =>
 
-                // Async function wrapper responsible for executing below code onto a background queue.
-                asyncWrapper(callbackWithStatus) {
-                  headerCarrier =>
-                    Logger.info(s"Background HC: ${
-                      hc.authorization.fold("not found") {
-                        _.value
-                      }
-                    } for Journey Id $journeyId")
-                    service.orchestrate(json, nino, journeyId).map { response =>
-                      AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete), nino)
+          // Do not allow more than one task to be executing - if task is running then poll status will be returned.
+          asyncActionWrapper.async(callbackWithStatus) {
+            flag =>
+
+              // Async function wrapper responsible for executing below code onto a background queue.
+              asyncWrapper(callbackWithStatus) {
+                headerCarrier =>
+                  Logger.info(s"Background HC: ${
+                    hc.authorization.fold("not found") {
+                      _.value
                     }
-                }
-            }
+                  } for Journey Id $journeyId")
+
+                  service.orchestrate(validatedRequest, nino, journeyId).map { response =>
+                    AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete), nino)
+                  }
+              }
           }
         }
       }
@@ -281,10 +294,8 @@ trait SandboxOrchestrationController extends NativeAppsOrchestrationController w
       implicit val req = authenticated.request
 
       errorWrapper {
-        withAsyncSession {
-          validate {
-            service.orchestrate(Json.parse("""{}"""), nino, journeyId).map(resp => Ok(resp))
-          }
+        validate { validatedRequest =>
+          service.orchestrate(validatedRequest, nino, journeyId).map(resp => Ok(resp))
         }
       }
   }
@@ -293,10 +304,7 @@ trait SandboxOrchestrationController extends NativeAppsOrchestrationController w
    override def poll(nino: Nino, journeyId: Option[String] = None) = accessControlOff.validateAccept(acceptHeaderValidationRules).async {
     implicit authenticated =>
       errorWrapper {
-        withAsyncSession {
-
-          Future.successful(addCacheHeader(maxAgeForSuccess, Ok(pollSandboxResult(nino).value)))
-        }
+        Future.successful(addCacheHeader(maxAgeForSuccess, Ok(pollSandboxResult(nino).value)))
       }
   }
 }

@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.ngc.orchestration.controllers
 
-import play.api.Logger
 import play.api.libs.json.{JsObject, Json}
 import play.api.mvc._
 import uk.gov.hmrc.api.controllers._
@@ -62,19 +61,6 @@ trait AsyncController extends BaseController with HeaderValidator with ErrorHand
 
   val accessControl: AccountAccessControlWithHeaderCheck
   val repository:AsyncRepository
-
-  // Function wrapper verifies the session exists before proceeding to call an async function.
-  protected def withAsyncSession(func: => Future[Result])(implicit request:Request[AnyContent]) : Future[Result] = {
-    request.session.get(authToken).fold(Future.successful(BadRequest("Invalid request"))) { token => {
-        if (!hc.authorization.get.value.equals(token)) {
-          Logger.error("HC bearer token does not match session token!")
-          Future.failed(new BadRequestException("Invalid request - HC bearer token does not match session!"))
-        } else {
-          func
-        }
-      }
-    }
-  }
 
   /**
    * Remove the task from cache since sending reply to client.

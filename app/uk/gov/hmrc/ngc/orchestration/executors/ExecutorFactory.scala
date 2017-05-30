@@ -81,10 +81,7 @@ trait ExecutorFactory {
 
   def buildAndExecute(orchestrationRequest: OrchestrationRequest)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Seq[ServiceResponse]] = {
     val futuresSeq: Seq[Future[Option[ServiceResponse]]] = orchestrationRequest.request.map {
-      request => {
-        if (!verifyServiceName(request.serviceName)) throw new Exception("Service is not supported!")
-        (executors.get(request.serviceName), request.postRequest)
-      }
+      request => (executors.get(request.serviceName), request.postRequest)
     }.map(item => item._1.get.execute(item._1.get.cacheTime, item._2)
       .recover {
       case ex:Exception =>
@@ -96,9 +93,6 @@ trait ExecutorFactory {
     Future.sequence(futuresSeq).map(item => item.flatten)
   }
 
-  protected def verifyServiceName(serviceName: String): Boolean = {
-    Play.current.configuration.getBoolean(s"supported.generic.service.$serviceName.on").getOrElse(false)
-  }
 }
 
 case class VersionCheckExecutor() extends Executor {

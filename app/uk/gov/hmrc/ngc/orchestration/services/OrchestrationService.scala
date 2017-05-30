@@ -31,10 +31,11 @@ import uk.gov.hmrc.ngc.orchestration.executors.ExecutorFactory
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.time.TaxYear
-
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future._
 import scala.concurrent.{ExecutionContext, Future}
+
+
+case class OrchestrationServiceRequest(requestLegacy: Option[JsValue], services: Option[OrchestrationRequest])
 
 trait OrchestrationService extends ExecutorFactory {
 
@@ -44,7 +45,7 @@ trait OrchestrationService extends ExecutorFactory {
 
   def startup(inputRequest:JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]
 
-  def orchestrate(request: JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]
+  def orchestrate(request: OrchestrationServiceRequest, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]
 
   private def getServiceConfig(serviceName: String): Configuration = {
     Play.current.configuration.getConfig(s"microservice.services.$serviceName").getOrElse(throw new Exception)
@@ -135,18 +136,16 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor with MF
     }
   }
 
-  def orchestrate(request: JsValue, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
-    val requestResult = request.validate[OrchestrationRequest]
+  def orchestrate(request: OrchestrationServiceRequest, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
 
-    requestResult match {
-      case success: JsSuccess[OrchestrationRequest] =>
-        val resp = buildAndExecute(success.get).map(serviceResponse => new OrchestrationResponse(serviceResponse)).map(obj => Json.obj("OrchestrationResponse" -> obj))
-        resp
+    request match {
+      case OrchestrationServiceRequest(None, Some(services)) =>
+        buildAndExecute(services).map(serviceResponse => new OrchestrationResponse(serviceResponse)).map(obj => Json.obj("OrchestrationResponse" -> obj))
 
-      case e: JsError => startup(request, nino, journeyId)
+      case OrchestrationServiceRequest(Some(legacyRequest), None) =>
+        startup(legacyRequest, nino, journeyId)
     }
   }
-
 
   def startup(inputRequest:JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject]= {
     withAudit("startup", Map("nino" -> nino.value)) {
@@ -187,8 +186,9 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
     successful(Json.obj("status" -> Json.obj("code" -> "poll")))
   }
 
-  override def orchestrate(request: JsValue, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
-    startup(request, nino, journeyId)
+  override def orchestrate(request: OrchestrationServiceRequest, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
+    request.requestLegacy.fold(Future.successful(Json.obj("status" -> Json.obj("code" -> "error"))))
+    { startup(_ , nino, journeyId)}
   }
 
   override val maxServiceCalls: Int = 10
