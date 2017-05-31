@@ -22,16 +22,42 @@ feedback
 {
   "request": [
     {
-      "serviceName": "service A",
-      "postRequest": {"request":[{"serviceName":"deskpro-feedback","postRequest":{"name":"TestName","email":"testName@test.test","subject":"Test Subject","message": "Test Message","referrer":"Test Referral","javascriptEnabled":"true","userAgent":"TestAgent","authId":"Auth-ID","areaOfTax":"PAYE","sessionId":"random-session-id","userTaxIdentifiers":{"nino":"CS700100A"}, "rating": "Low"}}]}
+      "serviceName": "deskpro-feedback",
+      "postRequest": {
+        "name": "TestName",
+        "email": "testName@test.test",
+        "subject": "Test Subject",
+        "message": "Test Message",
+        "referrer": "Test Referral",
+        "javascriptEnabled": "true",
+        "userAgent": "TestAgent",
+        "authId": "Auth-ID",
+        "areaOfTax": "PAYE",
+        "sessionId": "random-session-id",
+        "userTaxIdentifiers": {
+          "nino": "CS700100A"
+        },
+        "rating": "Low"
+      }
     },
     {
-      "serviceName": "service B",
-      "postRequest": {"request":[{"serviceName":"deskpro-feedback","postRequest":{"name":"TestName","email":"testName@test.test","subject":"Test Subject","message": "Test Message","referrer":"Test Referral","javascriptEnabled":"true","userAgent":"TestAgent","authId":"Auth-ID","areaOfTax":"PAYE","sessionId":"random-session-id","userTaxIdentifiers":{"nino":"CS700100A"}, "rating": "Low"}}]}
-    },
-    {
-      "serviceName": "service C",
-      "postRequest": {"request":[{"serviceName":"deskpro-feedback","postRequest":{"name":"TestName","email":"testName@test.test","subject":"Test Subject","message": "Test Message","referrer":"Test Referral","javascriptEnabled":"true","userAgent":"TestAgent","authId":"Auth-ID","areaOfTax":"PAYE","sessionId":"random-session-id","userTaxIdentifiers":{"nino":"CS700100A"}, "rating": "Low"}}]}
+      "serviceName": "deskpro-feedback",
+      "postRequest": {
+        "name": "TestName",
+        "email": "testName@test.test",
+        "subject": "Test Subject",
+        "message": "Test Message",
+        "referrer": "Test Referral",
+        "javascriptEnabled": "true",
+        "userAgent": "TestAgent",
+        "authId": "Auth-ID",
+        "areaOfTax": "PAYE",
+        "sessionId": "random-session-id",
+        "userTaxIdentifiers": {
+          "nino": "CS700100A"
+        },
+        "rating": "Low"
+      }
     }
   ]
 }
