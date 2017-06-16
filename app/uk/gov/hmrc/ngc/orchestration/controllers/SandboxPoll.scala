@@ -48,7 +48,7 @@ trait SandboxPoll extends FileResource {
       AsyncResponse(Json.obj("OrchestrationResponse" -> Json.parse(json)) ++ asyncStatusJson, nino)
     }
     else {
-      val resource: Option[String] = findResource(s"/resources/getsummary/${nino.value}_2016.json")
+      val resource: Option[String] = findResource(s"/resources/getsummary/CS700100A_2016.json")
       val stateJson = JsObject(Seq("enableRenewals" -> JsBoolean(value = true)))
 
       // Build the results based on the above stubbed data.
