@@ -1098,17 +1098,62 @@ object TestData {
       |  },
       |  "taxCreditSummary": {
       |    "paymentSummary": {
-      |      "workingTaxCredit": {
-      |        "amount": 86.63,
-      |        "paymentDate": 1437004800000,
-      |        "paymentFrequency": "WEEKLY"
-      |      },
-      |      "childTaxCredit": {
-      |        "amount": 51.76,
-      |        "paymentDate": 1437004800000,
-      |        "paymentFrequency": "WEEKLY"
-      |      }
+      |    "workingTaxCredit": {
+      |      "payments": [
+      |        {
+      |          "amount": 45.00,
+      |          "paymentDate": "05-07-2017",
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 45.00,
+      |          "paymentDate": "12-07-2017",
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 45.00,
+      |          "paymentDate": "19-07-2017",
+      |          "oneOffPayment": false
+      |        }
+      |      ],
+      |      "frequency": "weekly"
       |    },
+      |    "childTaxCredit": {
+      |      "payments": [
+      |        {
+      |          "amount": 55.00,
+      |          "paymentDate": "05-07-2017",
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 55.00,
+      |          "paymentDate": "12-07-2017",
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 55.00,
+      |          "paymentDate": "19-07-2017",
+      |          "oneOffPayment": false
+      |        }
+      |      ],
+      |      "frequency": "weekly"
+      |    },
+      |    "paymentSummaryEnabled": true,
+      |    "totalsByDate": [
+      |      {
+      |        "amount": 100.00,
+      |        "paymentDate": "05-07-2017"
+      |      },
+      |      {
+      |        "amount": 100.00,
+      |        "paymentDate": "12-07-2017"
+      |      },
+      |      {
+      |        "amount": 100.00,
+      |        "paymentDate": "19-07-2017"
+      |      }
+      |    ]
+      |  },
       |    "personalDetails": {
       |      "forename": "Nuala",
       |      "surname": "O'Shea",
