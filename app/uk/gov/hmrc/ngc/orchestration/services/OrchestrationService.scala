@@ -177,7 +177,9 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor with MF
 
 object SandboxOrchestrationService extends OrchestrationService with FileResource {
 
-  private val ninoMapping = Map("404893573708" -> "CS700100A",
+  val defaultUser = "404893573708"
+  val defaultNino = "CS700100A"
+  private val ninoMapping = Map(defaultUser -> defaultNino,
                                 "404893573709" -> "CS700101A",
                                 "404893573710" -> "CS700102A",
                                 "404893573711" -> "CS700103A",
@@ -188,14 +190,10 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
                                 "404893573716" -> "CS700108A")
 
   def preFlightCheck(preflightRequest:PreFlightRequest, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse] = {
-    val response = hc.extraHeaders.headOption match {
-      case  Some((key: String, value: String))  => {
-        if (key equals "X-MOBILE-USER-ID") successful(buildPreFlightResponse(value))
-        else successful(buildPreFlightResponse("404893573708"))
-      }
-      case _ => successful(buildPreFlightResponse("404893573708"))
-    }
-    response
+    successful(hc.extraHeaders.find(_._1 equals "X-MOBILE-USER-ID") match {
+      case  Some((_, value))  => buildPreFlightResponse(value)
+      case _ => buildPreFlightResponse(defaultUser)
+    })
   }
 
   def startup(jsValue:JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
@@ -208,7 +206,7 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
   }
 
   private def buildPreFlightResponse(userId: String) : PreFlightCheckResponse = {
-    val nino = Nino(ninoMapping.get(userId).getOrElse("CS700100A"))
+    val nino = Nino(ninoMapping.getOrElse(userId, defaultNino))
     PreFlightCheckResponse(upgradeRequired = false, Accounts(Some(nino), None, routeToIV = false, routeToTwoFactor = false, UUID.randomUUID().toString, "credId-1234", "Individual"))
   }
 
