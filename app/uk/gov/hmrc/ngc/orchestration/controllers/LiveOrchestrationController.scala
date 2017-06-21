@@ -115,7 +115,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
   val accessControlOff: AccountAccessControlWithHeaderCheck
   val maxAgeForSuccess: Long
 
-  final def preFlightCheck(journeyId:Option[String]): Action[JsValue] = accessControlOff.validateAcceptWithAuth(acceptHeaderValidationRules, None).async(BodyParsers.parse.json) {
+  def preFlightCheck(journeyId:Option[String]): Action[JsValue] = accessControlOff.validateAcceptWithAuth(acceptHeaderValidationRules, None).async(BodyParsers.parse.json) {
     implicit request =>
       errorWrapper {
         implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
@@ -286,6 +286,25 @@ trait SandboxOrchestrationController extends NativeAppsOrchestrationController w
   override val app: String = "Sandbox-Orchestration-Controller"
   override lazy val repository:AsyncRepository = sandboxRepository
   override def checkSecurity: Boolean = false
+
+  override def preFlightCheck(journeyId:Option[String]): Action[JsValue] = accessControlOff.validateAcceptWithAuth(acceptHeaderValidationRules, None).async(BodyParsers.parse.json) {
+    implicit request =>
+      errorWrapper {
+        implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None).withExtraHeaders("X-MOBILE-USER-ID" -> request.headers.get("X-MOBILE-USER-ID").getOrElse("404893573708"))
+        implicit val context: ExecutionContext = MdcLoggingExecutionContext.fromLoggingDetails
+
+        Json.toJson(request.body).asOpt[PreFlightRequest].
+          fold(Future.successful(BadRequest("Failed to parse request!"))) { preFlightRequest =>
+            hc.authorization match {
+              case Some(auth) => service.preFlightCheck(preFlightRequest, journeyId).map(
+                response => Ok(Json.toJson(response)).withSession(authToken -> auth.value)
+              )
+
+              case _ => Future.failed(new Exception("Failed to resolve authentication from HC!"))
+            }
+          }
+      }
+  }
 
   // Must override the startup call since live controller talks to a queue.
   override def orchestrate(nino: Nino, journeyId: Option[String] = None): Action[AnyContent] = accessControlOff.validateAcceptWithAuth(acceptHeaderValidationRules, Some(nino)).async {
