@@ -174,12 +174,26 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor with MF
 
 }
 
+
 object SandboxOrchestrationService extends OrchestrationService with FileResource {
-  private val nino = Nino("CS700100A")
-  private val preFlightResponse = PreFlightCheckResponse(upgradeRequired = false, Accounts(Some(nino), None, routeToIV = false, routeToTwoFactor = false, UUID.randomUUID().toString, "credId-1234", "Individual"))
+
+  val defaultUser = "404893573708"
+  val defaultNino = "CS700100A"
+  private val ninoMapping = Map(defaultUser -> defaultNino,
+                                "404893573709" -> "CS700101A",
+                                "404893573710" -> "CS700102A",
+                                "404893573711" -> "CS700103A",
+                                "404893573712" -> "CS700104A",
+                                "404893573713" -> "CS700105A",
+                                "404893573714" -> "CS700106A",
+                                "404893573715" -> "CS700107A",
+                                "404893573716" -> "CS700108A")
 
   def preFlightCheck(preflightRequest:PreFlightRequest, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse] = {
-    successful(preFlightResponse)
+    successful(hc.extraHeaders.find(_._1 equals "X-MOBILE-USER-ID") match {
+      case  Some((_, value))  => buildPreFlightResponse(value)
+      case _ => buildPreFlightResponse(defaultUser)
+    })
   }
 
   def startup(jsValue:JsValue, nino: uk.gov.hmrc.domain.Nino, journeyId: Option[String]) (implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
@@ -189,6 +203,11 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
   override def orchestrate(request: OrchestrationServiceRequest, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
     request.requestLegacy.fold(Future.successful(Json.obj("status" -> Json.obj("code" -> "error"))))
     { startup(_ , nino, journeyId)}
+  }
+
+  private def buildPreFlightResponse(userId: String) : PreFlightCheckResponse = {
+    val nino = Nino(ninoMapping.getOrElse(userId, defaultNino))
+    PreFlightCheckResponse(upgradeRequired = false, Accounts(Some(nino), None, routeToIV = false, routeToTwoFactor = false, UUID.randomUUID().toString, "credId-1234", "Individual"))
   }
 
   override val maxServiceCalls: Int = 10
