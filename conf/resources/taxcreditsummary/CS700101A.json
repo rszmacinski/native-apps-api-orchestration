@@ -4,17 +4,17 @@
       "payments": [
         {
           "amount": 45.00,
-          "paymentDate": "05-07-2017",
+          "paymentDate": "2017-07-05",
           "oneOffPayment": false
         },
         {
           "amount": 80.00,
-          "paymentDate": "12-07-2017",
+          "paymentDate": "2017-07-12",
           "oneOffPayment": true
         },
         {
           "amount": 45.00,
-          "paymentDate": "19-07-2017",
+          "paymentDate": "2017-07-19",
           "oneOffPayment": false
         }
       ],
@@ -24,15 +24,15 @@
     "totalsByDate": [
       {
         "amount": 45.00,
-        "paymentDate": "05-07-2017"
+        "paymentDate": "2017-07-05"
       },
       {
         "amount": 45.00,
-        "paymentDate": "12-07-2017"
+        "paymentDate": "2017-07-12"
       },
       {
         "amount": 45.00,
-        "paymentDate": "19-07-2017"
+        "paymentDate": "2017-07-19"
       }
     ]
   },
