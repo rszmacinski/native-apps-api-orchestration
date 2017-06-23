@@ -1102,17 +1102,17 @@ object TestData {
       |      "payments": [
       |        {
       |          "amount": 45.00,
-      |          "paymentDate": "05-07-2017",
+      |          "paymentDate": "2017-07-05",
       |          "oneOffPayment": false
       |        },
       |        {
       |          "amount": 45.00,
-      |          "paymentDate": "12-07-2017",
+      |          "paymentDate": "2017-07-12",
       |          "oneOffPayment": false
       |        },
       |        {
       |          "amount": 45.00,
-      |          "paymentDate": "19-07-2017",
+      |          "paymentDate": "2017-07-19",
       |          "oneOffPayment": false
       |        }
       |      ],
@@ -1122,17 +1122,17 @@ object TestData {
       |      "payments": [
       |        {
       |          "amount": 55.00,
-      |          "paymentDate": "05-07-2017",
+      |          "paymentDate": "2017-07-05",
       |          "oneOffPayment": false
       |        },
       |        {
       |          "amount": 55.00,
-      |          "paymentDate": "12-07-2017",
+      |          "paymentDate": "2017-07-12",
       |          "oneOffPayment": false
       |        },
       |        {
       |          "amount": 55.00,
-      |          "paymentDate": "19-07-2017",
+      |          "paymentDate": "2017-07-19",
       |          "oneOffPayment": false
       |        }
       |      ],
@@ -1142,15 +1142,15 @@ object TestData {
       |    "totalsByDate": [
       |      {
       |        "amount": 100.00,
-      |        "paymentDate": "05-07-2017"
+      |        "paymentDate": "2017-07-05"
       |      },
       |      {
       |        "amount": 100.00,
-      |        "paymentDate": "12-07-2017"
+      |        "paymentDate": "2017-07-12"
       |      },
       |      {
       |        "amount": 100.00,
-      |        "paymentDate": "19-07-2017"
+      |        "paymentDate": "2017-07-19"
       |      }
       |    ]
       |  },
