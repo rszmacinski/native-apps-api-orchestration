@@ -1,26 +1,26 @@
 {
   "paymentSummary": {
     "workingTaxCredit": {
-      "payments": [
+      "paymentSeq": [
         {
           "amount": 45.00,
           "paymentDate": "05-07-2017",
           "oneOffPayment": false
         }
       ],
-      "frequency": "weekly"
+      "paymentFrequency": "weekly"
     },
     "childTaxCredit": {
-      "payments": [
+      "paymentSeq": [
         {
           "amount": 45.00,
           "paymentDate": "05-07-2017",
           "oneOffPayment": false
         }
       ],
-      "frequency": "weekly"
+      "paymentFrequency": "weekly"
     },
-    "paymentSummaryEnabled": false,
+    "paymentEnabled": false,
     "totalsByDate": [
       {
         "amount": 90.00,

@@ -1,7 +1,7 @@
 {
   "paymentSummary": {
     "workingTaxCredit": {
-      "payments": [
+      "paymentSeq": [
         {
           "amount": 45.00,
           "paymentDate": "05-07-2017",
@@ -20,9 +20,9 @@
 
         }
       ],
-      "frequency": "weekly"
+      "paymentFrequency": "weekly"
     },
-    "paymentSummaryEnabled": true,
+    "paymentEnabled": true,
     "totalsByDate": [
       {
         "amount": 45.00,
