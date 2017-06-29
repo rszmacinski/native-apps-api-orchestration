@@ -4,17 +4,17 @@
       "paymentSeq": [
         {
           "amount": 45.00,
-          "paymentDate": "05-07-2017",
+          "paymentDate": 1499209200000,
           "oneOffPayment": false
         },
         {
           "amount": 80.00,
-          "paymentDate": "12-07-2017",
+          "paymentDate": 1499814000000,
           "oneOffPayment": true
         },
         {
           "amount": 45.00,
-          "paymentDate": "19-07-2017",
+          "paymentDate": 1500418800000,
           "oneOffPayment": false
         }
       ],
@@ -24,17 +24,17 @@
       "paymentSeq": [
         {
           "amount": 55.00,
-          "paymentDate": "05-07-2017",
+          "paymentDate": 1499209200000,
           "oneOffPayment": false
         },
         {
           "amount": 55.00,
-          "paymentDate": "12-07-2017",
+          "paymentDate": 1499814000000,
           "oneOffPayment": false
         },
         {
           "amount": 90.00,
-          "paymentDate": "19-07-2017",
+          "paymentDate": 1500418800000,
           "oneOffPayment": true
         }
       ],
@@ -44,15 +44,15 @@
     "totalsByDate": [
       {
         "amount": 100.00,
-        "paymentDate": "05-07-2017"
+        "paymentDate": 1499209200000
       },
       {
         "amount": 135.00,
-        "paymentDate": "12-07-2017"
+        "paymentDate": 1499814000000
       },
       {
         "amount": 135.00,
-        "paymentDate": "19-07-2017"
+        "paymentDate": 1500418800000
       }
     ]
   },
