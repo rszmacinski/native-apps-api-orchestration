@@ -1098,17 +1098,62 @@ object TestData {
       |  },
       |  "taxCreditSummary": {
       |    "paymentSummary": {
-      |      "workingTaxCredit": {
-      |        "amount": 86.63,
-      |        "paymentDate": 1437004800000,
-      |        "paymentFrequency": "WEEKLY"
-      |      },
-      |      "childTaxCredit": {
-      |        "amount": 51.76,
-      |        "paymentDate": 1437004800000,
-      |        "paymentFrequency": "WEEKLY"
-      |      }
+      |    "workingTaxCredit": {
+      |      "paymentSeq": [
+      |        {
+      |          "amount": 45.00,
+      |          "paymentDate": 1499209200000,
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 45.00,
+      |          "paymentDate": 1499814000000,
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 45.00,
+      |          "paymentDate": 1500418800000,
+      |          "oneOffPayment": false
+      |        }
+      |      ],
+      |      "paymentFrequency": "weekly"
       |    },
+      |    "childTaxCredit": {
+      |      "paymentSeq": [
+      |        {
+      |          "amount": 55.00,
+      |          "paymentDate": 1499209200000,
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 55.00,
+      |          "paymentDate": 1499814000000,
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 55.00,
+      |          "paymentDate": 1500418800000,
+      |          "oneOffPayment": false
+      |        }
+      |      ],
+      |      "paymentFrequency": "weekly"
+      |    },
+      |    "paymentEnabled": true,
+      |    "totalsByDate": [
+      |      {
+      |        "amount": 100.00,
+      |        "paymentDate": 1499209200000
+      |      },
+      |      {
+      |        "amount": 100.00,
+      |        "paymentDate": 1499814000000
+      |      },
+      |      {
+      |        "amount": 100.00,
+      |        "paymentDate": 1500418800000
+      |      }
+      |    ]
+      |  },
       |    "personalDetails": {
       |      "forename": "Nuala",
       |      "surname": "O'Shea",
