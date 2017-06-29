@@ -1099,58 +1099,58 @@ object TestData {
       |  "taxCreditSummary": {
       |    "paymentSummary": {
       |    "workingTaxCredit": {
-      |      "payments": [
+      |      "paymentSeq": [
       |        {
       |          "amount": 45.00,
-      |          "paymentDate": "2017-07-05",
+      |          "paymentDate": 1499209200000,
       |          "oneOffPayment": false
       |        },
       |        {
       |          "amount": 45.00,
-      |          "paymentDate": "2017-07-12",
+      |          "paymentDate": 1499814000000,
       |          "oneOffPayment": false
       |        },
       |        {
       |          "amount": 45.00,
-      |          "paymentDate": "2017-07-19",
+      |          "paymentDate": 1500418800000,
       |          "oneOffPayment": false
       |        }
       |      ],
-      |      "frequency": "weekly"
+      |      "paymentFrequency": "weekly"
       |    },
       |    "childTaxCredit": {
-      |      "payments": [
+      |      "paymentSeq": [
       |        {
       |          "amount": 55.00,
-      |          "paymentDate": "2017-07-05",
+      |          "paymentDate": 1499209200000,
       |          "oneOffPayment": false
       |        },
       |        {
       |          "amount": 55.00,
-      |          "paymentDate": "2017-07-12",
+      |          "paymentDate": 1499814000000,
       |          "oneOffPayment": false
       |        },
       |        {
       |          "amount": 55.00,
-      |          "paymentDate": "2017-07-19",
+      |          "paymentDate": 1500418800000,
       |          "oneOffPayment": false
       |        }
       |      ],
-      |      "frequency": "weekly"
+      |      "paymentFrequency": "weekly"
       |    },
-      |    "paymentSummaryEnabled": true,
+      |    "paymentEnabled": true,
       |    "totalsByDate": [
       |      {
       |        "amount": 100.00,
-      |        "paymentDate": "2017-07-05"
+      |        "paymentDate": 1499209200000
       |      },
       |      {
       |        "amount": 100.00,
-      |        "paymentDate": "2017-07-12"
+      |        "paymentDate": 1499814000000
       |      },
       |      {
       |        "amount": 100.00,
-      |        "paymentDate": "2017-07-19"
+      |        "paymentDate": 1500418800000
       |      }
       |    ]
       |  },

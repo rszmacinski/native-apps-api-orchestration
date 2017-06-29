@@ -4,7 +4,7 @@
       "paymentSeq": [
         {
           "amount": 45.00,
-          "paymentDate": "2017-07-05",
+          "paymentDate": 1499209200000,
           "oneOffPayment": false
         }
       ],
@@ -14,7 +14,7 @@
     "totalsByDate": [
       {
         "amount": 45.00,
-        "paymentDate": "2017-07-05"
+        "paymentDate": 1499209200000
       }
     ]
   },
