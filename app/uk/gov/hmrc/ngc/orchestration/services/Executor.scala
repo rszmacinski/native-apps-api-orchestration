@@ -37,7 +37,7 @@ trait Executor {
   def buildJourneyQueryParam(journeyId: Option[String]) = journeyId.fold("")(id => s"?journeyId=$id")
 
   private def getServiceConfig: Configuration = {
-    Play.current.configuration.getConfig(s"microservice.services.$serviceName").getOrElse(throw new Exception("No micro services configured."))
+    Play.current.configuration.getConfig(s"microservice.services.$serviceName").getOrElse(throw new Exception(s"No micro services configured for $serviceName"))
   }
   private def getConfigProperty(property: String): String = {
     getServiceConfig.getString(property).getOrElse(throw new Exception(s"No service configuration found for $serviceName"))

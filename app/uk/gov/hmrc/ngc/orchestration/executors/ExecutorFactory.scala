@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.ngc.orchestration.executors
 
-import play.api.libs.json.JsValue
+import play.api.libs.json.{JsValue, Json}
 import play.api.{Configuration, Logger, Play}
 import uk.gov.hmrc.ngc.orchestration.connectors.GenericConnector
 import uk.gov.hmrc.ngc.orchestration.domain.{OrchestrationRequest, ServiceResponse}
@@ -29,7 +29,7 @@ sealed trait Executor {
   val serviceName: String
   val executionType: String
   val executorName:String
-  val path: String
+  def path(journeyId: Option[String]): String
   val POST = "POST"
   val GET = "GET"
   val cacheTime: Option[Long]
@@ -37,17 +37,17 @@ sealed trait Executor {
   lazy val host: String = getConfigProperty("host")
   lazy val port: Int = getConfigProperty("port").toInt
 
-  def execute(cacheTime: Option[Long], data: Option[JsValue])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[ServiceResponse]] = {
+  def execute(cacheTime: Option[Long], data: Option[JsValue], journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[ServiceResponse]] = {
     executionType.toUpperCase match {
       case POST =>
-        val postData = data.getOrElse(throw new Exception("No Post Data Provided!"))
-        connector.doPost(postData, host, path, port, hc).map { response =>
+        val postData = data.getOrElse(Json.parse("{}"))
+        connector.doPost(postData, host, path(journeyId), port, hc).map { response =>
 
           Some(ServiceResponse(executorName, Option(response), cacheTime))
         }
 
       case GET =>
-        connector.doGet(host, path, port, hc).map {
+        connector.doGet(host, path(journeyId), port, hc).map {
           response => {
             Some(ServiceResponse(serviceName, Option(response), cacheTime))
           }
@@ -58,7 +58,7 @@ sealed trait Executor {
   }
 
   private def getServiceConfig: Configuration = {
-    Play.current.configuration.getConfig(s"microservice.services.$serviceName").getOrElse(throw new Exception("No micro services configured."))
+    Play.current.configuration.getConfig(s"microservice.services.$serviceName").getOrElse(throw new Exception(s"No micro services configured for $serviceName."))
   }
   private def getConfigProperty(property: String): String = {
     getServiceConfig.getString(property).getOrElse(throw new Exception(s"No service configuration found for $serviceName"))
@@ -72,17 +72,19 @@ trait ExecutorFactory {
 
   val feedback = DeskProFeedbackExecutor()
   val versionCheck = VersionCheckExecutor()
+  val pushNotificationGetMessageExecutor = PushNotificationGetMessageExecutor()
 
   val maxServiceCalls: Int
 
   val executors: Map[String, Executor] = Map(
     versionCheck.executionType -> versionCheck,
-    feedback.executorName      -> feedback)
+    feedback.executorName      -> feedback,
+    pushNotificationGetMessageExecutor.executorName -> pushNotificationGetMessageExecutor)
 
-  def buildAndExecute(orchestrationRequest: OrchestrationRequest)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Seq[ServiceResponse]] = {
+  def buildAndExecute(orchestrationRequest: OrchestrationRequest, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Seq[ServiceResponse]] = {
     val futuresSeq: Seq[Future[Option[ServiceResponse]]] = orchestrationRequest.request.map {
       request => (executors.get(request.serviceName), request.postRequest)
-    }.map(item => item._1.get.execute(item._1.get.cacheTime, item._2)
+    }.map(item => item._1.get.execute(item._1.get.cacheTime, item._2, journeyId)
       .recover {
       case ex:Exception =>
         Logger.error(s"Failed to execute service ${item._1.get.executorName} with exception ${ex.getMessage}!")
@@ -100,7 +102,7 @@ case class VersionCheckExecutor() extends Executor {
 
   override val executionType: String = POST
   override val serviceName: String = "customer-profile"
-  override val path: String = "/profile/native-app/version-check"
+  override def path(journeyId: Option[String]) = "/profile/native-app/version-check"
 
   override def connector: GenericConnector = GenericConnector
 
@@ -112,9 +114,28 @@ case class DeskProFeedbackExecutor() extends Executor {
 
   override val executionType: String = POST
   override val serviceName: String = "deskpro-feedback"
-  override val path: String = "/deskpro/feedback"
+  override def path(journeyId: Option[String]) = "/deskpro/feedback"
 
   override val cacheTime: Option[Long] = None
 
   override def connector: GenericConnector = GenericConnector
+}
+
+case class PushNotificationGetMessageExecutor() extends Executor {
+  override val executorName: String = "push-notification-get-message"
+
+  override val executionType: String = POST
+  override val serviceName: String = "push-notification"
+  override def path(journeyId: Option[String]) = s"/messages/${journeyId.getOrElse("")}"
+
+  override val cacheTime: Option[Long] = None
+
+  override def connector: GenericConnector = GenericConnector
+
+  override def execute(cacheTime: Option[Long], data: Option[JsValue], journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[ServiceResponse]] = {
+    journeyId match {
+      case Some(_) => super.execute(cacheTime, data, journeyId)
+      case None => throw new Exception("No journeyId specified")
+    }
+  }
 }
