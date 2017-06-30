@@ -17,7 +17,10 @@ push-notification get-message
 {
   "request": [
     {
-      "serviceName": "push-notification-get-message"
+      "serviceName": "push-notification-get-message",
+      "postRequest": {
+        "messageId": "c59e6746-9cd8-454f-a4fd-c5dc42db7d99"      
+      }
     }
   ]
 }
