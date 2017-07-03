@@ -73,13 +73,15 @@ trait ExecutorFactory {
   val feedback = DeskProFeedbackExecutor()
   val versionCheck = VersionCheckExecutor()
   val pushNotificationGetMessageExecutor = PushNotificationGetMessageExecutor()
+  val pushNotificationGetCurrentMessagesExecutor = PushNotificationGetCurrentMessagesExecutor()
 
   val maxServiceCalls: Int
 
   val executors: Map[String, Executor] = Map(
     versionCheck.executionType -> versionCheck,
     feedback.executorName      -> feedback,
-    pushNotificationGetMessageExecutor.executorName -> pushNotificationGetMessageExecutor)
+    pushNotificationGetMessageExecutor.executorName -> pushNotificationGetMessageExecutor,
+    pushNotificationGetCurrentMessagesExecutor.executorName -> pushNotificationGetCurrentMessagesExecutor)
 
   def buildAndExecute(orchestrationRequest: OrchestrationRequest, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Seq[ServiceResponse]] = {
     val futuresSeq: Seq[Future[Option[ServiceResponse]]] = orchestrationRequest.request.map {
@@ -131,6 +133,18 @@ case class PushNotificationGetMessageExecutor() extends Executor {
 
     s"/messages/$messageId${buildJourneyQueryParam(journeyId)}"
   }
+
+  override val cacheTime: Option[Long] = None
+
+  override def connector: GenericConnector = GenericConnector
+}
+
+case class PushNotificationGetCurrentMessagesExecutor() extends Executor {
+  override val executorName: String = "push-notification-get-current-messages"
+
+  override val executionType: String = GET
+  override val serviceName: String = "push-notification"
+  override def path(journeyId: Option[String], data: Option[JsValue]) = "/messages/current"
 
   override val cacheTime: Option[Long] = None
 
