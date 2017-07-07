@@ -5,7 +5,7 @@ push-notification get-current-messages
   
 * **URL**
 
-  `/native-app/{nino}/startup?journeyId={id}`
+  `/native-app/:nino/startup?journeyId={id}`
 
 * **Method:**
   

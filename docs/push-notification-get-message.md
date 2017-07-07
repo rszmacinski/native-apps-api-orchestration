@@ -5,7 +5,7 @@ push-notification get-message
   
 * **URL**
 
-  `/native-app/{nino}/startup?journeyId={id}`
+  `/native-app/:nino/startup?journeyId={id}`
 
 * **Method:**
   
