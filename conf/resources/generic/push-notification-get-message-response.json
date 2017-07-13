@@ -4,7 +4,28 @@
       {
         "serviceName": "push-notification-get-message",
         "responseData": {
-          "ticket_id": 1980683879
+          "messages": [
+            {
+              "subject": "snarkle",
+              "body": "Foo, bar baz!",
+              "callbackUrl": "http://example.com/quux",
+              "responses": {
+                "yes": "Sure",
+                "no": "Nope"
+              },
+              "messageId": "msg-some-id"
+            },
+            {
+              "subject": "stumble",
+              "body": "Alpha, Bravo!",
+              "callbackUrl": "http://abstract.com/",
+              "responses": {
+                "yes": "Sure",
+                "no": "Nope"
+              },
+              "messageId": "msg-other-id"
+            }
+          ]
         }
       }
     ]
