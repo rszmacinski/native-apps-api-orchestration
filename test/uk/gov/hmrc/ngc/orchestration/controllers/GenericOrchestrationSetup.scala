@@ -25,7 +25,7 @@ import uk.gov.hmrc.ngc.orchestration.config.{MicroserviceAuditConnector, WSHttp}
 import uk.gov.hmrc.ngc.orchestration.connectors.{AuthConnector, GenericConnector}
 import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
 import uk.gov.hmrc.ngc.orchestration.domain.{OrchestrationRequest, ServiceResponse}
-import uk.gov.hmrc.ngc.orchestration.executors.{DeskProFeedbackExecutor, Executor, ExecutorFactory, VersionCheckExecutor}
+import uk.gov.hmrc.ngc.orchestration.executors._
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.TaskCache
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
@@ -58,10 +58,12 @@ trait GenericOrchestrationSetup {
   lazy val testSuccessGenericConnector = new TestGenericOrchestrationConnector(Seq(GenericServiceResponse(false, TestData.upgradeRequired(false))))
   lazy val testVersionCheckExecutor = new TestVersionCheckExecutor(testSuccessGenericConnector)
   lazy val testFeedbackExecutor = new TestFeedbackExecutor(testSuccessGenericConnector)
+  lazy val testPushNotificationGetMessageExecutor = new TestPushNotificationGetMessageExecutor(testSuccessGenericConnector)
 
   lazy val testExecutorFactory = new TestExecutorFactory(Map(
   testVersionCheckExecutor.executorName -> testVersionCheckExecutor,
-  testFeedbackExecutor.executorName -> testFeedbackExecutor
+  testFeedbackExecutor.executorName -> testFeedbackExecutor,
+  testPushNotificationGetMessageExecutor.executorName -> testPushNotificationGetMessageExecutor
 ), maxServiceCalls)
 
   val maxAgeForPollSuccess = 14400
@@ -127,6 +129,10 @@ class TestVersionCheckExecutor(testGenericConnector: GenericConnector) extends V
   override def connector: GenericConnector = testGenericConnector
 }
 class TestFeedbackExecutor(testGenericConnector: GenericConnector) extends DeskProFeedbackExecutor {
+  override def connector: GenericConnector = testGenericConnector
+}
+
+class TestPushNotificationGetMessageExecutor(testGenericConnector: GenericConnector) extends PushNotificationGetMessageExecutor {
   override def connector: GenericConnector = testGenericConnector
 }
 

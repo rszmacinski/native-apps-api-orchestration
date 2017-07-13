@@ -490,6 +490,27 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$test_id", Nino("CS700100A"), response , 200, Json.stringify(request))(fakeRequest)
     }
 
+    "returns a success response from push-notification-get-message generic service" in new TestGenericOrchestrationController with FileResource {
+      override lazy val test_id: String = "push-notificationSuccess"
+      override val statusCode: Option[Int] = Option(200)
+      override val mapping: Map[String, Boolean] = Map("/messages/c59e6746-9cd8-454f-a4fd-c5dc42db7d99" -> true)
+      override val exception: Option[Exception] = None
+      override lazy val response: JsValue = Json.parse(findResource(s"/resources/generic/push-notification-get-message-response.json").get)
+      override lazy val testSuccessGenericConnector = new TestGenericOrchestrationConnector(Seq(GenericServiceResponse(false,
+        (response \\ "responseData").head)))
+
+      val request: JsValue = Json.parse(findResource("/resources/generic/push-notification-get-message-request.json").get)
+      val fakeRequest = FakeRequest().withSession(
+        "AuthToken" -> "Some Header"
+      ).withHeaders(
+        "Accept" -> "application/vnd.hmrc.1.0+json",
+        "Authorization" -> "Some Header"
+      ).withJsonBody(request)
+
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$test_id", Nino("CS700100A"), response , 200, Json.stringify(request))(fakeRequest)
+    }
+
+
     "Simulating concurrent http requests through the async framework " should {
 
       "successfully process all concurrent requests and once all tasks are complete, verify the throttle value is 0" in {
@@ -583,7 +604,8 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
   }
 
   val token = "Bearer 123456789"
-  def performOrchestrate(inputBody: String, controller: NativeAppsOrchestrationController, testSessionId: String, nino: Nino) = {
+  def performOrchestrate(inputBody: String, controller: NativeAppsOrchestrationController, testSessionId: String, nino: Nino,
+                         journeyId: Option[String] = None) = {
     val authToken = "AuthToken" -> token
     val authHeader = "Authorization" -> token
     val body: JsValue = Json.parse(inputBody)
@@ -596,7 +618,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
         authHeader
       ).withJsonBody(body)
 
-    await(controller.orchestrate(nino).apply(requestWithSessionKeyAndId))
+    await(controller.orchestrate(nino, journeyId).apply(requestWithSessionKeyAndId))
   }
 
   def invokeOrchestrateAndPollForResult(controller: NativeAppsOrchestrationController, testSessionId: String, nino: Nino, response: JsValue, resultCode: Int = 200,

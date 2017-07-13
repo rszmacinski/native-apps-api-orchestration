@@ -1,0 +1,15 @@
+{
+  "OrchestrationResponse": {
+    "response": [
+      {
+        "serviceName": "push-notification-get-message",
+        "responseData": {
+          "ticket_id": 1980683879
+        }
+      }
+    ]
+  },
+  "status": {
+    "code": "complete"
+  }
+}
