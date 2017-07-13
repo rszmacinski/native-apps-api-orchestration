@@ -59,12 +59,14 @@ trait GenericOrchestrationSetup {
   lazy val testVersionCheckExecutor = new TestVersionCheckExecutor(testSuccessGenericConnector)
   lazy val testFeedbackExecutor = new TestFeedbackExecutor(testSuccessGenericConnector)
   lazy val testPushNotificationGetMessageExecutor = new TestPushNotificationGetMessageExecutor(testSuccessGenericConnector)
+  lazy val testPushNotificationGetCurrentMessageExecutor = new TestPushNotificationGetCurrentMessageExecutor(testSuccessGenericConnector)
 
   lazy val testExecutorFactory = new TestExecutorFactory(Map(
-  testVersionCheckExecutor.executorName -> testVersionCheckExecutor,
-  testFeedbackExecutor.executorName -> testFeedbackExecutor,
-  testPushNotificationGetMessageExecutor.executorName -> testPushNotificationGetMessageExecutor
-), maxServiceCalls)
+    testVersionCheckExecutor.executorName -> testVersionCheckExecutor,
+    testFeedbackExecutor.executorName -> testFeedbackExecutor,
+    testPushNotificationGetMessageExecutor.executorName -> testPushNotificationGetMessageExecutor,
+    testPushNotificationGetCurrentMessageExecutor.executorName -> testPushNotificationGetCurrentMessageExecutor
+  ), maxServiceCalls)
 
   val maxAgeForPollSuccess = 14400
 
@@ -136,6 +138,10 @@ class TestPushNotificationGetMessageExecutor(testGenericConnector: GenericConnec
   override def connector: GenericConnector = testGenericConnector
 }
 
+class TestPushNotificationGetCurrentMessageExecutor(testGenericConnector: GenericConnector) extends PushNotificationGetCurrentMessagesExecutor {
+  override def connector: GenericConnector = testGenericConnector
+}
+
 class TestExecutorFactory(override val executors: Map[String, Executor], maxServiceCallsParam: Int) extends ExecutorFactory {
   override val maxServiceCalls: Int = maxServiceCallsParam
 }
@@ -146,7 +152,11 @@ class TestGenericOrchestrationConnector(response:Seq[GenericServiceResponse]) ex
   override def http: HttpPost with HttpGet = WSHttp
   var pos=0
 
-  override def doPost(json: JsValue, host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = {
+  override def doPost(json: JsValue, host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = respond()
+
+  override def doGet(host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = respond()
+
+  def respond(): Future[JsValue] = {
     val testResponse: GenericServiceResponse = response(pos)
     pos = pos + 1
 

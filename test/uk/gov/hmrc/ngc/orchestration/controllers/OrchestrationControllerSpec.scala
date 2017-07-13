@@ -491,7 +491,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     }
 
     "returns a success response from push-notification-get-message generic service" in new TestGenericOrchestrationController with FileResource {
-      override lazy val test_id: String = "push-notificationSuccess"
+      override lazy val test_id: String = "push-push-notification-get-message-success"
       override val statusCode: Option[Int] = Option(200)
       override val mapping: Map[String, Boolean] = Map("/messages/c59e6746-9cd8-454f-a4fd-c5dc42db7d99" -> true)
       override val exception: Option[Exception] = None
@@ -510,6 +510,25 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$test_id", Nino("CS700100A"), response , 200, Json.stringify(request))(fakeRequest)
     }
 
+    "returns a success response from push-notification-get-current-messages generic service" in new TestGenericOrchestrationController with FileResource {
+      override lazy val test_id: String = "push-notification-get-current-messages-success"
+      override val statusCode: Option[Int] = Option(200)
+      override val mapping: Map[String, Boolean] = Map("/messages/current" -> true)
+      override val exception: Option[Exception] = None
+      override lazy val response: JsValue = Json.parse(findResource(s"/resources/generic/push-notification-get-current-message-response.json").get)
+      override lazy val testSuccessGenericConnector = new TestGenericOrchestrationConnector(Seq(GenericServiceResponse(false,
+        (response \\ "responseData").head)))
+
+      val request: JsValue = Json.parse(findResource("/resources/generic/push-notification-get-current-message-request.json").get)
+      val fakeRequest = FakeRequest().withSession(
+        "AuthToken" -> "Some Header"
+      ).withHeaders(
+        "Accept" -> "application/vnd.hmrc.1.0+json",
+        "Authorization" -> "Some Header"
+      ).withJsonBody(request)
+
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$test_id", Nino("CS700100A"), response , 200, Json.stringify(request))(fakeRequest)
+    }
 
     "Simulating concurrent http requests through the async framework " should {
 

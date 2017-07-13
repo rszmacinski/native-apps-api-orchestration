@@ -49,7 +49,7 @@ sealed trait Executor {
       case GET =>
         connector.doGet(host, path(journeyId, None), port, hc).map {
           response => {
-            Some(ServiceResponse(serviceName, Option(response), cacheTime))
+            Some(ServiceResponse(executorName, Option(response), cacheTime))
           }
         }
 
