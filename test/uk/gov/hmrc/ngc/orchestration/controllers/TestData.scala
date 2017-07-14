@@ -619,7 +619,7 @@ object TestData {
 
   val sandboxStartupResponse = Json.obj("status" -> Json.parse("""{"code":"poll"}"""))
 
-  val sandboxPollResponse = Json.parse(
+  val sandboxPollResponse =
     """
       |{
       |  "taxSummary": {
@@ -1101,18 +1101,18 @@ object TestData {
       |    "workingTaxCredit": {
       |      "paymentSeq": [
       |        {
-      |          "amount": 45.00,
-      |          "paymentDate": 1499209200000,
+      |          "amount": 160.00,
+      |          "paymentDate": date1,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 45.00,
-      |          "paymentDate": 1499814000000,
+      |          "amount": 160.00,
+      |          "paymentDate": date2,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 45.00,
-      |          "paymentDate": 1500418800000,
+      |          "amount": 160.00,
+      |          "paymentDate": date3,
       |          "oneOffPayment": false
       |        }
       |      ],
@@ -1121,18 +1121,18 @@ object TestData {
       |    "childTaxCredit": {
       |      "paymentSeq": [
       |        {
-      |          "amount": 55.00,
-      |          "paymentDate": 1499209200000,
+      |          "amount": 225.00,
+      |          "paymentDate": date1,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 55.00,
-      |          "paymentDate": 1499814000000,
+      |          "amount": 225.00,
+      |          "paymentDate": date2,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 55.00,
-      |          "paymentDate": 1500418800000,
+      |          "amount": 225.00,
+      |          "paymentDate": date3,
       |          "oneOffPayment": false
       |        }
       |      ],
@@ -1141,16 +1141,16 @@ object TestData {
       |    "paymentEnabled": true,
       |    "totalsByDate": [
       |      {
-      |        "amount": 100.00,
-      |        "paymentDate": 1499209200000
+      |        "amount": 385.00,
+      |        "paymentDate": date1
       |      },
       |      {
-      |        "amount": 100.00,
-      |        "paymentDate": 1499814000000
+      |        "amount": 385.00,
+      |        "paymentDate": date2
       |      },
       |      {
-      |        "amount": 100.00,
-      |        "paymentDate": 1500418800000
+      |        "amount": 385.00,
+      |        "paymentDate": date3
       |      }
       |    ]
       |  },
@@ -1215,6 +1215,6 @@ object TestData {
       |    "code": "complete"
       |  }
       |}
-    """.stripMargin)
+    """.stripMargin
 
 }
