@@ -40,8 +40,6 @@ object OrchestrationRequest {
       (__ \ 'eventRequest).readNullable[Seq[ExecutorRequest]]
     )(OrchestrationRequest.apply _)
 
-//  implicit val format = Json.format[OrchestrationRequest]
-
   private def onlyFields(allowed: String*): Reads[JsObject] =
     Reads.verifying(json => {!json.keys.isEmpty && json.keys.forall(allowed.contains)})
 
