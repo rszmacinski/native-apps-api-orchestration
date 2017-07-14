@@ -1,12 +1,10 @@
 {
   "OrchestrationResponse": {
-    "response": [
+    "serviceResponse": [
       {
-        "serviceName": "deskpro-feedback",
+        "name": "deskpro-feedback",
         "responseData": {
-          "responseData": {
-            "ticket_id": 1980683879
-          }
+          "ticket_id": 1980683879
         }
       }
     ]

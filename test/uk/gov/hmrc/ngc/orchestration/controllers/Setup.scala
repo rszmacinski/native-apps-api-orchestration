@@ -29,7 +29,7 @@ import uk.gov.hmrc.msasync.repository.{AsyncRepository, TaskCachePersist}
 import uk.gov.hmrc.ngc.orchestration.config.{MicroserviceAuditConnector, WSHttp}
 import uk.gov.hmrc.ngc.orchestration.connectors._
 import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControl, AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
-import uk.gov.hmrc.ngc.orchestration.domain.{Accounts, OrchestrationRequest, ServiceResponse}
+import uk.gov.hmrc.ngc.orchestration.domain.{Accounts, OrchestrationRequest}
 import uk.gov.hmrc.ngc.orchestration.executors.{Executor, ExecutorFactory, VersionCheckExecutor}
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService, SandboxOrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.TaskCache
@@ -452,6 +452,7 @@ class TestOrchestrationService(testGenericConnector: GenericConnector, testAuthC
   override val genericConnector: GenericConnector = testGenericConnector
   override val authConnector: AuthConnector = testAuthConnector
   override val maxServiceCalls: Int = 10
+  override val maxEventCalls: Int = 10
 }
 
 class TestAccountAccessControlWithAccept(testAccessCheck: AccountAccessControl) extends AccountAccessControlWithHeaderCheck {

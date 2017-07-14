@@ -1,8 +1,8 @@
 {
   "OrchestrationResponse": {
-    "response": [
+    "serviceResponse": [
       {
-        "serviceName": "push-notification-get-message",
+        "name": "push-notification-get-message",
         "responseData": {
           "id":"msg-some-id",
           "subject": "Weather",

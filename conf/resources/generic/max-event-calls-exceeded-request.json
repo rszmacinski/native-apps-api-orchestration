@@ -1,0 +1,25 @@
+{
+  "eventRequest": [
+    {
+      "name": "ngc-audit-event",
+      "data": {
+        "nino": "blah-blah",
+        "auditType": "blah"
+      }
+    },
+    {
+      "name": "ngc-audit-event",
+      "data": {
+        "nino": "blah-blah",
+        "auditType": "blah"
+      }
+    },
+    {
+      "name": "ngc-audit-event",
+      "data": {
+        "nino": "blah-blah",
+        "auditType": "blah"
+      }
+    }
+  ]
+}

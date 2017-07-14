@@ -1,0 +1,11 @@
+{
+  "eventRequest": [
+    {
+      "name": "ngc-audit-event",
+      "data": {
+        "nino":"CS700100A",
+        "auditType":"TCSPayments"
+      }
+    }
+  ]
+}

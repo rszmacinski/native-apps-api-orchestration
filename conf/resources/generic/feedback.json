@@ -1,6 +1,6 @@
 {
   "id": "DeskPro Feedback Executor",
-  "serviceName": "feedback",
+  "name": "feedback",
   "responseData": {
     "ticket_id": 1980683879
   },

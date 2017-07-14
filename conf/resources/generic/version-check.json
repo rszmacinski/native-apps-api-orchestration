@@ -1,8 +1,8 @@
 {
   "OrchestrationResponse": {
-    "response": [
+    "serviceResponse": [
       {
-        "serviceName": "version-check",
+        "name": "version-check",
         "responseData": {
           "upgrade": false
         }

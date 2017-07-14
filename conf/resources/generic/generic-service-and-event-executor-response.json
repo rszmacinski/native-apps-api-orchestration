@@ -3,13 +3,15 @@
     "serviceResponse": [
       {
         "name": "deskpro-feedback",
-        "failure": true
-      },
-      {
-        "name": "deskpro-feedback",
         "responseData": {
           "ticket_id": 1980683879
         }
+      }
+    ],
+    "eventResponse": [
+      {
+        "name": "ngc-audit-event",
+        "failure": false
       }
     ]
   },

@@ -27,9 +27,9 @@ import uk.gov.hmrc.msasync.repository.AsyncRepository
 import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
 import uk.gov.hmrc.ngc.orchestration.connectors.{Authority, NinoNotFoundOnAccount}
 import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
-import uk.gov.hmrc.ngc.orchestration.domain.OrchestrationRequest
-import uk.gov.hmrc.ngc.orchestration.services.{OrchestrationServiceRequest, OrchestrationService}
-import uk.gov.hmrc.ngc.orchestration.services.{PreFlightRequest, LiveOrchestrationService, SandboxOrchestrationService}
+import uk.gov.hmrc.ngc.orchestration.domain.{ExecutorRequest, OrchestrationRequest}
+import uk.gov.hmrc.ngc.orchestration.services.{OrchestrationService, OrchestrationServiceRequest}
+import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, PreFlightRequest, SandboxOrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.AsyncMvcSession
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext
@@ -80,28 +80,46 @@ trait GenericServiceCheck {
     request.body.asJson.fold(throw new BadRequestException(s"Failed to build JSON payload! ${request.body}")){ json =>
 
       json.validate[OrchestrationRequest] match {
-        case success: JsSuccess[OrchestrationRequest] =>
-
-          val invalidService = success.get.request.map {
-            request => if (!verifyServiceName(request.serviceName)) Some(true) else None
-          }.flatten
-
-          if (invalidService.size > 0) {
-            Future.failed(new BadRequestException("Unknown service name supplied"))
-          } else if (service.maxServiceCalls >= success.get.request.size) {
-            func(OrchestrationServiceRequest(None, Some(success.get)))
+        case success: JsSuccess[OrchestrationRequest] => {
+          val request = success.get
+          if (invalid(verifyServiceName, request.serviceRequest).size > 0 || invalid(verifyEventName, request.eventRequest).size > 0) {
+            Future.failed(new BadRequestException("Request not supported"))
+          } else if (maxCallsExceeded(service.maxServiceCalls, request.serviceRequest) || maxCallsExceeded(service.maxEventCalls, request.eventRequest)) {
+            Future.failed(new BadRequestException("Max Calls Exceeded"))
+          } else if (!request.serviceRequest.isDefined && !request.eventRequest.isDefined) {
+            Future.failed(new BadRequestException("Nothing to execute"))
           } else {
-            Future.failed(new BadRequestException("Max Service Calls Exceeded"))
+            func(OrchestrationServiceRequest(None, Some(success.get)))
           }
-
+        }
         case _ => func(OrchestrationServiceRequest(Some(json), None))
       }
     }
   }
 
-    protected def verifyServiceName(serviceName: String): Boolean = {
-      Play.current.configuration.getBoolean(s"supported.generic.service.$serviceName.on").getOrElse(false)
+  private def maxCallsExceeded(max: Int , request: Option[Seq[ExecutorRequest]]): Boolean = {
+    if(request.isDefined){
+      max < request.get.size
     }
+    else false
+  }
+
+  private def invalid(verify: => String => Boolean, request: Option[Seq[ExecutorRequest]]): Seq[Boolean] = {
+    if(request.isDefined){
+      request.get.map {
+        req => if (!verify(req.name)) Some(true) else None
+      }.flatten
+    }
+    else Seq.empty
+  }
+
+  protected def verifyServiceName(serviceName: String): Boolean = {
+    Play.current.configuration.getBoolean(s"supported.generic.service.$serviceName.on").getOrElse(false)
+  }
+
+  protected def verifyEventName(eventName: String): Boolean = {
+    Play.current.configuration.getBoolean(s"supported.generic.event.$eventName.on").getOrElse(false)
+  }
 
 }
 
@@ -120,7 +138,6 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       errorWrapper {
         implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
         implicit val context: ExecutionContext = MdcLoggingExecutionContext.fromLoggingDetails
-
         Json.toJson(request.body).asOpt[PreFlightRequest].
           fold(Future.successful(BadRequest("Failed to parse request!"))) { preFlightRequest =>
 

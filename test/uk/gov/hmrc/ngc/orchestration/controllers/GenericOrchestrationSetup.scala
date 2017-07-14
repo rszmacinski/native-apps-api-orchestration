@@ -24,11 +24,13 @@ import uk.gov.hmrc.msasync.repository.{AsyncRepository, TaskCachePersist}
 import uk.gov.hmrc.ngc.orchestration.config.{MicroserviceAuditConnector, WSHttp}
 import uk.gov.hmrc.ngc.orchestration.connectors.{AuthConnector, GenericConnector}
 import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
-import uk.gov.hmrc.ngc.orchestration.domain.{OrchestrationRequest, ServiceResponse}
+import uk.gov.hmrc.ngc.orchestration.domain.{OrchestrationRequest, OrchestrationResponse}
 import uk.gov.hmrc.ngc.orchestration.executors._
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.TaskCache
-import uk.gov.hmrc.play.audit.http.connector.AuditConnector
+import uk.gov.hmrc.play.audit.http.config.AuditingConfig
+import uk.gov.hmrc.play.audit.http.connector.{AuditConnector, AuditResult}
+import uk.gov.hmrc.play.audit.model.{Audit, AuditEvent}
 import uk.gov.hmrc.play.http.{HeaderCarrier, HttpGet, HttpPost}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -54,19 +56,24 @@ trait AsyncRepositorySetup {
 trait GenericOrchestrationSetup {
 
   lazy val maxServiceCalls: Int = ???
+  lazy val maxEventCalls: Int = ???
 
   lazy val testSuccessGenericConnector = new TestGenericOrchestrationConnector(Seq(GenericServiceResponse(false, TestData.upgradeRequired(false))))
   lazy val testVersionCheckExecutor = new TestVersionCheckExecutor(testSuccessGenericConnector)
   lazy val testFeedbackExecutor = new TestFeedbackExecutor(testSuccessGenericConnector)
   lazy val testPushNotificationGetMessageExecutor = new TestPushNotificationGetMessageExecutor(testSuccessGenericConnector)
   lazy val testPushNotificationGetCurrentMessageExecutor = new TestPushNotificationGetCurrentMessageExecutor(testSuccessGenericConnector)
+  lazy val testAuditConnector = new TestAuditConnector()
+  lazy val testAuditEventExecutor = new TestAuditEventExecutor(new Audit("test-app", testAuditConnector))
 
-  lazy val testExecutorFactory = new TestExecutorFactory(Map(
-    testVersionCheckExecutor.executorName -> testVersionCheckExecutor,
-    testFeedbackExecutor.executorName -> testFeedbackExecutor,
-    testPushNotificationGetMessageExecutor.executorName -> testPushNotificationGetMessageExecutor,
-    testPushNotificationGetCurrentMessageExecutor.executorName -> testPushNotificationGetCurrentMessageExecutor
-  ), maxServiceCalls)
+
+  lazy val testEventExecutors = Map(testAuditEventExecutor.executorName -> testAuditEventExecutor)
+  lazy val testServiceExecutors = Map(testVersionCheckExecutor.executorName -> testVersionCheckExecutor,
+                                      testFeedbackExecutor.executorName -> testFeedbackExecutor,
+                                      testPushNotificationGetMessageExecutor.executorName -> testPushNotificationGetMessageExecutor,
+                                      testPushNotificationGetCurrentMessageExecutor.executorName -> testPushNotificationGetCurrentMessageExecutor)
+
+  lazy val testExecutorFactory = new TestExecutorFactory(testServiceExecutors,testEventExecutors, maxServiceCalls,maxEventCalls)
 
   val maxAgeForPollSuccess = 14400
 
@@ -82,20 +89,20 @@ trait GenericOrchestrationSetup {
 
   def testOrchestrationDecisionFailure(mapping:Map[String, Boolean], httpResponseCode:Option[Int], exception:Option[Exception], response:JsValue): (TestGenericOrchestrationService, TestServiceGenericConnector) = {
     val testConnector: TestServiceGenericConnector = testGenericConnectorFailure(mapping, httpResponseCode, exception, response)
-    (new TestGenericOrchestrationService(testExecutorFactory, maxServiceCalls), testConnector)
+    (new TestGenericOrchestrationService(testExecutorFactory, maxServiceCalls, maxEventCalls), testConnector)
   }
 }
 
 trait TestGenericOrchestrationController extends GenericOrchestrationSetup with AsyncRepositorySetup {
 
   val time = System.currentTimeMillis()
-  lazy val test_id:String = ???
-  val exception:Option[Exception]
-  val statusCode:Option[Int]
-  val mapping:Map[String, Boolean] = Map("/profile/native-app/version-check" -> true)
-  val response:JsValue
+  lazy val test_id: String = ???
+  val exception: Option[Exception]
+  val statusCode: Option[Int]
+  val mapping: Map[String, Boolean] = Map("/profile/native-app/version-check" -> true)
+  val response: JsValue
   override lazy val maxServiceCalls: Int = 10
-
+  override lazy val maxEventCalls: Int = 10
   override val servicesSuccessMap = mapping
 
   val controller = new NativeAppsOrchestrationController {
@@ -107,7 +114,8 @@ trait TestGenericOrchestrationController extends GenericOrchestrationSetup with 
     override val service: OrchestrationService = testServiceAndConnector._1
     override val actorName = s"async_native-apps-api-actor_$testSessionId"
     override def id = "async_native-apps-api-id"
-    override val app: String = "Test Generic Controller"
+
+    override val app: String = "Test Generic Orchestration Controller"
     override val repository: AsyncRepository = asyncRepository
     override val auditConnector: AuditConnector = MicroserviceAuditConnector
     override val maxAgeForSuccess: Long = maxAgeForPollSuccess
@@ -121,8 +129,8 @@ trait TestGenericOrchestrationController extends GenericOrchestrationSetup with 
   def invokeCount = controller.testServiceAndConnector._2.count
 }
 
-class TestGenericOrchestrationService(testExecutorFactory: ExecutorFactory, override val maxServiceCalls: Int) extends LiveOrchestrationService {
-  override def buildAndExecute(orchestrationRequest: OrchestrationRequest, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Seq[ServiceResponse]] = testExecutorFactory.buildAndExecute(orchestrationRequest, journeyId)
+class TestGenericOrchestrationService(testExecutorFactory: ExecutorFactory, override val maxServiceCalls: Int, override val maxEventCalls: Int) extends LiveOrchestrationService {
+  override def buildAndExecute(orchestrationRequest: OrchestrationRequest, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[OrchestrationResponse] = testExecutorFactory.buildAndExecute(orchestrationRequest, journeyId)
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
   override val authConnector: AuthConnector = AuthConnector
 }
@@ -130,8 +138,13 @@ class TestGenericOrchestrationService(testExecutorFactory: ExecutorFactory, over
 class TestVersionCheckExecutor(testGenericConnector: GenericConnector) extends VersionCheckExecutor {
   override def connector: GenericConnector = testGenericConnector
 }
+
 class TestFeedbackExecutor(testGenericConnector: GenericConnector) extends DeskProFeedbackExecutor {
   override def connector: GenericConnector = testGenericConnector
+}
+
+class TestAuditEventExecutor(testAudit: Audit) extends AuditEventExecutor {
+  override val audit = testAudit
 }
 
 class TestPushNotificationGetMessageExecutor(testGenericConnector: GenericConnector) extends PushNotificationGetMessageExecutor {
@@ -142,8 +155,9 @@ class TestPushNotificationGetCurrentMessageExecutor(testGenericConnector: Generi
   override def connector: GenericConnector = testGenericConnector
 }
 
-class TestExecutorFactory(override val executors: Map[String, Executor], maxServiceCallsParam: Int) extends ExecutorFactory {
+class TestExecutorFactory(override val serviceExecutors: Map[String, ServiceExecutor], override val eventExecutors: Map[String, EventExecutor], maxServiceCallsParam: Int, maxEventCallsParam: Int) extends ExecutorFactory {
   override val maxServiceCalls: Int = maxServiceCallsParam
+  override val maxEventCalls: Int = maxEventCallsParam
 }
 
 case class GenericServiceResponse(failure:Boolean, data: JsValue)
@@ -165,6 +179,12 @@ class TestGenericOrchestrationConnector(response:Seq[GenericServiceResponse]) ex
     else
       Future.failed(new Exception("Controlled explosion!"))
   }
+}
+
+class TestAuditConnector extends AuditConnector {
+  override def auditingConfig: AuditingConfig = new AuditingConfig(None, false, false)
+
+  override def sendEvent(event: AuditEvent)(implicit hc: HeaderCarrier, ec: ExecutionContext): Future[AuditResult] = Future.successful(AuditResult.Success)
 }
 
 class TestServiceGenericConnector(pathFailMap: Map[String, Boolean], response: JsValue, httpResponseCode:Option[Int]=None, exception:Option[Exception]=None) extends GenericConnector {

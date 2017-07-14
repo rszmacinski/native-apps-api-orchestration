@@ -15,10 +15,10 @@ push-notification get-message
 
 ```json
 {
-  "request": [
+  "serviceRequest": [
     {
-      "serviceName": "push-notification-get-message",
-      "postRequest": {
+      "name": "push-notification-get-message",
+      "data": {
         "messageId": "c59e6746-9cd8-454f-a4fd-c5dc42db7d99"      
       }
     }

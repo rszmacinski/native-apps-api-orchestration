@@ -16,34 +16,48 @@
 
 package uk.gov.hmrc.ngc.orchestration.domain
 
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.functional.syntax._
+import play.api.libs.json._
 
-case class OrchestrationRequest(request: Seq[ServiceRequest])
 
-case class ServiceRequest(serviceName: String, postRequest: Option[JsValue])
+case class OrchestrationRequest(serviceRequest: Option[Seq[ExecutorRequest]] = None, eventRequest: Option[Seq[ExecutorRequest]] = None)
 
-case class OrchestrationResponse(response: Seq[ServiceResponse])
+case class ExecutorRequest(name: String, data: Option[JsValue] = None)
 
-case class ServiceResponse(serviceName: String, responseData: Option[JsValue], cacheTime: Option[Long], failure: Option[Boolean]=None)
+case class OrchestrationResponse(serviceResponse: Option[Seq[ExecutorResponse]] = None, eventResponse: Option[Seq[ExecutorResponse]] = None)
+
+case class ExecutorResponse(name: String, responseData: Option[JsValue] = None, cacheTime: Option[Long] = None, failure: Option[Boolean] = None)
 
 case class OrchestrationResult(preference: Option[JsValue], state: JsValue, taxSummary: JsValue, taxCreditSummary: Option[JsValue])
 
 object OrchestrationRequest {
-  implicit val requestFormat = Json.format[ServiceRequest]
-  implicit val format = Json.format[OrchestrationRequest]
+
+
+  implicit val requestFormat = Json.format[ExecutorRequest]
+
+  implicit val OrchestrationRequestReads: Reads[OrchestrationRequest] = onlyFields("serviceRequest", "eventRequest") andThen (
+      (__ \ 'serviceRequest).readNullable[Seq[ExecutorRequest]] and
+      (__ \ 'eventRequest).readNullable[Seq[ExecutorRequest]]
+    )(OrchestrationRequest.apply _)
+
+  private def onlyFields(allowed: String*): Reads[JsObject] =
+    Reads.verifying(json => {!json.keys.isEmpty && json.keys.forall(allowed.contains)})
+
 }
 
-object ServiceRequest {
-  implicit val format = Json.format[ServiceRequest]
+
+
+object ExecutorRequest {
+  implicit val format = Json.format[ExecutorRequest]
 }
 
 object OrchestrationResponse {
-  implicit val responseFormat = Json.format[ServiceResponse]
+  implicit val responseFormat = Json.format[ExecutorResponse]
   implicit val format = Json.format[OrchestrationResponse]
 }
 
-object ServiceResponse {
-  implicit val format = Json.format[ServiceResponse]
+object ExecutorResponse {
+  implicit val format = Json.format[ExecutorResponse]
 }
 
 

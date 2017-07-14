@@ -1,8 +1,8 @@
 {
-  "request": [
+  "serviceRequest": [
     {
-      "serviceName": "version-check",
-      "postRequest": {
+      "name": "version-check",
+      "data": {
         "os": "ios",
         "version": "0.1.0"
       }

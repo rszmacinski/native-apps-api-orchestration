@@ -22,8 +22,8 @@ feedback
 {
   "request": [
     {
-      "serviceName": "deskpro-feedback",
-      "postRequest": {
+      "name": "deskpro-feedback",
+      "data": {
         "name": "TestName",
         "email": "testName@test.test",
         "subject": "Test Subject",
@@ -41,8 +41,8 @@ feedback
       }
     },
     {
-      "serviceName": "deskpro-feedback",
-      "postRequest": {
+      "name": "deskpro-feedback",
+      "data": {
         "name": "TestName",
         "email": "testName@test.test",
         "subject": "Test Subject",

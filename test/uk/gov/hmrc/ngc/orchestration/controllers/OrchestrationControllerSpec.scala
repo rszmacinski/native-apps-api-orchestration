@@ -531,6 +531,47 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$test_id", Nino("CS700100A"), response , 200, Json.stringify(request))(fakeRequest)
     }
 
+    "returns a success response from audit event request generic executor" in new TestGenericOrchestrationController with FileResource {
+      override lazy val test_id: String = "audit-event-request-success"
+      override val statusCode: Option[Int] = Option(200)
+      override val mapping: Map[String, Boolean] = Map()
+      override val exception: Option[Exception] = None
+      override lazy val response: JsValue = Json.parse(findResource(s"/resources/generic/audit-event-executor-response.json").get)
+      override lazy val testSuccessGenericConnector = new TestGenericOrchestrationConnector(Seq(GenericServiceResponse(false,response)))
+
+      val request: JsValue = Json.parse(findResource("/resources/generic/audit-event-executor-request.json").get)
+      val fakeRequest = FakeRequest().withSession(
+        "AuthToken" -> "Some Header"
+      ).withHeaders(
+        "Accept" -> "application/vnd.hmrc.1.0+json",
+        "Authorization" -> "Some Header"
+      ).withJsonBody(request)
+
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$test_id", Nino("CS700100A"), response , 200, Json.stringify(request))(fakeRequest)
+    }
+
+    "returns mixture of service and event responses from generic orchestration" in new TestGenericOrchestrationController with FileResource {
+      override lazy val test_id: String = "generic-service-and-event-execution-response-success"
+      override val statusCode: Option[Int] = Option(200)
+      override lazy val exception: Option[Exception] = None
+
+      override lazy val testSuccessGenericConnector = new TestGenericOrchestrationConnector(Seq(GenericServiceResponse(false, TestData.responseTicket)))
+
+      override val response: JsValue = Json.parse(findResource(s"/resources/generic/generic-service-and-event-executor-response.json").get)
+
+      val request: JsValue = Json.parse(findResource(s"/resources/generic/generic-service-and-event-executor-request.json").get)
+
+      val fakeRequest = FakeRequest().withSession(
+        "AuthToken" -> "Some Header"
+      ).withHeaders(
+        "Accept" -> "application/vnd.hmrc.1.0+json",
+        "Authorization" -> "Some Header"
+      ).withJsonBody(request)
+
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$test_id", Nino("CS700100A"), response , 200, Json.stringify(request))(fakeRequest)
+    }
+
+
     "Simulating concurrent http requests through the async framework " should {
 
       "successfully process all concurrent requests and once all tasks are complete, verify the throttle value is 0" in {
@@ -546,10 +587,10 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
           }
         }
 
-        excuteParallelAsyncTasks(createController, "async_native-apps-api-id-test_id_concurrent")
+        executeParallelAsyncTasks(createController, "async_native-apps-api-id-test_id_concurrent")
       }
 
-      def excuteParallelAsyncTasks(generateController: => Int => TestGenericController, asyncTaskId:String) = {
+      def executeParallelAsyncTasks(generateController: => Int => TestGenericController, asyncTaskId:String) = {
         val timeStart = System.currentTimeMillis()
 
         val concurrentRequests = (0 until 20).foldLeft(Seq.empty[TestGenericController]) {
