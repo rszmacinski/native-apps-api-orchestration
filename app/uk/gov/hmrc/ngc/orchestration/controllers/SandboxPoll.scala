@@ -23,7 +23,7 @@ import uk.gov.hmrc.mongo.DatabaseUpdate
 import uk.gov.hmrc.msasync.repository.{AsyncRepository, TaskCachePersist}
 import uk.gov.hmrc.ngc.orchestration.services.Result
 import uk.gov.hmrc.play.asyncmvc.model.TaskCache
-
+import org.joda.time.DateTime
 import scala.concurrent.Future
 
 /**
@@ -53,7 +53,14 @@ trait SandboxPoll extends FileResource {
 
       // Build the results based on the above stubbed data.
       val taxSummary = Result("taxSummary",Json.parse(resource.get))
-      val taxCreditSummary = Result("taxCreditSummary", Json.parse(findResource(s"/resources/taxcreditsummary/${nino.value}.json").get))
+
+      val currentTime = DateTime.now()
+      val taxCreditSummary = Result("taxCreditSummary", Json.parse(findResource(s"/resources/taxcreditsummary/${nino.value}.json").get
+        .replaceAll("1499209200000", currentTime.plusWeeks(1).toString)
+        .replaceAll("1499814000000", currentTime.plusWeeks(2).toString)
+        .replaceAll("1500418800000", currentTime.plusWeeks(3).toString)
+      ))
+
       val state = Result("state", stateJson)
       val asyncStatus = Result("status", asyncStatusJson)
 
