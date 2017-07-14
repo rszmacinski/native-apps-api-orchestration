@@ -25,7 +25,7 @@ import uk.gov.hmrc.ngc.orchestration.config.{MicroserviceAuditConnector, WSHttp}
 import uk.gov.hmrc.ngc.orchestration.connectors.{AuthConnector, GenericConnector}
 import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
 import uk.gov.hmrc.ngc.orchestration.domain.{OrchestrationRequest, ServiceResponse}
-import uk.gov.hmrc.ngc.orchestration.executors.{DeskProFeedbackExecutor, Executor, ExecutorFactory, VersionCheckExecutor}
+import uk.gov.hmrc.ngc.orchestration.executors._
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, OrchestrationService}
 import uk.gov.hmrc.play.asyncmvc.model.TaskCache
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
@@ -58,11 +58,15 @@ trait GenericOrchestrationSetup {
   lazy val testSuccessGenericConnector = new TestGenericOrchestrationConnector(Seq(GenericServiceResponse(false, TestData.upgradeRequired(false))))
   lazy val testVersionCheckExecutor = new TestVersionCheckExecutor(testSuccessGenericConnector)
   lazy val testFeedbackExecutor = new TestFeedbackExecutor(testSuccessGenericConnector)
+  lazy val testPushNotificationGetMessageExecutor = new TestPushNotificationGetMessageExecutor(testSuccessGenericConnector)
+  lazy val testPushNotificationGetCurrentMessageExecutor = new TestPushNotificationGetCurrentMessageExecutor(testSuccessGenericConnector)
 
   lazy val testExecutorFactory = new TestExecutorFactory(Map(
-  testVersionCheckExecutor.executorName -> testVersionCheckExecutor,
-  testFeedbackExecutor.executorName -> testFeedbackExecutor
-), maxServiceCalls)
+    testVersionCheckExecutor.executorName -> testVersionCheckExecutor,
+    testFeedbackExecutor.executorName -> testFeedbackExecutor,
+    testPushNotificationGetMessageExecutor.executorName -> testPushNotificationGetMessageExecutor,
+    testPushNotificationGetCurrentMessageExecutor.executorName -> testPushNotificationGetCurrentMessageExecutor
+  ), maxServiceCalls)
 
   val maxAgeForPollSuccess = 14400
 
@@ -130,6 +134,14 @@ class TestFeedbackExecutor(testGenericConnector: GenericConnector) extends DeskP
   override def connector: GenericConnector = testGenericConnector
 }
 
+class TestPushNotificationGetMessageExecutor(testGenericConnector: GenericConnector) extends PushNotificationGetMessageExecutor {
+  override def connector: GenericConnector = testGenericConnector
+}
+
+class TestPushNotificationGetCurrentMessageExecutor(testGenericConnector: GenericConnector) extends PushNotificationGetCurrentMessagesExecutor {
+  override def connector: GenericConnector = testGenericConnector
+}
+
 class TestExecutorFactory(override val executors: Map[String, Executor], maxServiceCallsParam: Int) extends ExecutorFactory {
   override val maxServiceCalls: Int = maxServiceCallsParam
 }
@@ -140,7 +152,11 @@ class TestGenericOrchestrationConnector(response:Seq[GenericServiceResponse]) ex
   override def http: HttpPost with HttpGet = WSHttp
   var pos=0
 
-  override def doPost(json: JsValue, host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = {
+  override def doPost(json: JsValue, host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = respond()
+
+  override def doGet(host: String, path: String, port: Int, hc: HeaderCarrier): Future[JsValue] = respond()
+
+  def respond(): Future[JsValue] = {
     val testResponse: GenericServiceResponse = response(pos)
     pos = pos + 1
 
