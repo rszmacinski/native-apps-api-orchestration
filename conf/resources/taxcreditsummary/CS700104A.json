@@ -3,8 +3,8 @@
     "workingTaxCredit": {
       "paymentSeq": [
         {
-          "amount": 45.00,
-          "paymentDate": 1499209200000,
+          "amount": 160.00,
+          "paymentDate": date1,
           "oneOffPayment": false
         }
       ],
@@ -13,8 +13,8 @@
     "paymentEnabled": false,
     "totalsByDate": [
       {
-        "amount": 45.00,
-        "paymentDate": 1499209200000
+        "amount": 160.00,
+        "paymentDate": date1
       }
     ]
   },

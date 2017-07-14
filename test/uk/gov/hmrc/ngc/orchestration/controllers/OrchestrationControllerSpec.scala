@@ -18,22 +18,23 @@ package uk.gov.hmrc.ngc.orchestration.controllers
 
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
+import org.joda.time.LocalDate
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Milliseconds, Seconds, Span}
 import play.api.libs.json._
 import play.api.mvc.{Request, Result}
-import play.api.test.{FakeApplication, FakeRequest}
 import play.api.test.Helpers._
+import play.api.test.{FakeApplication, FakeRequest}
 import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.ngc.orchestration.domain.{Accounts, PreFlightCheckResponse}
 import uk.gov.hmrc.play.asyncmvc.model.AsyncMvcSession
-import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 import uk.gov.hmrc.play.http._
+import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 
 
@@ -615,9 +616,14 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     }
 
     "return poll response from a static resource" in new SandboxSuccess {
+      val currentTime = (new LocalDate()).toDateTimeAtStartOfDay
       val result = await(controller.poll(nino)(requestWithAuthSession))
       status(result) shouldBe 200
-      contentAsJson(result) shouldBe TestData.sandboxPollResponse
+      contentAsJson(result) shouldBe Json.parse(TestData.sandboxPollResponse
+        .replaceAll("date1", currentTime.plusWeeks(1).getMillis.toString)
+        .replaceAll("date2", currentTime.plusWeeks(2).getMillis.toString)
+        .replaceAll("date3", currentTime.plusWeeks(3).getMillis.toString)
+      )
       result.header.headers.get("Cache-Control") shouldBe Some("max-age=14400")
     }
   }

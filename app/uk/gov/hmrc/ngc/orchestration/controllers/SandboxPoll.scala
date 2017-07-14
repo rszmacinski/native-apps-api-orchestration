@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.ngc.orchestration.controllers
 
+import org.joda.time.LocalDate
 import play.api.libs.json.{JsBoolean, JsObject, JsString, Json}
 import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.domain.Nino
@@ -52,8 +53,13 @@ trait SandboxPoll extends FileResource {
       val stateJson = JsObject(Seq("enableRenewals" -> JsBoolean(value = true)))
 
       // Build the results based on the above stubbed data.
+      val currentTime = (new LocalDate()).toDateTimeAtStartOfDay
       val taxSummary = Result("taxSummary",Json.parse(resource.get))
-      val taxCreditSummary = Result("taxCreditSummary", Json.parse(findResource(s"/resources/taxcreditsummary/${nino.value}.json").get))
+      val taxCreditSummary = Result("taxCreditSummary", Json.parse(findResource(s"/resources/taxcreditsummary/${nino.value}.json").get
+        .replaceAll("date1", currentTime.plusWeeks(1).getMillis.toString)
+        .replaceAll("date2", currentTime.plusWeeks(2).getMillis.toString)
+        .replaceAll("date3", currentTime.plusWeeks(3).getMillis.toString)
+      ))
       val state = Result("state", stateJson)
       val asyncStatus = Result("status", asyncStatusJson)
 

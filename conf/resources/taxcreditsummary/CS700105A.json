@@ -3,13 +3,13 @@
     "workingTaxCredit": {
       "paymentSeq": [
         {
-          "amount": 45.00,
-          "paymentDate": 1499209200000,
+          "amount": 160.00,
+          "paymentDate": date1,
           "oneOffPayment": false
         },
         {
-          "amount": 45.00,
-          "paymentDate": 1499814000000,
+          "amount": 160.00,
+          "paymentDate": date2,
           "oneOffPayment": false
         }
       ],
@@ -18,13 +18,13 @@
     "childTaxCredit": {
       "paymentSeq": [
         {
-          "amount": 55.00,
-          "paymentDate": 1499209200000,
+          "amount": 225.00,
+          "paymentDate": date1,
           "oneOffPayment": false
         },
         {
-          "amount": 55.00,
-          "paymentDate": 1499814000000,
+          "amount": 225.00,
+          "paymentDate": date2,
           "oneOffPayment": false
         }
       ],
@@ -33,12 +33,12 @@
     "paymentEnabled": true,
     "totalsByDate": [
       {
-        "amount": 100.00,
-        "paymentDate": 1499209200000
+        "amount": 385.00,
+        "paymentDate": date1
       },
       {
-        "amount": 100.00,
-        "paymentDate": 1499814000000
+        "amount": 385.00,
+        "paymentDate": date2
       }
     ]
   },
