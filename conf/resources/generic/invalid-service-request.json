@@ -1,15 +1,15 @@
 {
-  "request": [
+  "serviceRequest": [
     {
-      "serviceName": "version-check",
-      "postRequest": {
+      "name": "version-check",
+      "data": {
         "os": "ios",
         "version": "0.1.0"
       }
     },
     {
-      "serviceName": "service-not-found",
-      "postRequest": {
+      "name": "service-not-found",
+      "data": {
         "os": "ios",
         "version": "0.1.0"
       }

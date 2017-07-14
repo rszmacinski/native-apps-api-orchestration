@@ -1,12 +1,12 @@
 {
   "OrchestrationResponse": {
-    "response": [
+    "serviceResponse": [
       {
-        "serviceName": "deskpro-feedback",
+        "name": "deskpro-feedback",
         "failure": true
       },
       {
-        "serviceName": "deskpro-feedback",
+        "name": "deskpro-feedback",
         "failure": true
       }
     ]

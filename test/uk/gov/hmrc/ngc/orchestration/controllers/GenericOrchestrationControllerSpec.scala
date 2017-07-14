@@ -105,9 +105,9 @@ class GenericOrchestrationControllerSpec extends UnitSpec with WithFakeApplicati
       val fakeRequest = FakeRequest().withSession(
         "AuthToken" -> "Some Header"
       ).withHeaders(
-          "Accept" -> "application/vnd.hmrc.1.0+json",
-          "Authorization" -> "Some Header"
-        ).withJsonBody(request)
+        "Accept" -> "application/vnd.hmrc.1.0+json",
+        "Authorization" -> "Some Header"
+      ).withJsonBody(request)
 
       val result = await(controller.orchestrate(Nino("CS700100A"), Option("unique-journey-id")).apply(fakeRequest))
       status(result) shouldBe statusCode.get
@@ -135,6 +135,28 @@ class GenericOrchestrationControllerSpec extends UnitSpec with WithFakeApplicati
       status(result) shouldBe statusCode.get
     }
 
+    "should fail to execute if the number of events exceeds the max event config" in new TestGenericOrchestrationController {
+
+      override lazy val test_id: String = "400BadRequestMaxEventCallsExceeded"
+      override val exception: Option[Exception] = None
+      override val statusCode: Option[Int] = Option(400)
+      override val mapping: Map[String, Boolean] = servicesSuccessMap
+      override val response: JsValue = JsNull
+      override lazy val maxEventCalls: Int = 2
+
+      val request: JsValue = Json.parse(findResource(s"/resources/generic/max-event-calls-exceeded-request.json").get)
+
+      val fakeRequest = FakeRequest().withSession(
+        "AuthToken" -> "Some Header"
+      ).withHeaders(
+        "Accept" -> "application/vnd.hmrc.1.0+json",
+        "Authorization" -> "Some Header"
+      ).withJsonBody(request)
+
+      val result = await(controller.orchestrate(Nino("CS700100A"), Option("unique-journey-id")).apply(fakeRequest))
+      status(result) shouldBe statusCode.get
+    }
+
     "should successfully execute if the number of services to execute is less than or equal to the max service config" in new TestGenericOrchestrationController {
 
       override lazy val test_id: String = "200MaxServiceCallsOk"
@@ -145,6 +167,30 @@ class GenericOrchestrationControllerSpec extends UnitSpec with WithFakeApplicati
       override lazy val maxServiceCalls: Int = 3
 
       val request: JsValue = Json.parse(findResource(s"/resources/generic/max-service-calls-exceeded-request.json").get)
+
+
+      val fakeRequest = FakeRequest().withSession(
+        "AuthToken" -> "Some Header"
+      ).withHeaders(
+        "Accept" -> "application/vnd.hmrc.1.0+json",
+        "Authorization" -> "Some Header"
+      ).withJsonBody(request)
+
+      val result = await(controller.orchestrate(Nino("CS700100A"), Option("unique-journey-id")).apply(fakeRequest))
+      status(result) shouldBe statusCode.get
+      contentAsJson(result) shouldBe response
+    }
+
+    "should successfully execute if the number of events to execute is less than or equal to the max event config" in new TestGenericOrchestrationController {
+
+      override lazy val test_id: String = "200MaxEventCallsOk"
+      override val exception: Option[Exception] = None
+      override val statusCode: Option[Int] = Option(200)
+      override val mapping: Map[String, Boolean] = servicesSuccessMap
+      override val response: JsValue = TestData.pollResponse
+      override lazy val maxEventCalls: Int = 3
+
+      val request: JsValue = Json.parse(findResource(s"/resources/generic/max-event-calls-exceeded-request.json").get)
 
 
       val fakeRequest = FakeRequest().withSession(

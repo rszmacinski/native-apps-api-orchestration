@@ -35,7 +35,7 @@ import scala.concurrent.Future._
 import scala.concurrent.{ExecutionContext, Future}
 
 
-case class OrchestrationServiceRequest(requestLegacy: Option[JsValue], services: Option[OrchestrationRequest])
+case class OrchestrationServiceRequest(requestLegacy: Option[JsValue], request: Option[OrchestrationRequest])
 
 trait OrchestrationService extends ExecutorFactory {
 
@@ -139,9 +139,8 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor with MF
   def orchestrate(request: OrchestrationServiceRequest, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
 
     request match {
-      case OrchestrationServiceRequest(None, Some(services)) =>
-        buildAndExecute(services, journeyId).map(serviceResponse => new OrchestrationResponse(serviceResponse)).map(obj => Json.obj("OrchestrationResponse" -> obj))
-
+      case OrchestrationServiceRequest(None, Some(request)) =>
+        buildAndExecute(request, journeyId).map(obj => Json.obj("OrchestrationResponse" -> obj))
       case OrchestrationServiceRequest(Some(legacyRequest), None) =>
         startup(legacyRequest, nino, journeyId)
     }
@@ -211,10 +210,12 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
   }
 
   override val maxServiceCalls: Int = 10
+  override val maxEventCalls: Int = 10
 }
 
 object LiveOrchestrationService extends LiveOrchestrationService {
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
   override val authConnector:AuthConnector = AuthConnector
   override val maxServiceCalls: Int = Play.current.configuration.getInt("supported.generic.service.maxNumberServices.count").getOrElse(5)
+  override val maxEventCalls: Int = Play.current.configuration.getInt("supported.generic.service.maxNumberEvents.count").getOrElse(5)
 }

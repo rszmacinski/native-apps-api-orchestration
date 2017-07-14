@@ -1,9 +1,9 @@
 {
   "OrchestrationResponse": {
-    "serviceResponse": [
+    "eventResponse": [
       {
-        "name": "deskpro-feedback",
-        "failure": true
+        "name": "ngc-audit-event",
+        "failure": false
       }
     ]
   },

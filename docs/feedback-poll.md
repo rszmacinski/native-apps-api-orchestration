@@ -27,9 +27,9 @@ On success the below JSON will be returned.
 ```
 {
   "OrchestrationResponse": {
-    "response": [
+    "serviceResponse": [
       {
-        "serviceName": "feedback",
+        "name": "feedback",
         "responseData": {
           "ticket_id": 1234567890
         }
@@ -47,9 +47,9 @@ When a failure occurs submitting the feedback, the below response (based on a si
 ```
 {
   "OrchestrationResponse": {
-    "response": [
+    "serviceResponse": [
       {
-        "serviceName": "deskpro-feedback",
+        "name": "deskpro-feedback",
         "failure": true
       }
     ]

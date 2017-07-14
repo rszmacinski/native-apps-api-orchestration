@@ -1,8 +1,8 @@
 {
   "OrchestrationResponse": {
-    "response": [
+    "serviceResponse": [
       {
-        "serviceName": "push-notification-get-current-messages",
+        "name": "push-notification-get-current-messages",
         "responseData": {
           "messages": [
             {
