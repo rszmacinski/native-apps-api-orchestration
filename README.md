@@ -22,8 +22,12 @@ API
 | ```/native-app/:nino/poll``` | GET | Poll the status of the async task which was initiated from startup. The cookie named mdtpapi must be supplied to this service. [More...](docs/poll.md) |
 | Feedback ```/native-app/:nino/startup``` | POST | Initiate an async service to submit feedback. The cookie named mdtpapi will be returned from this service and must be supplied to the poll service.  [More...](docs/feedback.md) |
 | Feedback ```/native-app/:nino/poll``` | GET | Poll the status of the async feedback task which was initiated from startup. The cookie named mdtpapi must be supplied to this service. [More...](docs/feedback-poll.md) |
-| Push Notifications ```/native-app/:nino/startup?journeyId={id}``` | POST | Retrieve message associated with Id and update state to answer. [More...](docs/push-notification-get-message.md) |
-| Push Notifications ```/native-app/:nino/startup?journeyId={id}``` | GET | Returns all messages that have not yet been answered or acknowledged. [More...](docs/push-notification-get-current-messages.md) |
+| Get Message ```/native-app/:nino/startup?journeyId={id}``` | POST | Retrieve message associated with Id and update state to answer. [More...](docs/push-notification-get-message.md) |
+| Get Message ```/native-app/:nino/poll``` | GET | Poll the status of the async get message task which was initiated from startup. The cookie named mdtpapi must be supplied to this service. [More...](docs/push-notification-get-message-poll.md) |
+| Get Current Message ```/native-app/:nino/startup?journeyId={id}``` | POST | Returns all messages that have not yet been answered or acknowledged. [More...](docs/push-notification-get-current-messages.md) |
+| Get Current Message ```/native-app/:nino/poll``` | GET | Poll the status of the async get current message task which was initiated from startup. The cookie named mdtpapi must be supplied to this service. [More...](docs/push-notification-get-current-messages-poll.md) |
+| Audit ```/native-app/:nino/startup?journeyId={id}``` | POST | Retrieve message associated with Id and update state to answer. [More...](docs/audit-event.md) |
+| Audit ```/native-app/:nino/startup?journeyId={id}``` | GET | Returns all messages that have not yet been answered or acknowledged. [More...](docs/audit-event-poll.md) |
 
 # Sandbox
 All the above endpoints are accessible on sandbox with `/sandbox` prefix on each endpoint, e.g.

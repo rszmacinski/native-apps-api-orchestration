@@ -1,7 +1,7 @@
-feedback
+audit-event
 ----
-  Submit feedback request. The feedback service provides a mechanism where the client can submit multiple feedback requests in a single POST request. The feedback
-   service is exposed as an asynchronous service where the poll service must be used to check the status of the running task.
+  Submit audit-event request. The audit-event request provides a mechanism submit explicit audit event requests. 
+  This event request is exposed as an asynchronous service where the poll service must be used to check the status of the running task.
 
   This service will return an encrypted cookie called mdtpapi which is used to drive the identity of the off-line task and must be supplied to the poll service request.
 
@@ -20,43 +20,12 @@ feedback
 
 ```json
 {
-  "serviceRequest": [
+  "eventRequest": [
     {
-      "name": "deskpro-feedback",
+      "name": "ngc-audit-event",
       "data": {
-        "name": "TestName",
-        "email": "testName@test.test",
-        "subject": "Test Subject",
-        "message": "Test Message",
-        "referrer": "Test Referral",
-        "javascriptEnabled": "true",
-        "userAgent": "TestAgent",
-        "authId": "Auth-ID",
-        "areaOfTax": "PAYE",
-        "sessionId": "random-session-id",
-        "userTaxIdentifiers": {
-          "nino": "CS700100A"
-        },
-        "rating": "Low"
-      }
-    },
-    {
-      "name": "deskpro-feedback",
-      "data": {
-        "name": "TestName",
-        "email": "testName@test.test",
-        "subject": "Test Subject",
-        "message": "Test Message",
-        "referrer": "Test Referral",
-        "javascriptEnabled": "true",
-        "userAgent": "TestAgent",
-        "authId": "Auth-ID",
-        "areaOfTax": "PAYE",
-        "sessionId": "random-session-id",
-        "userTaxIdentifiers": {
-          "nino": "CS700100A"
-        },
-        "rating": "Low"
+        "nino": "some-nino",
+        "auditType": "TCSPayment"
       }
     }
   ]
