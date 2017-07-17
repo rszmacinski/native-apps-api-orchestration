@@ -56,7 +56,7 @@ object TestData {
       |              "taxCodeIncomes": [
       |                {
       |                  "name": "Sainsburys",
-      |                  "taxCode": "1100L",
+      |                  "taxCode": "1150L",
       |                  "employmentId": 2,
       |                  "employmentPayeRef": "BT456",
       |                  "employmentType": 1,
@@ -120,10 +120,10 @@ object TestData {
       |        "total": 18900
       |      },
       |      "decreasesTax": {
-      |        "personalAllowance": 11000,
-      |        "personalAllowanceSourceAmount": 11000,
+      |        "personalAllowance": 11500,
+      |        "personalAllowanceSourceAmount": 11500,
       |        "paTapered": false,
-      |        "total": 11000
+      |        "total": 11500
       |      },
       |      "totalLiability": {
       |        "nonSavings": {
@@ -153,7 +153,7 @@ object TestData {
       |              "rate": 45
       |            }
       |          ],
-      |          "allowReliefDeducts": 11000
+      |          "allowReliefDeducts": 11500
       |        },
       |        "mergedIncomes": {
       |          "totalIncome": 18900,
@@ -210,7 +210,7 @@ object TestData {
       |              "rate": 45
       |            }
       |          ],
-      |          "allowReliefDeducts": 11000
+      |          "allowReliefDeducts": 11500
       |        },
       |        "totalLiability": 7900,
       |        "totalTax": 1580,
@@ -267,7 +267,7 @@ object TestData {
       |          {
       |            "id": 2,
       |            "name": "Sainsburys",
-      |            "taxCode": "1100L"
+      |            "taxCode": "1150L"
       |          }
       |        ],
       |        "taxCode": [
@@ -277,7 +277,7 @@ object TestData {
       |        ],
       |        "taxCodeDescriptions": [
       |          {
-      |            "taxCode": "1100L",
+      |            "taxCode": "1150L",
       |            "name": "Sainsburys",
       |            "taxCodeDescriptors": [
       |              {
@@ -292,7 +292,7 @@ object TestData {
       |        "allowances": [
       |          {
       |            "description": "Tax Free Amount",
-      |            "amount": 11000,
+      |            "amount": 11500,
       |            "componentType": 0
       |          }
       |        ],
@@ -303,11 +303,11 @@ object TestData {
       |    "baseViewModel": {
       |      "estimatedIncomeTax": 1580,
       |      "taxableIncome": 7900,
-      |      "taxFree": 11000,
-      |      "personalAllowance": 11000,
+      |      "taxFree": 11500,
+      |      "personalAllowance": 11500,
       |      "hasTamc": false,
       |      "taxCodesList": [
-      |        "1100L"
+      |        "1150L"
       |      ],
       |      "hasChanges": false
       |    },
@@ -316,10 +316,10 @@ object TestData {
       |        "increasesTax": true,
       |        "incomeTaxEstimate": 1580,
       |        "incomeEstimate": 18900,
-      |        "taxFreeEstimate": 11000,
+      |        "taxFreeEstimate": 11500,
       |        "taxRelief": false,
       |        "taxCodes": [
-      |          "1100L"
+      |          "1150L"
       |        ],
       |        "potentialUnderpayment": false,
       |        "additionalTaxTable": [
@@ -337,7 +337,7 @@ object TestData {
       |              "colour": "TaxFree",
       |              "barPercentage": 58.21,
       |              "tablePercentage": "0",
-      |              "income": 11000,
+      |              "income": 11500,
       |              "tax": 0
       |            },
       |            {
@@ -358,11 +358,11 @@ object TestData {
       |      }
       |    },
       |    "taxableIncome": {
-      |      "taxFreeAmount": 11000,
+      |      "taxFreeAmount": 11500,
       |      "incomeTax": 1580,
       |      "income": 18900,
       |      "taxCodeList": [
-      |        "1100L"
+      |        "1150L"
       |      ],
       |      "increasesTax": {
       |        "incomes": {
@@ -371,7 +371,7 @@ object TestData {
       |              "taxCodeIncomes": [
       |                {
       |                  "name": "Sainsburys",
-      |                  "taxCode": "1100L",
+      |                  "taxCode": "1150L",
       |                  "employmentId": 2,
       |                  "employmentPayeRef": "BT456",
       |                  "employmentType": 1,
@@ -440,7 +440,7 @@ object TestData {
       |            "taxCodeIncomes": [
       |              {
       |                "name": "Sainsburys",
-      |                "taxCode": "1100L",
+      |                "taxCode": "1150L",
       |                "employmentId": 2,
       |                "employmentPayeRef": "BT456",
       |                "employmentType": 1,
@@ -633,7 +633,7 @@ object TestData {
       |              "taxCodeIncomes": [
       |                {
       |                  "name": "Sainsburys",
-      |                  "taxCode": "1100L",
+      |                  "taxCode": "1150L",
       |                  "employmentId": 2,
       |                  "employmentPayeRef": "BT456",
       |                  "employmentType": 1,
@@ -697,10 +697,10 @@ object TestData {
       |        "total": 18900
       |      },
       |      "decreasesTax": {
-      |        "personalAllowance": 11000,
-      |        "personalAllowanceSourceAmount": 11000,
+      |        "personalAllowance": 11500,
+      |        "personalAllowanceSourceAmount": 11500,
       |        "paTapered": false,
-      |        "total": 11000
+      |        "total": 11500
       |      },
       |      "totalLiability": {
       |        "nonSavings": {
@@ -730,7 +730,7 @@ object TestData {
       |              "rate": 45
       |            }
       |          ],
-      |          "allowReliefDeducts": 11000
+      |          "allowReliefDeducts": 11500
       |        },
       |        "mergedIncomes": {
       |          "totalIncome": 18900,
@@ -787,7 +787,7 @@ object TestData {
       |              "rate": 45
       |            }
       |          ],
-      |          "allowReliefDeducts": 11000
+      |          "allowReliefDeducts": 11500
       |        },
       |        "totalLiability": 7900,
       |        "totalTax": 1580,
@@ -844,7 +844,7 @@ object TestData {
       |          {
       |            "id": 2,
       |            "name": "Sainsburys",
-      |            "taxCode": "1100L"
+      |            "taxCode": "1150L"
       |          }
       |        ],
       |        "taxCode": [
@@ -854,7 +854,7 @@ object TestData {
       |        ],
       |        "taxCodeDescriptions": [
       |          {
-      |            "taxCode": "1100L",
+      |            "taxCode": "1150L",
       |            "name": "Sainsburys",
       |            "taxCodeDescriptors": [
       |              {
@@ -869,7 +869,7 @@ object TestData {
       |        "allowances": [
       |          {
       |            "description": "Tax Free Amount",
-      |            "amount": 11000,
+      |            "amount": 11500,
       |            "componentType": 0
       |          }
       |        ],
@@ -880,11 +880,11 @@ object TestData {
       |    "baseViewModel": {
       |      "estimatedIncomeTax": 1580,
       |      "taxableIncome": 7900,
-      |      "taxFree": 11000,
-      |      "personalAllowance": 11000,
+      |      "taxFree": 11500,
+      |      "personalAllowance": 11500,
       |      "hasTamc": false,
       |      "taxCodesList": [
-      |        "1100L"
+      |        "1150L"
       |      ],
       |      "hasChanges": false
       |    },
@@ -893,10 +893,10 @@ object TestData {
       |        "increasesTax": true,
       |        "incomeTaxEstimate": 1580,
       |        "incomeEstimate": 18900,
-      |        "taxFreeEstimate": 11000,
+      |        "taxFreeEstimate": 11500,
       |        "taxRelief": false,
       |        "taxCodes": [
-      |          "1100L"
+      |          "1150L"
       |        ],
       |        "potentialUnderpayment": false,
       |        "additionalTaxTable": [
@@ -914,7 +914,7 @@ object TestData {
       |              "colour": "TaxFree",
       |              "barPercentage": 58.21,
       |              "tablePercentage": "0",
-      |              "income": 11000,
+      |              "income": 11500,
       |              "tax": 0
       |            },
       |            {
@@ -935,11 +935,11 @@ object TestData {
       |      }
       |    },
       |    "taxableIncome": {
-      |      "taxFreeAmount": 11000,
+      |      "taxFreeAmount": 11500,
       |      "incomeTax": 1580,
       |      "income": 18900,
       |      "taxCodeList": [
-      |        "1100L"
+      |        "1150L"
       |      ],
       |      "increasesTax": {
       |        "incomes": {
@@ -948,7 +948,7 @@ object TestData {
       |              "taxCodeIncomes": [
       |                {
       |                  "name": "Sainsburys",
-      |                  "taxCode": "1100L",
+      |                  "taxCode": "1150L",
       |                  "employmentId": 2,
       |                  "employmentPayeRef": "BT456",
       |                  "employmentType": 1,
@@ -1017,7 +1017,7 @@ object TestData {
       |            "taxCodeIncomes": [
       |              {
       |                "name": "Sainsburys",
-      |                "taxCode": "1100L",
+      |                "taxCode": "1150L",
       |                "employmentId": 2,
       |                "employmentPayeRef": "BT456",
       |                "employmentType": 1,
