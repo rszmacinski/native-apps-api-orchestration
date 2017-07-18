@@ -34,6 +34,7 @@ class FailToMatchTaxIdOnAuth(message:String) extends uk.gov.hmrc.play.http.HttpE
 class NinoNotFoundOnAccount(message:String) extends uk.gov.hmrc.play.http.HttpException(message, 401)
 class AccountWithLowCL(message:String) extends uk.gov.hmrc.play.http.HttpException(message, 401)
 class AccountWithWeakCredStrength(message:String) extends uk.gov.hmrc.play.http.HttpException(message, 401)
+class ScheduledMaintenanceAccessDenied(message: String) extends uk.gov.hmrc.play.http.HttpException(message, 503)
 
 
 case class BearerToken(authToken: String, expiry: DateTime) {

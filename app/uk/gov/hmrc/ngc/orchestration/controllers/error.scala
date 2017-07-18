@@ -27,3 +27,5 @@ case object ErrorBadRequest extends ErrorResponse(400, "BAD_REQUEST", "Invalid P
 case object MandatoryResponse extends ErrorResponse(500, "MANDATORY", "Mandatory data not found")
 
 case object ForbiddenAccess extends ErrorResponse(403, "UNAUTHORIZED", "Access denied!")
+
+case object ScheduledMaintenanceAccessDenied extends ErrorResponse(503, "SCHEDULED_MAINTENANCE", "API is currently unavailable due to maintenance")

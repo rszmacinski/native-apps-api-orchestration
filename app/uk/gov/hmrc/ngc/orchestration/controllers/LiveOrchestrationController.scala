@@ -25,8 +25,8 @@ import uk.gov.hmrc.api.service.Auditor
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.msasync.repository.AsyncRepository
 import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
-import uk.gov.hmrc.ngc.orchestration.connectors.{Authority, NinoNotFoundOnAccount}
-import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck}
+import uk.gov.hmrc.ngc.orchestration.connectors.{Authority, NinoNotFoundOnAccount, ScheduledMaintenanceAccessDenied}
+import uk.gov.hmrc.ngc.orchestration.controllers.action.{AccountAccessControlCheckOff, AccountAccessControlWithHeaderCheck, AuthenticatedRequest}
 import uk.gov.hmrc.ngc.orchestration.domain.{ExecutorRequest, OrchestrationRequest}
 import uk.gov.hmrc.ngc.orchestration.services.{OrchestrationService, OrchestrationServiceRequest}
 import uk.gov.hmrc.ngc.orchestration.services.{LiveOrchestrationService, PreFlightRequest, SandboxOrchestrationService}
@@ -63,6 +63,10 @@ trait ErrorHandling {
       case ex: NinoNotFoundOnAccount =>
         log("User has no NINO. Unauthorized!")
         Unauthorized(Json.toJson(ErrorUnauthorizedNoNino))
+
+      case ex: ScheduledMaintenanceAccessDenied =>
+        log("API is currently unavailable due to maintenance")
+        Status(ScheduledMaintenanceAccessDenied.httpStatusCode)(Json.toJson(ScheduledMaintenanceAccessDenied))
 
       case e: Exception =>
         Logger.error(s"Native Error - $app Internal server error: ${e.getMessage}", e)
@@ -123,11 +127,27 @@ trait GenericServiceCheck {
 
 }
 
+trait MaintenanceCheck {
+  self: NativeAppsOrchestrationController =>
+  def maintenanceCheck(endpointName: String)(func: => Future[mvc.Result]) = {
+    if(verifyMaintenanceMode(endpointName)){
+      throw new ScheduledMaintenanceAccessDenied("API is currently unavailable due to maintenance")
+    }
+    else {
+        func
+    }
+  }
+
+  protected def verifyMaintenanceMode(endpointName: String): Boolean = {
+    !Play.current.configuration.getBoolean(s"maintenance.$endpointName.enabled").getOrElse(false)
+  }
+}
+
 trait SecurityCheck {
   def checkSecurity:Boolean
 }
 
-trait NativeAppsOrchestrationController extends AsyncController with SecurityCheck with Auditor with GenericServiceCheck {
+trait NativeAppsOrchestrationController extends AsyncController with SecurityCheck with Auditor with GenericServiceCheck with MaintenanceCheck{
   val service: OrchestrationService
   val accessControl: AccountAccessControlWithHeaderCheck
   val accessControlOff: AccountAccessControlWithHeaderCheck
@@ -138,15 +158,17 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       errorWrapper {
         implicit val hc = HeaderCarrier.fromHeadersAndSession(request.headers, None)
         implicit val context: ExecutionContext = MdcLoggingExecutionContext.fromLoggingDetails
-        Json.toJson(request.body).asOpt[PreFlightRequest].
-          fold(Future.successful(BadRequest("Failed to parse request!"))) { preFlightRequest =>
+        maintenanceCheck("preflight") {
+          Json.toJson(request.body).asOpt[PreFlightRequest].
+            fold(Future.successful(BadRequest("Failed to parse request!"))) { preFlightRequest =>
 
-            hc.authorization match {
-              case Some(auth) => service.preFlightCheck(preFlightRequest, journeyId).map(
-                response => Ok(Json.toJson(response)).withSession(authToken -> auth.value)
-              )
+              hc.authorization match {
+                case Some(auth) => service.preFlightCheck(preFlightRequest, journeyId).map(
+                  response => Ok(Json.toJson(response)).withSession(authToken -> auth.value)
+                )
 
-              case _ => Future.failed(new Exception("Failed to resolve authentication from HC!"))
+                case _ => Future.failed(new Exception("Failed to resolve authentication from HC!"))
+              }
             }
         }
       }
@@ -159,25 +181,27 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
       implicit val context: ExecutionContext = MdcLoggingExecutionContext.fromLoggingDetails
 
       errorWrapper {
-        validate { validatedRequest =>
+        maintenanceCheck("orchestrate") {
+          validate { validatedRequest =>
 
-          // Do not allow more than one task to be executing - if task is running then poll status will be returned.
-          asyncActionWrapper.async(callbackWithStatus) {
-            flag =>
+            // Do not allow more than one task to be executing - if task is running then poll status will be returned.
+            asyncActionWrapper.async(callbackWithStatus) {
+              flag =>
 
-              // Async function wrapper responsible for executing below code onto a background queue.
-              asyncWrapper(callbackWithStatus) {
-                headerCarrier =>
-                  Logger.info(s"Background HC: ${
-                    hc.authorization.fold("not found") {
-                      _.value
+                // Async function wrapper responsible for executing below code onto a background queue.
+                asyncWrapper(callbackWithStatus) {
+                  headerCarrier =>
+                    Logger.info(s"Background HC: ${
+                      hc.authorization.fold("not found") {
+                        _.value
+                      }
+                    } for Journey Id $journeyId")
+
+                    service.orchestrate(validatedRequest, nino, journeyId).map { response =>
+                      AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete), nino)
                     }
-                  } for Journey Id $journeyId")
-
-                  service.orchestrate(validatedRequest, nino, journeyId).map { response =>
-                    AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete), nino)
-                  }
-              }
+                }
+            }
           }
         }
       }
