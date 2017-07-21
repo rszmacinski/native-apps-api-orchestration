@@ -140,7 +140,7 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor with MF
 
     request match {
       case OrchestrationServiceRequest(None, Some(request)) =>
-        buildAndExecute(request, journeyId).map(obj => Json.obj("OrchestrationResponse" -> obj))
+        buildAndExecute(request, nino.value, journeyId).map(obj => Json.obj("OrchestrationResponse" -> obj))
       case OrchestrationServiceRequest(Some(legacyRequest), None) =>
         startup(legacyRequest, nino, journeyId)
     }

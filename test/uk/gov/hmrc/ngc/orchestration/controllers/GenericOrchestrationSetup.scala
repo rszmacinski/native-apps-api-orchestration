@@ -130,7 +130,7 @@ trait TestGenericOrchestrationController extends GenericOrchestrationSetup with 
 }
 
 class TestGenericOrchestrationService(testExecutorFactory: ExecutorFactory, override val maxServiceCalls: Int, override val maxEventCalls: Int) extends LiveOrchestrationService {
-  override def buildAndExecute(orchestrationRequest: OrchestrationRequest, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[OrchestrationResponse] = testExecutorFactory.buildAndExecute(orchestrationRequest, journeyId)
+  override def buildAndExecute(orchestrationRequest: OrchestrationRequest, nino: String, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[OrchestrationResponse] = testExecutorFactory.buildAndExecute(orchestrationRequest, nino, journeyId)
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
   override val authConnector: AuthConnector = AuthConnector
 }
