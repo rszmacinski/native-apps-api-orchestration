@@ -33,7 +33,7 @@ sealed trait Executor[T >: ExecutorResponse] {
   val executionType: String
   val executorName:String
   val cacheTime: Option[Long]
-  def execute(cacheTime: Option[Long], data: Option[JsValue], nino: Option[String], journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[T]]
+  def execute(cacheTime: Option[Long], data: Option[JsValue], nino: String, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[T]]
 }
 
 trait ServiceExecutor extends Executor[ExecutorResponse] {
@@ -45,9 +45,9 @@ trait ServiceExecutor extends Executor[ExecutorResponse] {
   lazy val port: Int = getConfigProperty("port").toInt
 
   def connector: GenericConnector
-  def path(journeyId: Option[String], nino: Option[String], data: Option[JsValue]): String
+  def path(journeyId: Option[String], nino: String, data: Option[JsValue]): String
 
-  override def execute(cacheTime: Option[Long], data: Option[JsValue], nino :Option[String], journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[ExecutorResponse]] = {
+  override def execute(cacheTime: Option[Long], data: Option[JsValue], nino :String, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[ExecutorResponse]] = {
     executionType.toUpperCase match {
       case POST =>
         val postData = data.getOrElse(throw new Exception("No Post Data Provided!"))
@@ -101,7 +101,7 @@ trait ExecutorFactory {
 
   val eventExecutors: Map[String, EventExecutor] = Map(auditEventExecutor.executorName -> auditEventExecutor)
 
-  def buildAndExecute(orchestrationRequest: OrchestrationRequest, nino: Option[String] = None, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[OrchestrationResponse] = {
+  def buildAndExecute(orchestrationRequest: OrchestrationRequest, nino: String, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[OrchestrationResponse] = {
     for{
       serviceResponse <- {
         if (orchestrationRequest.serviceRequest.isDefined) {
@@ -118,7 +118,7 @@ trait ExecutorFactory {
     } yield (OrchestrationResponse(serviceResponse, eventResponse))
   }
 
-  private def execute[T >: ExecutorResponse](request: Seq[ExecutorRequest], nino: Option[String], journeyId: Option[String], executors: Map[String, Executor[T]])(implicit hc: HeaderCarrier, ex: ExecutionContext) : Future[Seq[T]] = {
+  private def execute[T >: ExecutorResponse](request: Seq[ExecutorRequest], nino: String, journeyId: Option[String], executors: Map[String, Executor[T]])(implicit hc: HeaderCarrier, ex: ExecutionContext) : Future[Seq[T]] = {
     val futuresSeq: Seq[Future[Option[T]]] = request.map {
       request => (executors.get(request.name), request.data)
     }.map(item => item._1.get.execute(item._1.get.cacheTime, item._2, nino, journeyId)
@@ -137,7 +137,7 @@ case class VersionCheckExecutor() extends ServiceExecutor {
 
   override val executionType: String = POST
   override val serviceName: String = "customer-profile"
-  override def path(journeyId: Option[String], nino: Option[String], data: Option[JsValue]) = "/profile/native-app/version-check"
+  override def path(journeyId: Option[String], nino: String, data: Option[JsValue]) = "/profile/native-app/version-check"
 
   override def connector: GenericConnector = GenericConnector
 
@@ -149,7 +149,7 @@ case class DeskProFeedbackExecutor() extends ServiceExecutor {
 
   override val executionType: String = POST
   override val serviceName: String = "deskpro-feedback"
-  override def path(journeyId: Option[String], nino: Option[String], data: Option[JsValue]) = "/deskpro/feedback"
+  override def path(journeyId: Option[String], nino: String, data: Option[JsValue]) = "/deskpro/feedback"
 
   override val cacheTime: Option[Long] = None
 
@@ -161,7 +161,7 @@ case class PushNotificationGetMessageExecutor() extends ServiceExecutor {
 
   override val executionType: String = POST
   override val serviceName: String = "push-notification"
-  override def path(journeyId: Option[String], nino: Option[String], data: Option[JsValue]) = {
+  override def path(journeyId: Option[String], nino: String, data: Option[JsValue]) = {
     val messageId = data.flatMap(json => (json \ "messageId").asOpt[String]).getOrElse(throw new Exception("No messageId provided"))
 
     s"/messages/$messageId${buildJourneyQueryParam(journeyId)}"
@@ -177,7 +177,7 @@ case class PushNotificationGetCurrentMessagesExecutor() extends ServiceExecutor 
 
   override val executionType: String = GET
   override val serviceName: String = "push-notification"
-  override def path(journeyId: Option[String], nino: Option[String], data: Option[JsValue]) = "/messages/current"
+  override def path(journeyId: Option[String], nino: String, data: Option[JsValue]) = "/messages/current"
 
   override val cacheTime: Option[Long] = None
 
@@ -192,7 +192,7 @@ case class AuditEventExecutor() extends EventExecutor {
 
   val audit: Audit = new Audit("native-apps", MicroserviceAuditConnector)
 
-  override def execute(cacheTime: Option[Long], data: Option[JsValue], nino: Option[String], journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[ExecutorResponse]] = {
+  override def execute(cacheTime: Option[Long], data: Option[JsValue], nino: String, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[ExecutorResponse]] = {
     val nino: Option[String] = data.flatMap(json => (json \ "nino").asOpt[String])
     val auditType: Option[String] = data.flatMap(json => (json \ "auditType").asOpt[String])
     val valid = auditType.isDefined && nino.isDefined
@@ -214,6 +214,6 @@ case class WidgetSurveyDataServiceExecutor() extends ServiceExecutor {
   override val executionType: String = POST
   override val executorName: String = "survey-widget"
   override def connector: GenericConnector = GenericConnector
-  override def path(journeyId: Option[String], nino: Option[String], data: Option[JsValue]): String = s"/native-app-widget/${nino.get}/widget-data"
+  override def path(journeyId: Option[String], nino: String, data: Option[JsValue]): String = s"/native-app-widget/${nino}/widget-data"
 
 }
