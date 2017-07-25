@@ -16,11 +16,13 @@
 
 package uk.gov.hmrc.ngc.orchestration.services
 
-import play.api.{Logger, Configuration, Play}
+import play.api.{Configuration, Logger, Play}
 import play.api.libs.json._
+import uk.gov.hmrc.ngc.orchestration.config.ConfiguredCampaigns
 import uk.gov.hmrc.ngc.orchestration.connectors.{AuthConnector, GenericConnector}
 import uk.gov.hmrc.ngc.orchestration.controllers.ResponseCode
-import uk.gov.hmrc.play.http.{Upstream4xxResponse, HeaderCarrier}
+import uk.gov.hmrc.play.http.{HeaderCarrier, Upstream4xxResponse}
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -60,18 +62,25 @@ case class TaxSummary(connector: GenericConnector, journeyId: Option[String]) ex
   }
 }
 
-case class TaxCreditsSubmissionState(connector: GenericConnector, journeyId: Option[String]) extends Executor {
+case class TaxCreditsSubmissionState(connector: GenericConnector, journeyId: Option[String]) extends Executor with ConfiguredCampaigns{
   override val id = "state"
   override val serviceName = "personal-income"
   override def execute(nino: String, year: Int)(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Option[Result]] = {
-    connector.doGet(host, s"/income/tax-credits/submission/state/enabled${buildJourneyQueryParam(journeyId)}", port, hc).map(res =>
-      Some(Result(id, JsObject(Seq("enableRenewals" -> JsBoolean(res.\("submissionState").as[Boolean]))))))
+    def makeJson(enableRenewals: Boolean) = {
+      JsObject(Seq("enableRenewals" -> JsBoolean(value = enableRenewals),
+        "campaigns" -> Json.toJson(configuredCampaigns)))
+    }
+
+    val renewalsResponse = connector.doGet(host, s"/income/tax-credits/submission/state/enabled${buildJourneyQueryParam(journeyId)}", port, hc).map(res =>
+      Some(Result(id, makeJson(res.\("submissionState").as[Boolean]))))
       .recover {
         case ex: Exception =>
           // Return a default state which indicates renewals are disabled.
           Logger.error(s"${logJourneyId(journeyId)} - Failed to retrieve TaxCreditsSubmissionState and exception is ${ex.getMessage}! Default of enabled state is false!")
-          Some(Result(id, JsObject(Seq("enableRenewals" -> JsBoolean(value = false)))))
-    }
+          Some(Result(id, makeJson(false)))
+      }
+
+    renewalsResponse
   }
 }
 
