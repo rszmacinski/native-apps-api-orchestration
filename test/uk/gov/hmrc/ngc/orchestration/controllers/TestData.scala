@@ -525,11 +525,21 @@ object TestData {
 
   def taxSummary(id:Option[String]=None) = Json.obj("taxSummary" -> taxSummaryData(id))
 
-  val submissionStateDataOff =   Json.parse("""{"enableRenewals": false}""")
-  val submissionStateOff: JsObject = Json.obj("state" -> submissionStateDataOff)
+  val campaigns = Json.parse("""[{
+                               |  "campaignId": "HELP_TO_SAVE_1",
+                               |  "enabled": true,
+                               |  "minimumViews": 4,
+                               |  "dismissDays": 43
+                               |}]""".stripMargin)
 
-  val submissionStateDataOn =   Json.parse("""{"enableRenewals": true}""")
-  val submissionStateOn: JsObject = Json.obj("state" -> submissionStateDataOn)
+  val submissionStateOn = Json.obj("state" -> Json.obj(
+    "enableRenewals" -> true,
+    "campaigns" -> campaigns
+  ))
+  val submissionStateOff = Json.obj("state" -> Json.obj(
+    "enableRenewals" -> false,
+    "campaigns" -> campaigns
+  ))
 
   val statusCompleteData = Json.parse("""{"code": "complete"}""")
   val statusComplete = Json.obj("status" -> statusCompleteData)
@@ -1209,7 +1219,15 @@ object TestData {
       |    }
       |  },
       |  "state": {
-      |    "enableRenewals": true
+      |    "enableRenewals": true,
+      |    "campaigns": [
+      |      {
+      |        "campaignId": "HELP_TO_SAVE_1",
+      |        "enabled": true,
+      |        "minimumViews": 4,
+      |        "dismissDays": 43
+      |      }
+      |    ]
       |  },
       |  "status": {
       |    "code": "complete"

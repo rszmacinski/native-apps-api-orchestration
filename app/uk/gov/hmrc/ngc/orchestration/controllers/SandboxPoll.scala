@@ -17,11 +17,12 @@
 package uk.gov.hmrc.ngc.orchestration.controllers
 
 import org.joda.time.LocalDate
-import play.api.libs.json.{JsBoolean, JsObject, JsString, Json}
+import play.api.libs.json._
 import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.mongo.DatabaseUpdate
 import uk.gov.hmrc.msasync.repository.{AsyncRepository, TaskCachePersist}
+import uk.gov.hmrc.ngc.orchestration.config.ConfiguredCampaigns
 import uk.gov.hmrc.ngc.orchestration.services.Result
 import uk.gov.hmrc.play.asyncmvc.model.TaskCache
 
@@ -30,7 +31,7 @@ import scala.concurrent.Future
 /**
  * Stubbed Sandbox poll
  */
-trait SandboxPoll extends FileResource {
+trait SandboxPoll extends FileResource with ConfiguredCampaigns {
 
   val sandboxRepository = new AsyncRepository {
     val exception = new Exception("Repo should not be called in sandbox mode!")
@@ -42,7 +43,7 @@ trait SandboxPoll extends FileResource {
     override def removeById(id: String): Future[Unit] = Future.failed(exception)
   }
 
-  def pollSandboxResult(nino:Nino): AsyncResponse =  {
+  def pollSandboxResult(nino: Nino): AsyncResponse = {
     val asyncStatusJson = JsObject(Seq("code" -> JsString("complete")))
     if (nino.equals(Nino("AB123456C"))) {
       val json = findResource(s"/resources/generic/version-check.json").get
@@ -50,11 +51,14 @@ trait SandboxPoll extends FileResource {
     }
     else {
       val resource: Option[String] = findResource(s"/resources/getsummary/${nino}_2016.json")
-      val stateJson = JsObject(Seq("enableRenewals" -> JsBoolean(value = true)))
+      val stateJson = JsObject(Seq(
+        "enableRenewals" -> JsBoolean(value = true),
+        "campaigns" -> Json.toJson(configuredCampaigns)
+      ))
 
       // Build the results based on the above stubbed data.
       val currentTime = (new LocalDate()).toDateTimeAtStartOfDay
-      val taxSummary = Result("taxSummary",Json.parse(resource.get))
+      val taxSummary = Result("taxSummary", Json.parse(resource.get))
       val taxCreditSummary = Result("taxCreditSummary", Json.parse(findResource(s"/resources/taxcreditsummary/${nino.value}.json").get
         .replaceAll("date1", currentTime.plusWeeks(1).getMillis.toString)
         .replaceAll("date2", currentTime.plusWeeks(2).getMillis.toString)
