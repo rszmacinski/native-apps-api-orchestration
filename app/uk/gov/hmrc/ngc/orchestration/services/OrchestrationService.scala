@@ -24,13 +24,14 @@ import play.api.{Configuration, Logger, Play}
 import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.api.service.Auditor
 import uk.gov.hmrc.domain.Nino
-import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
+import uk.gov.hmrc.ngc.orchestration.config.{Campaign, ConfiguredCampaigns, MicroserviceAuditConnector}
 import uk.gov.hmrc.ngc.orchestration.connectors.{AuthConnector, GenericConnector}
 import uk.gov.hmrc.ngc.orchestration.domain._
 import uk.gov.hmrc.ngc.orchestration.executors.ExecutorFactory
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.http.HeaderCarrier
 import uk.gov.hmrc.time.TaxYear
+
 import scala.concurrent.Future._
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -84,7 +85,7 @@ object JourneyResponse {
 
 case class ServiceState(state:String, func: Accounts => MFARequest => Option[String] => Future[MFAAPIResponse])
 
-trait LiveOrchestrationService extends OrchestrationService with Auditor with MFAIntegration {
+trait LiveOrchestrationService extends OrchestrationService with Auditor with MFAIntegration with ConfiguredCampaigns {
 
   val authConnector: AuthConnector
 
@@ -167,10 +168,11 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor with MF
     ).map(item => item.execute(nino, year))
 
     for (results <- sequence(futuresSeq).map(_.flatten)) yield {
-      results.map(b => Json.obj(b.id -> b.jsValue))
+      val response = results.map(b => Json.obj(b.id -> b.jsValue))
+      val campaigns = configuredCampaigns(hasData, response.foldLeft(Json.obj())((obj, a) => obj.deepMerge(a.as[JsObject])))
+      response ++ (if(!campaigns.isEmpty) Seq(Json.obj("campaigns" -> Json.toJson(campaigns))) else Seq.empty)
     }
   }
-
 }
 
 

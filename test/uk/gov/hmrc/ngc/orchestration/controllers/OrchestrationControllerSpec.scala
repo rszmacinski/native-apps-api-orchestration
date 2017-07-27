@@ -226,7 +226,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
   "async live controller (verify different json attribute response values based on service responses)" should {
 
     "return 401 when the Tax Summary response NINO does match the authority NINO" in new SecurityAsyncSetup {
-      val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+      val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.campaigns, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
       invokeOrchestrateAndPollForResult(controller, "async_native-apps-api-id-SecurityAsyncSetup", Nino("CS700100A"),
         jsonMatch, 401)(versionRequest)
@@ -245,7 +245,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
           "/income/CS700100A/tax-credits/tax-credits-summary" -> false
         )
 
-      val jsonMatch = Seq(TestData.taxSummaryEmpty, TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+      val jsonMatch = Seq(TestData.taxSummaryEmpty, TestData.taxCreditSummaryEmpty, TestData.submissionStateOn, TestData.campaigns, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
       invokeOrchestrateAndPollForResult(controller, "async_native-apps-api-id-"+test_id, Nino("CS700100A"),
         jsonMatch, 401, """{"token":"123456"}""", Some("max-age=14400"), Some(Nino("CS722100B")))(versionRequest)
@@ -260,7 +260,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
     }
 
     "return taxCreditSummary attribute when submission state is not active" in new RenewalSubmissionNotActive {
-        val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummary, TestData.submissionStateOff, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+        val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummary, TestData.submissionStateOff, TestData.campaigns, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
         invokeOrchestrateAndPollForResult(controller, "async_native-apps-api-id-RenewalSubmissionNotActive", Nino("CS700100A"),
           jsonMatch)(versionRequest)
@@ -322,7 +322,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       override lazy val test_id: String = s"test_id_testOrchestrationDecisionFailure_$time"
       override val taxSummaryData: JsValue = TestData.taxSummaryData()
 
-      val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummary, TestData.submissionStateOff, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+      val jsonMatch = Seq(TestData.taxSummary(), TestData.taxCreditSummary, TestData.submissionStateOff, TestData.campaigns, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
       invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
         jsonMatch)(versionRequest)
@@ -335,7 +335,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       override lazy val test_id: String = s"test_id_testOrchestrationDecisionFailure_$time"
       override val taxSummaryData: JsValue = TestData.taxSummaryData()
 
-      val jsonMatch = Seq(TestData.taxSummaryEmpty, TestData.taxCreditSummary, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+      val jsonMatch = Seq(TestData.taxSummaryEmpty, TestData.taxCreditSummary, TestData.submissionStateOn, TestData.campaigns, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
       invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-test_id_testOrchestrationDecisionFailure_$time", Nino("CS700100A"),
         jsonMatch, 200, """{"token":"123456"}""")(versionRequest)
@@ -606,7 +606,7 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
             // Build the expected response.
             // Note: The specific async response is validated against the JSON generated server side contains the task Id.
-            val jsonMatch = Seq(TestData.taxSummary(Some(asyncTestRequest.controller.testSessionId)), TestData.taxCreditSummary, TestData.submissionStateOn, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
+            val jsonMatch = Seq(TestData.taxSummary(Some(asyncTestRequest.controller.testSessionId)), TestData.taxCreditSummary, TestData.submissionStateOn, TestData.campaigns, TestData.statusComplete).foldLeft(Json.obj())((b, a) => b ++ a)
 
             // Execute the controller async request and poll for response.
             val task_id = s"${asyncTaskId}_${asyncTestRequest.time}"

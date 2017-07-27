@@ -22,7 +22,7 @@ import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.mongo.DatabaseUpdate
 import uk.gov.hmrc.msasync.repository.{AsyncRepository, TaskCachePersist}
-import uk.gov.hmrc.ngc.orchestration.config.ConfiguredCampaigns
+import uk.gov.hmrc.ngc.orchestration.config.{Campaign, ConfiguredCampaigns}
 import uk.gov.hmrc.ngc.orchestration.services.Result
 import uk.gov.hmrc.play.asyncmvc.model.TaskCache
 
@@ -52,8 +52,7 @@ trait SandboxPoll extends FileResource with ConfiguredCampaigns {
     else {
       val resource: Option[String] = findResource(s"/resources/getsummary/${nino}_2016.json")
       val stateJson = JsObject(Seq(
-        "enableRenewals" -> JsBoolean(value = true),
-        "campaigns" -> Json.toJson(configuredCampaigns)
+        "enableRenewals" -> JsBoolean(value = true)
       ))
 
       // Build the results based on the above stubbed data.
@@ -64,10 +63,11 @@ trait SandboxPoll extends FileResource with ConfiguredCampaigns {
         .replaceAll("date2", currentTime.plusWeeks(2).getMillis.toString)
         .replaceAll("date3", currentTime.plusWeeks(3).getMillis.toString)
       ))
+      val campaigns = Result("campaigns", Json.toJson(Seq(Campaign("HELP_TO_SAVE_1", true, Some(4), Some(43), Some("workingTaxCredit")))))
       val state = Result("state", stateJson)
       val asyncStatus = Result("status", asyncStatusJson)
 
-      val jsonResponseAttributes = Seq(taxSummary, taxCreditSummary, state, asyncStatus).map(b => Json.obj(b.id -> b.jsValue))
+      val jsonResponseAttributes = Seq(taxSummary, taxCreditSummary, state, campaigns, asyncStatus).map(b => Json.obj(b.id -> b.jsValue))
       AsyncResponse(jsonResponseAttributes.foldLeft(Json.obj())((b, a) => b ++ a), nino)
     }
   }

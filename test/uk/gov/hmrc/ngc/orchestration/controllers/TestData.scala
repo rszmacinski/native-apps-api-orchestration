@@ -525,20 +525,19 @@ object TestData {
 
   def taxSummary(id:Option[String]=None) = Json.obj("taxSummary" -> taxSummaryData(id))
 
-  val campaigns = Json.parse("""[{
+  val campaigns = Json.obj("campaigns" -> Seq(Json.parse("""{
                                |  "campaignId": "HELP_TO_SAVE_1",
                                |  "enabled": true,
                                |  "minimumViews": 4,
-                               |  "dismissDays": 43
-                               |}]""".stripMargin)
+                               |  "dismissDays": 43,
+                               |  "requiredData": "workingTaxCredit"
+                               |}""".stripMargin)))
 
   val submissionStateOn = Json.obj("state" -> Json.obj(
-    "enableRenewals" -> true,
-    "campaigns" -> campaigns
+    "enableRenewals" -> true
   ))
   val submissionStateOff = Json.obj("state" -> Json.obj(
-    "enableRenewals" -> false,
-    "campaigns" -> campaigns
+    "enableRenewals" -> false
   ))
 
   val statusCompleteData = Json.parse("""{"code": "complete"}""")
@@ -553,18 +552,35 @@ object TestData {
   val taxCreditSummaryData = Json.parse(
     """
       |{
-      |    "paymentSummary": {
-      |      "workingTaxCredit": {
-      |        "amount": 86.63,
-      |        "paymentDate": 1437004800000,
-      |        "paymentFrequency": "WEEKLY"
-      |      },
-      |      "childTaxCredit": {
-      |        "amount": 51.76,
-      |        "paymentDate": 1437004800000,
-      |        "paymentFrequency": "WEEKLY"
-      |      }
+      |  "paymentSummary": {
+      |    "workingTaxCredit": {
+      |      "paymentSeq": [
+      |        {
+      |          "amount": 86.63,
+      |          "paymentDate": 1437004800000,
+      |          "oneOffPayment": false
+      |        }
+      |      ],
+      |      "paymentFrequency": "weekly"
       |    },
+      |    "childTaxCredit": {
+      |      "paymentSeq": [
+      |        {
+      |          "amount": 51.76,
+      |          "paymentDate": 1437004800000,
+      |          "oneOffPayment": false
+      |        }
+      |      ],
+      |      "paymentFrequency": "weekly"
+      |    },
+      |    "paymentEnabled": true,
+      |    "totalsByDate": [
+      |      {
+      |        "amount": 138.39,
+      |        "paymentDate": 1437004800000
+      |      }
+      |    ]
+      |  },
       |    "personalDetails": {
       |      "forename": "Nuala",
       |      "surname": "O'Shea",
@@ -1219,16 +1235,17 @@ object TestData {
       |    }
       |  },
       |  "state": {
-      |    "enableRenewals": true,
-      |    "campaigns": [
-      |      {
-      |        "campaignId": "HELP_TO_SAVE_1",
-      |        "enabled": true,
-      |        "minimumViews": 4,
-      |        "dismissDays": 43
-      |      }
-      |    ]
+      |    "enableRenewals": true
       |  },
+      |  "campaigns": [
+      |    {
+      |      "campaignId": "HELP_TO_SAVE_1",
+      |      "enabled": true,
+      |      "minimumViews": 4,
+      |      "dismissDays": 43,
+      |      "requiredData": "workingTaxCredit"
+      |    }
+      |  ],
       |  "status": {
       |    "code": "complete"
       |  }

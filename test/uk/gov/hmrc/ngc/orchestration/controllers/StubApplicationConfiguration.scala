@@ -36,6 +36,8 @@ trait StubApplicationConfiguration {
     "router.regex" -> "X-MOBILE-USER-ID",
     "widget.help_to_save.enabled" -> true,
     "widget.help_to_save.min_views" -> "4",
-    "widget.help_to_save.dismiss_days" -> "43"
+    "widget.help_to_save.dismiss_days" -> "43",
+    "widget.help_to_save.required_data" -> "workingTaxCredit"
+
   )
 }
