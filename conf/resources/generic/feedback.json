@@ -4,5 +4,6 @@
   "responseData": {
     "ticket_id": 1980683879
   },
-  "cacheTime": 1000
+  "cacheTime": 1000,
+  "failure": false
 }
