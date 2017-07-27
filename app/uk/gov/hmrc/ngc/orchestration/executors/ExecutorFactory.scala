@@ -53,7 +53,7 @@ trait ServiceExecutor extends Executor[ExecutorResponse] {
         val postData = data.getOrElse(throw new Exception("No Post Data Provided!"))
         val result = connector.doPost(postData, host, path(journeyId, nino, data), port, hc)
         result.map { response =>
-          Some(ExecutorResponse(executorName, Option(response), cacheTime))
+          Some(ExecutorResponse(executorName, Option(response), cacheTime, failure = Some(false)))
         }
 
       case GET =>
@@ -215,5 +215,4 @@ case class WidgetSurveyDataServiceExecutor() extends ServiceExecutor {
   override val executorName: String = "survey-widget"
   override def connector: GenericConnector = GenericConnector
   override def path(journeyId: Option[String], nino: String, data: Option[JsValue]): String = s"/native-app-widget/${nino}/widget-data"
-
 }
