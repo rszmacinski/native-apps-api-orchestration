@@ -188,7 +188,8 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
                                 "404893573713" -> "CS700105A",
                                 "404893573714" -> "CS700106A",
                                 "404893573715" -> "CS700107A",
-                                "404893573716" -> "CS700108A")
+                                "404893573716" -> "CS700108A",
+                                "404893573717" -> "CS700109A")
 
   def preFlightCheck(preflightRequest:PreFlightRequest, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[PreFlightCheckResponse] = {
     successful(hc.extraHeaders.find(_._1 equals "X-MOBILE-USER-ID") match {
