@@ -63,6 +63,7 @@ trait GenericOrchestrationSetup {
   lazy val testFeedbackExecutor = new TestFeedbackExecutor(testSuccessGenericConnector)
   lazy val testPushNotificationGetMessageExecutor = new TestPushNotificationGetMessageExecutor(testSuccessGenericConnector)
   lazy val testPushNotificationGetCurrentMessageExecutor = new TestPushNotificationGetCurrentMessageExecutor(testSuccessGenericConnector)
+  lazy val testClaimantDetailsServiceExecutor = new TestClaimantDetailsServiceExecutor(testSuccessGenericConnector)
   lazy val testAuditConnector = new TestAuditConnector()
   lazy val testAuditEventExecutor = new TestAuditEventExecutor(new Audit("test-app", testAuditConnector))
 
@@ -71,7 +72,9 @@ trait GenericOrchestrationSetup {
   lazy val testServiceExecutors = Map(testVersionCheckExecutor.executorName -> testVersionCheckExecutor,
                                       testFeedbackExecutor.executorName -> testFeedbackExecutor,
                                       testPushNotificationGetMessageExecutor.executorName -> testPushNotificationGetMessageExecutor,
-                                      testPushNotificationGetCurrentMessageExecutor.executorName -> testPushNotificationGetCurrentMessageExecutor)
+                                      testPushNotificationGetCurrentMessageExecutor.executorName -> testPushNotificationGetCurrentMessageExecutor,
+                                      testClaimantDetailsServiceExecutor.executorName -> testClaimantDetailsServiceExecutor
+                                  )
 
   lazy val testExecutorFactory = new TestExecutorFactory(testServiceExecutors,testEventExecutors, maxServiceCalls,maxEventCalls)
 
@@ -152,6 +155,10 @@ class TestPushNotificationGetMessageExecutor(testGenericConnector: GenericConnec
 }
 
 class TestPushNotificationGetCurrentMessageExecutor(testGenericConnector: GenericConnector) extends PushNotificationGetCurrentMessagesExecutor {
+  override def connector: GenericConnector = testGenericConnector
+}
+
+class TestClaimantDetailsServiceExecutor(testGenericConnector: GenericConnector) extends ClaimantDetailsServiceExecutor {
   override def connector: GenericConnector = testGenericConnector
 }
 

@@ -23,7 +23,7 @@ import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Milliseconds, Seconds, Span}
 import play.api.libs.json._
-import play.api.mvc.{Request, Result}
+import play.api.mvc.{AnyContentAsJson, Request, Result}
 import play.api.test.Helpers._
 import play.api.test.{FakeApplication, FakeRequest}
 import uk.gov.hmrc.api.sandbox.FileResource
@@ -522,6 +522,30 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
       val request: JsValue = Json.parse(findResource("/resources/generic/push-notification-get-current-message-request.json").get)
       val fakeRequest = FakeRequest().withSession(
+        "AuthToken" -> "Some Header"
+      ).withHeaders(
+        "Accept" -> "application/vnd.hmrc.1.0+json",
+        "Authorization" -> "Some Header"
+      ).withJsonBody(request)
+
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$test_id", Nino("CS700100A"), response , 200, Json.stringify(request))(fakeRequest)
+    }
+
+    "return success response from claimant-details service" in new TestGenericOrchestrationController with FileResource {
+      lazy val claimantDetails: JsValue = Json.parse(findResource("/resources/generic/tax-credit-claimant-details.json").get)
+
+      override lazy val test_id: String = "claimant-details-success"
+      override val exception: Option[Exception] = None
+      override val statusCode: Option[Int] = Option(200)
+      override lazy val response: JsValue = Json.parse(findResource(s"/resources/generic/tax-credit-claimant-details-response.json").get)
+      override lazy val testSuccessGenericConnector = new TestGenericOrchestrationConnector(Seq(
+        GenericServiceResponse(failure = false, (response \\ "responseData").head),
+        GenericServiceResponse(failure = false, Json.parse("""{"tcrAuthToken": "Basic Q1M3MDAxMDBBOjIwMDAwMDAwMDAwMDAxMw=="}""")),
+        GenericServiceResponse(failure = false, claimantDetails)
+      ))
+
+      val request: JsValue = Json.parse(findResource("/resources/generic/tax-credit-claimant-details-request.json").get)
+      val fakeRequest: FakeRequest[AnyContentAsJson] = FakeRequest().withSession(
         "AuthToken" -> "Some Header"
       ).withHeaders(
         "Accept" -> "application/vnd.hmrc.1.0+json",
