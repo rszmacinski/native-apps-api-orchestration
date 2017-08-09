@@ -245,7 +245,7 @@ case class ClaimantDetailsServiceExecutor() extends ServiceExecutor {
 
     val journeyParam = journeyId.map(id => s"&journeyId=$id").getOrElse("")
 
-    val claimsPath = s"/personal-income/income/$nino/tax-credits/claimant-details?claims=true$journeyParam"
+    val claimsPath = s"/income/$nino/tax-credits/claimant-details?claims=true$journeyParam"
 
     val claimantDetails = for (
       references <- connector.doGet(host, claimsPath, port, hc);
@@ -262,7 +262,7 @@ case class ClaimantDetailsServiceExecutor() extends ServiceExecutor {
     val journeyParam = journeyId.map(id => s"?journeyId=$id").getOrElse("")
 
     val tokens = barcodes.map { code =>
-      val path = s"/personal-income/income/$nino/tax-credits/$code/auth$journeyParam"
+      val path = s"/income/$nino/tax-credits/$code/auth$journeyParam"
       val result = connector.doGet(host, path, port, hc)
       result.map(token => (code, (token \ "tcrAuthToken").as[String]))
     }
@@ -274,9 +274,8 @@ case class ClaimantDetailsServiceExecutor() extends ServiceExecutor {
     val journeyParam = journeyId.map(id => s"?journeyId=$id").getOrElse("")
 
     val renewalFormType = tokens.map { case (code, auth) =>
-      val path = s"/personal-income/income/$nino/tax-credits/claimant-details$journeyParam"
-      val headers = hc.copy(otherHeaders = hc.otherHeaders :+ ("tcrAuthToken", auth))
-      val result = connector.doGet(host, path, port, headers)
+      val path = s"/income/$nino/tax-credits/claimant-details$journeyParam"
+      val result = connector.doGet(host, path, port, hc.withExtraHeaders(("tcrAuthToken", auth)))
       result.map(details => (code, (details \ "renewalFormType").as[String]))
     }
 
