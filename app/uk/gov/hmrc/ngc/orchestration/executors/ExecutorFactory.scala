@@ -249,7 +249,7 @@ case class ClaimantDetailsServiceExecutor() extends ServiceExecutor {
 
     val claimantDetails = for (
       references <- connector.doGet(host, claimsPath, port, hc);
-      tokens <- getTokens(nino, (references \ "references" \\ "barcodeReference").map(_.as[String]).toList, journeyId);
+      tokens <- getTokens(nino, getBarcodes(references), journeyId);
       details <- getDetails(nino, references, tokens, journeyId)
     ) yield details
 
@@ -258,44 +258,64 @@ case class ClaimantDetailsServiceExecutor() extends ServiceExecutor {
     }
   }
 
+  def getBarcodes(references: JsValue): Seq[String] = {
+    (references \ "references" \\ "barcodeReference").flatMap(_.asOpt[String])
+  }
+
   def getTokens(nino: String, barcodes: Seq[String], journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Map[String, String]] = {
     val journeyParam = journeyId.map(id => s"?journeyId=$id").getOrElse("")
 
-    val tokens = barcodes.map { code =>
+    val tokens = Future.sequence(barcodes.map { code =>
       val path = s"/income/$nino/tax-credits/$code/auth$journeyParam"
       val result = connector.doGet(host, path, port, hc)
-      result.map(token => (code, (token \ "tcrAuthToken").as[String]))
-    }
 
-    Future.sequence(tokens).map(_.toMap)
+      result.map(token => (code, (token \ "tcrAuthToken").asOpt[String]))
+        .filter(_._2.nonEmpty)
+        .map(token => (token._1, token._2.get))
+    })
+
+    tokens.recover {
+      case ex: Exception =>
+        Logger.error("failed to get tcrAuthTokens: " + ex.getMessage)
+        Seq.empty
+    }.map(_.toMap)
   }
 
   def getDetails(nino: String, references: JsValue, tokens: Map[String, String], journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsValue] = {
     val journeyParam = journeyId.map(id => s"?journeyId=$id").getOrElse("")
 
-    val renewalFormType = tokens.map { case (code, auth) =>
+    val renewalFormType = Future.sequence(tokens.map { case (code, auth) =>
       val path = s"/income/$nino/tax-credits/claimant-details$journeyParam"
       val result = connector.doGet(host, path, port, hc.withExtraHeaders(("tcrAuthToken", auth)))
-      result.map(details => (code, (details \ "renewalFormType").as[String]))
-    }
+      result.map(details => (code, (details \ "renewalFormType").asOpt[String]))
+    })
 
-    Future.sequence(renewalFormType).map { renewals =>
+    renewalFormType.recover {
+      case ex: Exception =>
+        Logger.error("failed to get claimant-details: " + ex.getMessage)
+        Seq(("_NO_BAR_CODE", None))
+    }.map{ renewals =>
       renewals.foldLeft(references) { case (doc, detailsForCode) =>
-        val references = (doc \ "references").as[JsArray].value
-        val updated = JsArray(references.map { reference =>
-          if ((reference \\ "barcodeReference").head.as[String] == detailsForCode._1) {
-            val transformer = (__ \ "renewal").json.update(
-              __.read[JsObject].map {
-                _ ++ Json.obj("renewalFormType" -> detailsForCode._2)
+        (doc \ "references").asOpt[JsArray].map { array =>
+          val updated = JsArray(array.value.flatMap { reference =>
+            (reference \\ "barcodeReference").map { c =>
+              if (c.asOpt[String] == Some(detailsForCode._1)) {
+                detailsForCode._2.map { details =>
+                  val transformer = (__ \ "renewal").json.update(
+                    __.read[JsObject].map {
+                      _ ++ Json.obj("renewalFormType" -> details)
+                    }
+                  )
+                  reference.transform(transformer).get
+                }.getOrElse(reference)
+              } else {
+                reference
               }
-            )
-            reference.transform(transformer).get
-          } else {
-            reference
-          }
-        })
+            }
+          })
 
-        JsObject(Seq("references" -> updated))
+          JsObject(Seq("references" -> updated))
+        }.getOrElse(doc)
       }
     }
   }
