@@ -23,7 +23,7 @@ import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Milliseconds, Seconds, Span}
 import play.api.libs.json._
-import play.api.mvc.{Request, Result}
+import play.api.mvc.{AnyContentAsJson, Request, Result}
 import play.api.test.Helpers._
 import play.api.test.{FakeApplication, FakeRequest}
 import uk.gov.hmrc.api.sandbox.FileResource
@@ -35,6 +35,7 @@ import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.util.matching.UnanchoredRegex
 
 
 
@@ -522,6 +523,81 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
 
       val request: JsValue = Json.parse(findResource("/resources/generic/push-notification-get-current-message-request.json").get)
       val fakeRequest = FakeRequest().withSession(
+        "AuthToken" -> "Some Header"
+      ).withHeaders(
+        "Accept" -> "application/vnd.hmrc.1.0+json",
+        "Authorization" -> "Some Header"
+      ).withJsonBody(request)
+
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$test_id", Nino("CS700100A"), response , 200, Json.stringify(request))(fakeRequest)
+    }
+
+    "return success response from claimant-details service" in new TestGenericOrchestrationController with FileResource {
+      lazy val claimantDetails: JsValue = Json.parse(findResource("/resources/generic/tax-credit-claimant-details.json").get)
+
+      override lazy val test_id: String = "claimant-details-success"
+      override val exception: Option[Exception] = None
+      override val statusCode: Option[Int] = Option(200)
+      override lazy val response: JsValue = Json.parse(findResource(s"/resources/generic/tax-credit-claimant-details-response.json").get)
+      override lazy val testSuccessGenericConnector = new TestGenericOrchestrationConnector(Seq(
+        GenericServiceResponse(failure = false, (claimantDetails \\ "firstCall").head),
+        GenericServiceResponse(failure = false, Json.parse("""{"tcrAuthToken": "Basic Q1M3MDAxMDBBOjIwMDAwMDAwMDAwMDAxMw=="}""")),
+        GenericServiceResponse(failure = false, (claimantDetails \\ "secondCall").head)
+      ))
+
+      val request: JsValue = Json.parse(findResource("/resources/generic/tax-credit-claimant-details-request.json").get)
+      val fakeRequest: FakeRequest[AnyContentAsJson] = FakeRequest().withSession(
+        "AuthToken" -> "Some Header"
+      ).withHeaders(
+        "Accept" -> "application/vnd.hmrc.1.0+json",
+        "Authorization" -> "Some Header"
+      ).withJsonBody(request)
+
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$test_id", Nino("CS700100A"), response , 200, Json.stringify(request))(fakeRequest)
+    }
+
+    "return success response from claimant-details service given a problem with the tcrAuthToken" in new TestGenericOrchestrationController with FileResource {
+      lazy val claimantDetails: JsValue = Json.parse(findResource("/resources/generic/tax-credit-claimant-details.json").get)
+      lazy val fullResponse: String = findResource(s"/resources/generic/tax-credit-claimant-details-response.json").get
+      lazy val trim: UnanchoredRegex = """(?s)FirstSpecifiedDate[^,]+,.*?"renewalForm[^}]+""".r.unanchored
+
+      override lazy val test_id: String = "claimant-details-no-auth"
+      override val exception: Option[Exception] = None
+      override val statusCode: Option[Int] = Option(200)
+      override lazy val response: JsValue = Json.parse(trim.replaceAllIn(fullResponse, """FirstSpecifiedDate": "12/10/2010""""))
+      override lazy val testSuccessGenericConnector = new TestGenericOrchestrationConnector(Seq(
+        GenericServiceResponse(failure = false, (claimantDetails \\ "firstCall").head),
+        GenericServiceResponse(failure = true, Json.parse("""{"ERROR" : "Broken token"}"""))
+      ))
+
+      val request: JsValue = Json.parse(findResource("/resources/generic/tax-credit-claimant-details-request.json").get)
+      val fakeRequest: FakeRequest[AnyContentAsJson] = FakeRequest().withSession(
+        "AuthToken" -> "Some Header"
+      ).withHeaders(
+        "Accept" -> "application/vnd.hmrc.1.0+json",
+        "Authorization" -> "Some Header"
+      ).withJsonBody(request)
+
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$test_id", Nino("CS700100A"), response , 200, Json.stringify(request))(fakeRequest)
+    }
+
+    "return success response from claimant-details service given a problem with the claimant-details" in new TestGenericOrchestrationController with FileResource {
+      lazy val claimantDetails: JsValue = Json.parse(findResource("/resources/generic/tax-credit-claimant-details.json").get)
+      lazy val fullResponse: String = findResource(s"/resources/generic/tax-credit-claimant-details-response.json").get
+      lazy val trim: UnanchoredRegex = """(?s)FirstSpecifiedDate[^,]+,.*?"renewalForm[^}]+""".r.unanchored
+
+      override lazy val test_id: String = "claimant-details-no-details"
+      override val exception: Option[Exception] = None
+      override val statusCode: Option[Int] = Option(200)
+      override lazy val response: JsValue = Json.parse(trim.replaceAllIn(fullResponse, """FirstSpecifiedDate": "12/10/2010""""))
+      override lazy val testSuccessGenericConnector = new TestGenericOrchestrationConnector(Seq(
+        GenericServiceResponse(failure = false, (claimantDetails \\ "firstCall").head),
+        GenericServiceResponse(failure = false, Json.parse("""{"tcrAuthToken": "Basic Q1M3MDAxMDBBOjIwMDAwMDAwMDAwMDAxMw=="}""")),
+        GenericServiceResponse(failure = true, Json.parse("""{"ERROR" : "Broken details"}"""))
+      ))
+
+      val request: JsValue = Json.parse(findResource("/resources/generic/tax-credit-claimant-details-request.json").get)
+      val fakeRequest: FakeRequest[AnyContentAsJson] = FakeRequest().withSession(
         "AuthToken" -> "Some Header"
       ).withHeaders(
         "Accept" -> "application/vnd.hmrc.1.0+json",
