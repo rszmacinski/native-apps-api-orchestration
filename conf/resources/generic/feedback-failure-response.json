@@ -3,7 +3,8 @@
     "serviceResponse": [
       {
         "name": "deskpro-feedback",
-        "failure": true
+        "failure": true,
+        "timeout":false
       }
     ]
   },

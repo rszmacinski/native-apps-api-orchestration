@@ -492,6 +492,30 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
       invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$test_id", Nino("CS700100A"), response , 200, Json.stringify(request))(fakeRequest)
     }
 
+    "returns response of failure with a timeout flag set when a GatewayTimeoutException occurs executing the generic service" in new TestGenericOrchestrationController with FileResource {
+      override lazy val test_id: String = "GenericTokenTimeoutFailure"
+      override val statusCode: Option[Int] = Option(200)
+      override lazy val exception: Option[Exception] = None
+
+      override lazy val testSuccessGenericConnector = new TestGenericOrchestrationConnector(
+        Seq(GenericServiceResponse(true, TestData.responseTicket)), Some("timeout"))
+      val expectedResponse = """{"OrchestrationResponse":{"response":[{"serviceName":"deskpro-feedback","failure":true,"timeout":true}]},"status":{"code":"complete"}}"""
+
+      override val response: JsValue = Json.parse(findResource(s"/resources/generic/feedback-failure-timeout-response.json").get)
+
+      val request: JsValue = Json.parse(findResource(s"/resources/generic/feedback-request.json").get)
+
+      val fakeRequest = FakeRequest().withSession(
+        "AuthToken" -> "Some Header"
+      ).withHeaders(
+        "Accept" -> "application/vnd.hmrc.1.0+json",
+        "Authorization" -> "Some Header"
+      ).withJsonBody(request)
+
+      invokeOrchestrateAndPollForResult(controller, s"async_native-apps-api-id-$test_id", Nino("CS700100A"), response , 200, Json.stringify(request))(fakeRequest)
+    }
+
+
     "returns a success response from push-notification-get-message generic service" in new TestGenericOrchestrationController with FileResource {
       override lazy val test_id: String = "push-push-notification-get-message-success"
       override val statusCode: Option[Int] = Option(200)

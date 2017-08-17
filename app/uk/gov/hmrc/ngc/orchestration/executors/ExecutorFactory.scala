@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.ngc.orchestration.executors
 
+import java.util.concurrent.TimeoutException
+
 import play.api.libs.json._
 import play.api.{Configuration, Logger, Play}
 import uk.gov.hmrc.ngc.orchestration.config.MicroserviceAuditConnector
@@ -23,7 +25,7 @@ import uk.gov.hmrc.ngc.orchestration.connectors.GenericConnector
 import uk.gov.hmrc.ngc.orchestration.domain._
 import uk.gov.hmrc.play.audit.AuditExtensions._
 import uk.gov.hmrc.play.audit.model.{Audit, DataEvent}
-import uk.gov.hmrc.play.http.HeaderCarrier
+import uk.gov.hmrc.play.http.{GatewayTimeoutException, HeaderCarrier}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{ExecutionContext, Future}
@@ -55,13 +57,12 @@ trait ServiceExecutor extends Executor[ExecutorResponse] {
         val postData = data.getOrElse(throw new Exception("No Post Data Provided!"))
         val result = connector.doPost(postData, host, path(journeyId, nino, data), port, hc)
         result.map { response =>
-          Some(ExecutorResponse(executorName, Option(response), cacheTime, failure = Some(false)))
+          Some(ExecutorResponse(executorName, Option(response), cacheTime, Some(false)))
         }
-
       case GET =>
         connector.doGet(host, path(journeyId, nino, None), port, hc).map {
           response => {
-            Some(ExecutorResponse(executorName, Option(response), cacheTime))
+            Some(ExecutorResponse(executorName, Option(response), cacheTime, Some(false)))
           }
         }
 
@@ -129,9 +130,13 @@ trait ExecutorFactory {
       request => (executors.get(request.name), request.data)
     }.map(item => item._1.get.execute(item._1.get.cacheTime, item._2, nino, journeyId)
       .recover {
-        case ex: Exception =>
+        case ex: GatewayTimeoutException => {
+          Some(ExecutorResponse(item._1.get.executorName, None, None, Some(true), Some(true)))
+        }
+        case ex: Exception => {
           Logger.error(s"Failed to execute ${item._1.get.executorName} with exception ${ex.getMessage}!")
-          Some(ExecutorResponse(item._1.get.executorName, None, None, Some(true)))
+          Some(ExecutorResponse(item._1.get.executorName, None, None, Some(true), Some(false)))
+        }
       })
     Future.sequence(futuresSeq).map(item => item.flatten)
   }
