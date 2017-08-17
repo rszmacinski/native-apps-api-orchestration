@@ -184,13 +184,10 @@ class TestGenericOrchestrationConnector(response:Seq[GenericServiceResponse], ex
     if (!testResponse.failure)
       Future.successful(testResponse.data)
     else {
-      if(exception.isDefined){
-        exception.get match {
-          case "timeout" => Future.failed(new GatewayTimeoutException("Controlled timeout exception"))
-          case _ => Future.failed(new Exception("Controlled explosion!"))
+      Future.failed(exception.map{ _ match {
+          case "timeout" => new GatewayTimeoutException("Controlled Gateway Timeout Exception")
         }
-      }
-      else Future.failed(new Exception("Controlled explosion!"))
+      }.getOrElse(new Exception("Controlled Explosion!")))
     }
   }
 }
