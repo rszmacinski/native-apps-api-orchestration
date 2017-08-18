@@ -51,7 +51,7 @@ private object AppDependencies {
     "uk.gov.hmrc" %% "domain" % domainVersion,
     "uk.gov.hmrc" %% "play-hmrc-api" % playHmrcApiVersion,
     "uk.gov.hmrc" %% "emailaddress" % hmrcEmailAddressVersion,
-    "uk.gov.hmrc" %% "play-reactivemongo" % "5.2.0",
+    "uk.gov.hmrc" %% "play-reactivemongo" % "5.1.0",
     "uk.gov.hmrc" %% "tax-year" % "0.3.0"
   )
 
