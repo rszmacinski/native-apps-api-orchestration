@@ -31,7 +31,7 @@ import uk.gov.hmrc.play.asyncmvc.model.TaskCache
 import uk.gov.hmrc.play.audit.http.config.AuditingConfig
 import uk.gov.hmrc.play.audit.http.connector.{AuditConnector, AuditResult}
 import uk.gov.hmrc.play.audit.model.{Audit, AuditEvent}
-import uk.gov.hmrc.play.http.{HeaderCarrier, HttpGet, HttpPost}
+import uk.gov.hmrc.play.http.{GatewayTimeoutException, HeaderCarrier, HttpGet, HttpPost}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -169,7 +169,7 @@ class TestExecutorFactory(override val serviceExecutors: Map[String, ServiceExec
 
 case class GenericServiceResponse(failure:Boolean, data: JsValue)
 
-class TestGenericOrchestrationConnector(response:Seq[GenericServiceResponse]) extends GenericConnector {
+class TestGenericOrchestrationConnector(response:Seq[GenericServiceResponse], exception: Option[String] = None) extends GenericConnector {
   override def http: HttpPost with HttpGet = WSHttp
   var pos=0
 
@@ -183,8 +183,12 @@ class TestGenericOrchestrationConnector(response:Seq[GenericServiceResponse]) ex
 
     if (!testResponse.failure)
       Future.successful(testResponse.data)
-    else
-      Future.failed(new Exception("Controlled explosion!"))
+    else {
+      Future.failed(exception.map{ _ match {
+          case "timeout" => new GatewayTimeoutException("Controlled Gateway Timeout Exception")
+        }
+      }.getOrElse(new Exception("Controlled Explosion!")))
+    }
   }
 }
 

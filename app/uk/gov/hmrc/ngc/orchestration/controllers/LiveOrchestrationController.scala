@@ -168,11 +168,7 @@ trait NativeAppsOrchestrationController extends AsyncController with SecurityChe
               // Async function wrapper responsible for executing below code onto a background queue.
               asyncWrapper(callbackWithStatus) {
                 headerCarrier =>
-                  Logger.info(s"Background HC: ${
-                    hc.authorization.fold("not found") {
-                      _.value
-                    }
-                  } for Journey Id $journeyId")
+                  Logger.info(s"Background HC: ${hc.authorization.fold("not found")(_.value)} for Journey Id $journeyId")
 
                   service.orchestrate(validatedRequest, nino, journeyId).map { response =>
                     AsyncResponse(response ++ buildResponseCode(ResponseStatus.complete), nino)

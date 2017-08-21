@@ -4,12 +4,7 @@
       {
         "name": "deskpro-feedback",
         "failure": true,
-        "timeout": false
-      },
-      {
-        "name": "deskpro-feedback",
-        "failure": true,
-        "timeout": false
+        "timeout": true
       }
     ]
   },

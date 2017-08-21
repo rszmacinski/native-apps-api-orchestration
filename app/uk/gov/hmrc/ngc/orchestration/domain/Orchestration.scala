@@ -26,7 +26,7 @@ case class ExecutorRequest(name: String, data: Option[JsValue] = None)
 
 case class OrchestrationResponse(serviceResponse: Option[Seq[ExecutorResponse]] = None, eventResponse: Option[Seq[ExecutorResponse]] = None)
 
-case class ExecutorResponse(name: String, responseData: Option[JsValue] = None, cacheTime: Option[Long] = None, failure: Option[Boolean] = None)
+case class ExecutorResponse(name: String, responseData: Option[JsValue] = None, cacheTime: Option[Long] = None, failure: Option[Boolean] = None, timeout: Option[Boolean] = None)
 
 case class OrchestrationResult(preference: Option[JsValue], state: JsValue, taxSummary: JsValue, taxCreditSummary: Option[JsValue])
 
