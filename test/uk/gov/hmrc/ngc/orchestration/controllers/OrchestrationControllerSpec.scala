@@ -764,7 +764,12 @@ class OrchestrationControllerSpec extends UnitSpec with WithFakeApplication with
         .replaceAll("date1", currentTime.plusWeeks(1).getMillis.toString)
         .replaceAll("date2", currentTime.plusWeeks(2).getMillis.toString)
         .replaceAll("date3", currentTime.plusWeeks(3).getMillis.toString)
-      )
+        .replaceAll("date4", currentTime.plusWeeks(4).getMillis.toString)
+        .replaceAll("date5", currentTime.plusWeeks(5).getMillis.toString)
+        .replaceAll("date6", currentTime.plusWeeks(6).getMillis.toString)
+        .replaceAll("date7", currentTime.plusWeeks(7).getMillis.toString)
+        .replaceAll("date8", currentTime.plusWeeks(8).getMillis.toString))
+
       result.header.headers.get("Cache-Control") shouldBe Some("max-age=14400")
     }
   }

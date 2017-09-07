@@ -1140,6 +1140,31 @@ object TestData {
       |          "amount": 160.00,
       |          "paymentDate": date3,
       |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 160.00,
+      |          "paymentDate": date4,
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 160.00,
+      |          "paymentDate": date5,
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 160.00,
+      |          "paymentDate": date6,
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 160.00,
+      |          "paymentDate": date7,
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 160.00,
+      |          "paymentDate": date8,
+      |          "oneOffPayment": false
       |        }
       |      ],
       |      "paymentFrequency": "weekly"
@@ -1160,6 +1185,31 @@ object TestData {
       |          "amount": 225.00,
       |          "paymentDate": date3,
       |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 225.00,
+      |          "paymentDate": date4,
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 225.00,
+      |          "paymentDate": date5,
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 225.00,
+      |          "paymentDate": date6,
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 225.00,
+      |          "paymentDate": date7,
+      |          "oneOffPayment": false
+      |        },
+      |        {
+      |          "amount": 225.00,
+      |          "paymentDate": date8,
+      |          "oneOffPayment": false
       |        }
       |      ],
       |      "paymentFrequency": "weekly"
@@ -1177,6 +1227,26 @@ object TestData {
       |      {
       |        "amount": 385.00,
       |        "paymentDate": date3
+      |      },
+      |      {
+      |        "amount": 385.00,
+      |        "paymentDate": date4
+      |      },
+      |      {
+      |        "amount": 385.00,
+      |        "paymentDate": date5
+      |      },
+      |      {
+      |        "amount": 385.00,
+      |        "paymentDate": date6
+      |      },
+      |      {
+      |        "amount": 385.00,
+      |        "paymentDate": date7
+      |      },
+      |      {
+      |        "amount": 385.00,
+      |        "paymentDate": date8
       |      }
       |    ]
       |  },
