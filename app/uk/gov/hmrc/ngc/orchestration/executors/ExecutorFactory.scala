@@ -270,15 +270,16 @@ case class ClaimantDetailsServiceExecutor() extends ServiceExecutor {
   def getTokens(nino: String, barcodes: Seq[String], journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[Map[String, String]] = {
     val journeyParam = journeyId.map(id => s"?journeyId=$id").getOrElse("")
 
-    val tokens = Future.sequence(barcodes.map { code =>
-      val path = s"/income/$nino/tax-credits/$code/auth$journeyParam"
-      val result = connector.doGet(host, path, port, hc)
+    val validBarcodes = barcodes.filter(!_.equals("000000000000000"))
+    val tokens = Future.sequence(validBarcodes.map { code =>
 
-      result.map(token => (code, (token \ "tcrAuthToken").asOpt[String]))
-        .filter(_._2.nonEmpty)
-        .map(token => (token._1, token._2.get))
+        val path = s"/income/$nino/tax-credits/$code/auth$journeyParam"
+        val result = connector.doGet(host, path, port, hc)
+
+        result.map(token => (code, (token \ "tcrAuthToken").asOpt[String]))
+          .filter(_._2.nonEmpty)
+          .map(token => (token._1, token._2.get))
     })
-
     tokens.recover {
       case ex: Exception =>
         Logger.error("failed to get tcrAuthTokens: " + ex.getMessage)
