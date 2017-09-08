@@ -1127,42 +1127,42 @@ object TestData {
       |    "workingTaxCredit": {
       |      "paymentSeq": [
       |        {
-      |          "amount": 160.00,
+      |          "amount": 80.29,
       |          "paymentDate": date1,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 160.00,
+      |          "amount": 80.29,
       |          "paymentDate": date2,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 160.00,
+      |          "amount": 80.29,
       |          "paymentDate": date3,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 160.00,
+      |          "amount": 80.29,
       |          "paymentDate": date4,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 160.00,
+      |          "amount": 80.29,
       |          "paymentDate": date5,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 160.00,
+      |          "amount": 80.29,
       |          "paymentDate": date6,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 160.00,
+      |          "amount": 80.29,
       |          "paymentDate": date7,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 160.00,
+      |          "amount": 80.29,
       |          "paymentDate": date8,
       |          "oneOffPayment": false
       |        }
@@ -1172,42 +1172,42 @@ object TestData {
       |    "childTaxCredit": {
       |      "paymentSeq": [
       |        {
-      |          "amount": 225.00,
+      |          "amount": 171.84,
       |          "paymentDate": date1,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 225.00,
+      |          "amount": 171.84,
       |          "paymentDate": date2,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 225.00,
+      |          "amount": 171.84,
       |          "paymentDate": date3,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 225.00,
+      |          "amount": 171.84,
       |          "paymentDate": date4,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 225.00,
+      |          "amount": 171.84,
       |          "paymentDate": date5,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 225.00,
+      |          "amount": 171.84,
       |          "paymentDate": date6,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 225.00,
+      |          "amount": 171.84,
       |          "paymentDate": date7,
       |          "oneOffPayment": false
       |        },
       |        {
-      |          "amount": 225.00,
+      |          "amount": 171.84,
       |          "paymentDate": date8,
       |          "oneOffPayment": false
       |        }
@@ -1217,35 +1217,35 @@ object TestData {
       |    "paymentEnabled": true,
       |    "totalsByDate": [
       |      {
-      |        "amount": 385.00,
+      |        "amount": 252.13,
       |        "paymentDate": date1
       |      },
       |      {
-      |        "amount": 385.00,
+      |        "amount": 252.13,
       |        "paymentDate": date2
       |      },
       |      {
-      |        "amount": 385.00,
+      |        "amount": 252.13,
       |        "paymentDate": date3
       |      },
       |      {
-      |        "amount": 385.00,
+      |        "amount": 252.13,
       |        "paymentDate": date4
       |      },
       |      {
-      |        "amount": 385.00,
+      |        "amount": 252.13,
       |        "paymentDate": date5
       |      },
       |      {
-      |        "amount": 385.00,
+      |        "amount": 252.13,
       |        "paymentDate": date6
       |      },
       |      {
-      |        "amount": 385.00,
+      |        "amount": 252.13,
       |        "paymentDate": date7
       |      },
       |      {
-      |        "amount": 385.00,
+      |        "amount": 252.13,
       |        "paymentDate": date8
       |      }
       |    ]
