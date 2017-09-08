@@ -1,0 +1,7 @@
+{
+  "name": "version-check",
+  "responseData": {
+    "upgrade": false
+  },
+  "failure": false
+}

@@ -1,0 +1,13 @@
+{
+  "name": "push-notification-get-message",
+  "responseData": {
+    "id":"msg-some-id",
+    "subject": "Weather",
+    "body": "Is it raining?",
+    "responses": {
+      "yes": "Yes",
+      "no": "No"
+    }
+  },
+  "failure": false
+}
