@@ -55,7 +55,7 @@ trait SandboxPoll extends FileResource with ConfiguredCampaigns {
   def pollSandboxResult(nino: Nino, generics: Option[Cookie]): AsyncResponse = {
 
     val asyncStatusJson = JsObject(Seq("code" -> JsString("complete")))
-    val asyncStatus = Result("status", asyncStatusJson)
+    val asyncStatus = Json.obj("status" -> asyncStatusJson)
 
     if (generics.isDefined) {
 
@@ -85,7 +85,7 @@ trait SandboxPoll extends FileResource with ConfiguredCampaigns {
       else {
         val response = OrchestrationResponse(if (!serviceResponse.isEmpty) Some(serviceResponse) else None,
           if (!eventResponse.isEmpty) Some(eventResponse) else None)
-        AsyncResponse(Json.obj("OrchestrationResponse" → Json.toJson[OrchestrationResponse](response)) ++ asyncStatusJson, nino)
+        AsyncResponse(Json.obj("OrchestrationResponse" → Json.toJson[OrchestrationResponse](response)) ++ asyncStatus, nino)
       }
     }
     else {
@@ -93,7 +93,7 @@ trait SandboxPoll extends FileResource with ConfiguredCampaigns {
     }
   }
 
-  private def generateTaxSummaryResponse(nino: Nino, asyncStatus: Result) = {
+  private def generateTaxSummaryResponse(nino: Nino, asyncStatus: JsObject) = {
     val resource: Option[String] = findResource(s"/resources/getsummary/${nino}_2016.json")
 
     val stateJson = JsObject(Seq("enableRenewals" -> JsBoolean(value = true)))
@@ -119,10 +119,10 @@ trait SandboxPoll extends FileResource with ConfiguredCampaigns {
 
     val jsonResponseAttributes = if (!campaigns.isEmpty) {
       val confCampaigns = Result("campaigns", Json.toJson(Json.toJson(campaigns)))
-      Seq(taxSummary, taxCreditSummaryResult, state, confCampaigns, asyncStatus).map(b => Json.obj(b.id -> b.jsValue))
+      Seq(taxSummary, taxCreditSummaryResult, state, confCampaigns).map(b => Json.obj(b.id -> b.jsValue))
     } else {
-      Seq(taxSummary, taxCreditSummaryResult, state, asyncStatus).map(b => Json.obj(b.id -> b.jsValue))
+      Seq(taxSummary, taxCreditSummaryResult, state).map(b => Json.obj(b.id -> b.jsValue))
     }
-    AsyncResponse(jsonResponseAttributes.foldLeft(Json.obj())((b, a) => b ++ a), nino)
+    AsyncResponse(jsonResponseAttributes.foldLeft(Json.obj())((b, a) => b ++ a) ++ asyncStatus, nino)
   }
 }
