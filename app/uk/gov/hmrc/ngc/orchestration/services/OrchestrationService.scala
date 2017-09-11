@@ -227,9 +227,9 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
     }
   }
 
-  def getGenericExecutions() : Option[Seq[String]] = {
-    val response = cache.get("genericExecution")
-    cache.remove("genericExecution")
+  def getGenericExecutions(journeyId: Option[String]) : Option[Seq[String]] = {
+    val response = cache.get(journeyId.getOrElse("genericExecution"))
+    cache.remove(journeyId.getOrElse("genericExecution"))
     response
   }
 

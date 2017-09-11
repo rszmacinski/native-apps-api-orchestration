@@ -337,7 +337,7 @@ trait SandboxOrchestrationController extends NativeAppsOrchestrationController w
    override def poll(nino: Nino, journeyId: Option[String] = None) = accessControlOff.validateAccept(acceptHeaderValidationRules).async {
     implicit authenticated =>
       errorWrapper {
-        Future.successful(addCacheHeader(maxAgeForSuccess, Ok(pollSandboxResult(nino, SandboxOrchestrationService.getGenericExecutions()).value)))
+        Future.successful(addCacheHeader(maxAgeForSuccess, Ok(pollSandboxResult(nino, SandboxOrchestrationService.getGenericExecutions(journeyId)).value)))
       }
   }
 }
