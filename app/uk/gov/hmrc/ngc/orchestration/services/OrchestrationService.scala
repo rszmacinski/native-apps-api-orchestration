@@ -178,7 +178,7 @@ trait LiveOrchestrationService extends OrchestrationService with Auditor with MF
 
 object SandboxOrchestrationService extends OrchestrationService with FileResource {
 
-  var cache: scala.collection.mutable.Map[String, Seq[String]] = scala.collection.mutable.Map()
+  val cache: scala.collection.mutable.Map[String, String] = scala.collection.mutable.Map()
 
   val defaultUser = "404893573708"
   val defaultNino = "CS700100A"
@@ -206,14 +206,14 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
 
 
   def recordGenericServiceExecution(orchestrationRequest: OrchestrationRequest, journeyId: Option[String])(implicit hc: HeaderCarrier) = {
-    val eventRequests = for {
+    val eventRequest = for {
       request ← orchestrationRequest.eventRequest.getOrElse(Seq.empty[ExecutorRequest])
     } yield (request.name)
     val serviceRequest = for {
       request ← orchestrationRequest.serviceRequest.getOrElse(Seq.empty[ExecutorRequest])
     } yield (request.name)
-    val all = eventRequests.union(serviceRequest)
-    cache.put(journeyId.getOrElse("genericExecution"), all)
+    val all = serviceRequest.union(eventRequest)
+    cache.put(journeyId.getOrElse("genericExecution"), all.mkString("|"))
   }
 
   override def orchestrate(request: OrchestrationServiceRequest, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
@@ -227,7 +227,7 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
     }
   }
 
-  def getGenericExecutions(journeyId: Option[String]) : Option[Seq[String]] = {
+  def getGenericExecutions(journeyId: Option[String]) : Option[String] = {
     val response = cache.get(journeyId.getOrElse("genericExecution"))
     cache.remove(journeyId.getOrElse("genericExecution"))
     response

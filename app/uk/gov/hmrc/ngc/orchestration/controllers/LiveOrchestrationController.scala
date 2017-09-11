@@ -328,16 +328,21 @@ trait SandboxOrchestrationController extends NativeAppsOrchestrationController w
 
       errorWrapper {
         validate { validatedRequest =>
-          service.orchestrate(validatedRequest, nino, journeyId).map(resp => Ok(resp))
+          service.orchestrate(validatedRequest, nino, journeyId).map(resp => Ok(resp).withCookies(Cookie("mdtpapi", buildRequestsCookie(journeyId))))
         }
       }
+  }
+
+  def buildRequestsCookie(journeyId: Option[String]): String = {
+    SandboxOrchestrationService.getGenericExecutions(journeyId).getOrElse("")
   }
 
   // Override the poll and return static resource.
    override def poll(nino: Nino, journeyId: Option[String] = None) = accessControlOff.validateAccept(acceptHeaderValidationRules).async {
     implicit authenticated =>
       errorWrapper {
-        Future.successful(addCacheHeader(maxAgeForSuccess, Ok(pollSandboxResult(nino, SandboxOrchestrationService.getGenericExecutions(journeyId)).value)))
+        authenticated.cookies.get("mdtpapi").get.value
+        Future.successful(addCacheHeader(maxAgeForSuccess, Ok(pollSandboxResult(nino, authenticated.cookies.get("mdtpapi")).value)))
       }
   }
 }

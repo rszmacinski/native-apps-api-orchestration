@@ -18,6 +18,7 @@ package uk.gov.hmrc.ngc.orchestration.controllers
 
 import org.joda.time.LocalDate
 import play.api.libs.json._
+import play.api.mvc.Cookie
 import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.mongo.DatabaseUpdate
@@ -51,7 +52,7 @@ trait SandboxPoll extends FileResource with ConfiguredCampaigns {
       Some(ExecutorResponse(name, Some(Json.parse(findResource(path.get).get)), failure = Some(false)))
   }
 
-  def pollSandboxResult(nino: Nino, generics: Option[Seq[String]]): AsyncResponse = {
+  def pollSandboxResult(nino: Nino, generics: Option[Cookie]): AsyncResponse = {
 
     val asyncStatusJson = JsObject(Seq("code" -> JsString("complete")))
     val asyncStatus = Result("status", asyncStatusJson)
@@ -59,7 +60,7 @@ trait SandboxPoll extends FileResource with ConfiguredCampaigns {
     if (generics.isDefined) {
 
       val serviceResponse: Seq[ExecutorResponse] = (for {
-        name ← generics.get
+        name ← generics.get.value.split('|')
         json = name match {
           case "deskpro-feedback" ⇒ buildResponse(name, Some("/resources/generic/poll/feedback.json"))
           case "version-check"    ⇒ buildResponse(name, Some("/resources/generic/poll/version-check.json"))
@@ -72,7 +73,7 @@ trait SandboxPoll extends FileResource with ConfiguredCampaigns {
       } yield json).filter(_.isDefined).map(_.get)
 
       val eventResponse: Seq[ExecutorResponse] = (for {
-        name ← generics.get
+        name ← generics.get.value.split('|')
         json = name match {
           case "ngc-audit-event" ⇒ buildResponse(name, Some("/resources/generic/poll/audit-event.json"))
           case _ ⇒ buildResponse(name, None)
