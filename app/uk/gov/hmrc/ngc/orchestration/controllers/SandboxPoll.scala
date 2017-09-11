@@ -81,51 +81,48 @@ trait SandboxPoll extends FileResource with ConfiguredCampaigns {
       } yield json).filter(_.isDefined).map(_.get)
 
 
-      val response = OrchestrationResponse(if (!serviceResponse.isEmpty) Some(serviceResponse) else None,
-                                           if (!eventResponse.isEmpty)   Some(eventResponse)   else None)
-      AsyncResponse(Json.obj("OrchestrationResponse" → Json.toJson[OrchestrationResponse](response)) ++asyncStatusJson, nino)
+      if(serviceResponse.isEmpty && eventResponse.isEmpty) generateTaxSummaryResponse(nino, asyncStatus)
+      else {
+        val response = OrchestrationResponse(if (!serviceResponse.isEmpty) Some(serviceResponse) else None,
+          if (!eventResponse.isEmpty) Some(eventResponse) else None)
+        AsyncResponse(Json.obj("OrchestrationResponse" → Json.toJson[OrchestrationResponse](response)) ++ asyncStatusJson, nino)
+      }
     }
     else {
-      if (nino.equals(Nino("AB123456C"))) {
-        val json = findResource(s"/resources/generic/version-check.json").get
-        AsyncResponse(Json.obj("OrchestrationResponse" -> Json.parse(json)) ++ asyncStatusJson, nino)
-      }
-      else {
-        val resource: Option[String] = findResource(s"/resources/getsummary/${nino}_2016.json")
-
-        val stateJson = JsObject(Seq(
-          "enableRenewals" -> JsBoolean(value = true)
-        ))
-        // Build the results based on the above stubbed data.
-        val currentTime = (new LocalDate()).toDateTimeAtStartOfDay
-
-        val taxSummary = Result("taxSummary", Json.parse(resource.get))
-
-        val taxCreditSummary = Json.parse(findResource(s"/resources/taxcreditsummary/${nino.value}.json").get
-          .replaceAll("date1", currentTime.plusWeeks(1).getMillis.toString)
-          .replaceAll("date2", currentTime.plusWeeks(2).getMillis.toString)
-          .replaceAll("date3", currentTime.plusWeeks(3).getMillis.toString)
-          .replaceAll("date4", currentTime.plusWeeks(4).getMillis.toString)
-          .replaceAll("date5", currentTime.plusWeeks(5).getMillis.toString)
-          .replaceAll("date6", currentTime.plusWeeks(6).getMillis.toString)
-          .replaceAll("date7", currentTime.plusWeeks(7).getMillis.toString)
-          .replaceAll("date8", currentTime.plusWeeks(8).getMillis.toString))
-
-        val taxCreditSummaryResult = Result("taxCreditSummary", taxCreditSummary)
-
-        val campaigns = configuredCampaigns(hasData, Json.obj("taxCreditSummary" -> taxCreditSummary))
-        val state = Result("state", stateJson)
-
-        val jsonResponseAttributes = if (!campaigns.isEmpty) {
-          val confCampaigns = Result("campaigns", Json.toJson(Json.toJson(campaigns)))
-          Seq(taxSummary, taxCreditSummaryResult, state, confCampaigns, asyncStatus).map(b => Json.obj(b.id -> b.jsValue))
-        } else {
-          Seq(taxSummary, taxCreditSummaryResult, state, asyncStatus).map(b => Json.obj(b.id -> b.jsValue))
-        }
-        AsyncResponse(jsonResponseAttributes.foldLeft(Json.obj())((b, a) => b ++ a), nino)
-      }
+      generateTaxSummaryResponse(nino, asyncStatus)
     }
   }
 
+  private def generateTaxSummaryResponse(nino: Nino, asyncStatus: Result) = {
+    val resource: Option[String] = findResource(s"/resources/getsummary/${nino}_2016.json")
 
+    val stateJson = JsObject(Seq("enableRenewals" -> JsBoolean(value = true)))
+    // Build the results based on the above stubbed data.
+    val currentTime = (new LocalDate()).toDateTimeAtStartOfDay
+
+    val taxSummary = Result("taxSummary", Json.parse(resource.get))
+
+    val taxCreditSummary = Json.parse(findResource(s"/resources/taxcreditsummary/${nino.value}.json").get
+      .replaceAll("date1", currentTime.plusWeeks(1).getMillis.toString)
+      .replaceAll("date2", currentTime.plusWeeks(2).getMillis.toString)
+      .replaceAll("date3", currentTime.plusWeeks(3).getMillis.toString)
+      .replaceAll("date4", currentTime.plusWeeks(4).getMillis.toString)
+      .replaceAll("date5", currentTime.plusWeeks(5).getMillis.toString)
+      .replaceAll("date6", currentTime.plusWeeks(6).getMillis.toString)
+      .replaceAll("date7", currentTime.plusWeeks(7).getMillis.toString)
+      .replaceAll("date8", currentTime.plusWeeks(8).getMillis.toString))
+
+    val taxCreditSummaryResult = Result("taxCreditSummary", taxCreditSummary)
+
+    val campaigns = configuredCampaigns(hasData, Json.obj("taxCreditSummary" -> taxCreditSummary))
+    val state = Result("state", stateJson)
+
+    val jsonResponseAttributes = if (!campaigns.isEmpty) {
+      val confCampaigns = Result("campaigns", Json.toJson(Json.toJson(campaigns)))
+      Seq(taxSummary, taxCreditSummaryResult, state, confCampaigns, asyncStatus).map(b => Json.obj(b.id -> b.jsValue))
+    } else {
+      Seq(taxSummary, taxCreditSummaryResult, state, asyncStatus).map(b => Json.obj(b.id -> b.jsValue))
+    }
+    AsyncResponse(jsonResponseAttributes.foldLeft(Json.obj())((b, a) => b ++ a), nino)
+  }
 }
