@@ -22,7 +22,8 @@ import uk.gov.hmrc.api.sandbox.FileResource
 import uk.gov.hmrc.domain.Nino
 import uk.gov.hmrc.mongo.DatabaseUpdate
 import uk.gov.hmrc.msasync.repository.{AsyncRepository, TaskCachePersist}
-import uk.gov.hmrc.ngc.orchestration.config.{Campaign, ConfiguredCampaigns}
+import uk.gov.hmrc.ngc.orchestration.config.ConfiguredCampaigns
+import uk.gov.hmrc.ngc.orchestration.domain.{ExecutorResponse, OrchestrationResponse}
 import uk.gov.hmrc.ngc.orchestration.services.Result
 import uk.gov.hmrc.play.asyncmvc.model.TaskCache
 
@@ -43,6 +44,13 @@ trait SandboxPoll extends FileResource with ConfiguredCampaigns {
   }
 
 
+  def buildResponse(name: String, path: Option[String]) : Option[ExecutorResponse] = {
+    if (!path.isDefined)
+      None
+    else
+      Some(ExecutorResponse(name, Some(Json.parse(findResource(path.get).get)), failure = Some(false)))
+  }
+
   def pollSandboxResult(nino: Nino, generics: Option[Seq[String]]): AsyncResponse = {
 
     val asyncStatusJson = JsObject(Seq("code" -> JsString("complete")))
@@ -50,22 +58,31 @@ trait SandboxPoll extends FileResource with ConfiguredCampaigns {
 
     if (generics.isDefined) {
 
-      val servicesJson = Json.obj("serviceResponse" → generics.get.map { res ⇒ res.in
-        res match {
-          case "deskpro-feedback" ⇒ Json.parse(findResource("/resources/generic/poll/feedback.json").get)
-          case "version-check"    ⇒ Json.parse(findResource("/resources/generic/poll/version-check.json").get)
-          case "survey-widget"    ⇒ Json.parse(findResource("/resources/generic/poll/survey-widget.json").get)
-          case "claimant-details" ⇒ Json.parse(findResource("/resources/generic/poll/claimant-details.json").get)
-          case "push-notification-get-message" ⇒ Json.parse(findResource("/resources/generic/poll/get-message.json").get)
-          case "push-notification-get-current-messages" ⇒ Json.parse(findResource("/resources/generic/poll/get-current-messages.json").get)
+      val serviceResponse: Seq[ExecutorResponse] = (for {
+        name ← generics.get
+        json = name match {
+          case "deskpro-feedback" ⇒ buildResponse(name, Some("/resources/generic/poll/feedback.json"))
+          case "version-check"    ⇒ buildResponse(name, Some("/resources/generic/poll/version-check.json"))
+          case "survey-widget"    ⇒ buildResponse(name, Some("/resources/generic/poll/survey-widget.json"))
+          case "claimant-details" ⇒ buildResponse(name, Some("/resources/generic/poll/claimant-details.json"))
+          case "push-notification-get-message" ⇒ buildResponse(name, Some("/resources/generic/poll/get-message.json"))
+          case "push-notification-get-current-messages" ⇒ buildResponse(name, Some("/resources/generic/poll/get-current-messages.json"))
+          case _ ⇒ buildResponse(name, None)
         }
-      })
-      val eventsJson = generics.get.map {
-        _ match {
-          case "ngc-audit-event"  ⇒ Json.parse(findResource("/resources/generic/audit-event.json").get)
+      } yield json).filter(_.isDefined).map(_.get)
+
+      val eventResponse: Seq[ExecutorResponse] = (for {
+        name ← generics.get
+        json = name match {
+          case "ngc-audit-event" ⇒ buildResponse(name, Some("/resources/generic/poll/audit-event.json"))
+          case _ ⇒ buildResponse(name, None)
         }
-      }
-      AsyncResponse(Json.obj("OrchestrationResponse" → servicesJson), nino)
+      } yield json).filter(_.isDefined).map(_.get)
+
+
+      val response = OrchestrationResponse(if (!serviceResponse.isEmpty) Some(serviceResponse) else None,
+                                           if (!eventResponse.isEmpty)   Some(eventResponse)   else None)
+      AsyncResponse(Json.obj("OrchestrationResponse" → Json.toJson[OrchestrationResponse](response)) ++asyncStatusJson, nino)
     }
     else {
       if (nino.equals(Nino("AB123456C"))) {

@@ -205,7 +205,7 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
   }
 
 
-  def recordGenericServiceExecution(orchestrationRequest: OrchestrationRequest)(implicit hc: HeaderCarrier) = {
+  def recordGenericServiceExecution(orchestrationRequest: OrchestrationRequest, journeyId: Option[String])(implicit hc: HeaderCarrier) = {
     val eventRequests = for {
       request ← orchestrationRequest.eventRequest.getOrElse(Seq.empty[ExecutorRequest])
     } yield (request.name)
@@ -213,13 +213,13 @@ object SandboxOrchestrationService extends OrchestrationService with FileResourc
       request ← orchestrationRequest.serviceRequest.getOrElse(Seq.empty[ExecutorRequest])
     } yield (request.name)
     val all = eventRequests.union(serviceRequest)
-    cache.put("genericExecution", all)
+    cache.put(journeyId.getOrElse("genericExecution"), all)
   }
 
   override def orchestrate(request: OrchestrationServiceRequest, nino: Nino, journeyId: Option[String])(implicit hc: HeaderCarrier, ex: ExecutionContext): Future[JsObject] = {
     request match {
       case OrchestrationServiceRequest(None, Some(orchestrationRequest)) ⇒  {
-        recordGenericServiceExecution(orchestrationRequest)(hc)
+        recordGenericServiceExecution(orchestrationRequest, journeyId)(hc)
         successful(Json.obj("status" → Json.obj("code" → "poll")))
       }
       case OrchestrationServiceRequest(Some(legacyRequest), None) ⇒ successful(Json.obj("status" → Json.obj("code" → "poll")))
