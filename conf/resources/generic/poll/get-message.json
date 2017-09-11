@@ -1,0 +1,9 @@
+{
+  "id": "msg-some-id",
+  "subject": "Weather",
+  "body": "Is it raining?",
+  "responses": {
+    "yes": "Yes",
+    "no": "No"
+  }
+}

@@ -287,6 +287,7 @@ object LiveOrchestrationController extends NativeAppsOrchestrationController wit
 object SandboxOrchestrationController extends SandboxOrchestrationController {
   override val auditConnector: AuditConnector = MicroserviceAuditConnector
   override val maxAgeForSuccess: Long = 3600
+
 }
 
 trait SandboxOrchestrationController extends NativeAppsOrchestrationController with SandboxPoll {
@@ -336,7 +337,7 @@ trait SandboxOrchestrationController extends NativeAppsOrchestrationController w
    override def poll(nino: Nino, journeyId: Option[String] = None) = accessControlOff.validateAccept(acceptHeaderValidationRules).async {
     implicit authenticated =>
       errorWrapper {
-        Future.successful(addCacheHeader(maxAgeForSuccess, Ok(pollSandboxResult(nino).value)))
+        Future.successful(addCacheHeader(maxAgeForSuccess, Ok(pollSandboxResult(nino, SandboxOrchestrationService.getGenericExecutions()).value)))
       }
   }
 }

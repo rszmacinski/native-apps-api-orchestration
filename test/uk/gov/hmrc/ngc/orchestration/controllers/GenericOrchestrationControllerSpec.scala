@@ -205,4 +205,24 @@ class GenericOrchestrationControllerSpec extends UnitSpec with WithFakeApplicati
       contentAsJson(result) shouldBe response
     }
   }
+
+  "Sandbox orchestration controller" should {
+
+    "for tax credit claimant details do return sandbox data" in new SandboxSuccess {
+      val statusCode = 200
+      val response = TestData.pollResponse
+
+      val request = Json.parse(findResource("/resources/generic/tax-credit-claimant-details-request.json").get)
+
+      val fakeRequest = FakeRequest().withHeaders(
+        "Accept" → "application/vnd.hmrc.1.0+json",
+        "Authorization" → "Some Header",
+        "X-MOBILE-USER-ID" → "404893573708"
+      ).withJsonBody(request)
+
+      val result = await(controller.orchestrate(Nino("CS700100A"), Option("unique-journey-id")).apply(fakeRequest))
+      status(result) shouldBe statusCode
+      contentAsJson(result) shouldBe response
+    }
+  }
 }
